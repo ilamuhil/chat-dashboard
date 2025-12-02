@@ -1,0 +1,15 @@
+{
+  "files.exclude": {
+    "**/._*": true,
+    "**/.DS_Store": true
+  },
+  "search.exclude": {
+    "**/._*": true,
+    "**/.DS_Store": true
+  },
+  "files.watcherExclude": {
+    "**/._*": true,
+    "**/.DS_Store": true
+  }
+}
+

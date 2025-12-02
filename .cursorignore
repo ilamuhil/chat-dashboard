@@ -1,0 +1,6 @@
+# macOS resource fork files
+._*
+
+# macOS system files
+.DS_Store
+
