@@ -3,8 +3,9 @@ import AuthForm from "@/components/auth/AuthForm";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { supabase } from "@/lib/supabase";
-import { redirect } from "next/navigation";
+import supabase from "@/lib/supabase";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 const formSchema = z.object({
     email: z.email({ message: "Invalid email address" }),
@@ -12,6 +13,7 @@ const formSchema = z.object({
 });
 
 export default function LoginPage() {
+    const router = useRouter();
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
@@ -19,7 +21,7 @@ export default function LoginPage() {
           password: "",
         },
     });
-
+    const [error, setError] = useState<string | null>(null);
     const login = async () => {
         const { data, error } = await supabase.auth.signInWithPassword({
             email: form.getValues("email"),
@@ -27,14 +29,20 @@ export default function LoginPage() {
         });
         if (error) {
             console.error(error);
+            setError(error.message);
+            form.reset();
+            setTimeout(() => {
+                setError(null);
+            }, 3000);
             return
         }
         else {
             console.log(data);
-            redirect("/dashboard");
+            // Use router.push instead of redirect to trigger loading.tsx
+            router.push("/dashboard");
         }
     }
     return (
-        <AuthForm mode="login" authflow={login} form={form} />
+        <AuthForm mode="login" authflow={login} form={form} error={error} />
     );
 }

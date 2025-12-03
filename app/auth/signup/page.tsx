@@ -1,7 +1,7 @@
 "use client";
 
 import AuthForm from "@/components/auth/AuthForm";
-import { supabase } from "@/lib/supabase";
+import supabase from "@/lib/supabase";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
