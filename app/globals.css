@@ -134,6 +134,9 @@
   .alert-info{
     @apply bg-blue-200 p-2 rounded-md text-sm text-sky-800 text-center transition-all duration-300;
   }
+  .dashboard-title{
+    @apply text-2xl font-bold tracking-tight;
+  }
 }
 
 /* View Transitions API - Page Transition Animations */
@@ -164,8 +167,8 @@
 }
 
 ::view-transition-old(root){
-  animation: 1s ease-in both blur-out;
+  animation: 300ms ease-in both blur-in;
 }
 ::view-transition-new(root) {
-  animation: 1s ease-out both blur-in;
+  animation: 300ms ease-out both blur-out;
 }
