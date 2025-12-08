@@ -36,28 +36,28 @@ export default function OverviewPage() {
   }))
 
   return (
-    <div className='space-y-6'>
+    <div className='space-y-4'>
       <header>
         <h1 className='dashboard-title'>Overview</h1>
-        <p className='text-muted-foreground mt-2'>
+        <p className='text-muted-foreground mt-1 text-sm'>
           Welcome back! Here&apos;s what&apos;s happening with your bot today.
         </p>
       </header>
 
-      <section className='space-y-6'>
+      <section className='space-y-4'>
         {/* Stats Cards */}
-        <div className='flex flex-wrap gap-3 *:grow *:shrink-0 *:basis-3xs'>
+        <div className='flex flex-wrap gap-2 *:grow *:shrink-0 *:basis-3xs'>
           {stats.map(stat => (
             <Card
               key={stat.title}
-              className='transition-shadow hover:shadow-md gap-2'>
-              <CardHeader className='text-center text-nowrap'>
-                <CardTitle className='text-sm font-medium text-muted-foreground'>
+              className='rounded-md shadow-xs border'>
+              <CardHeader className='text-center pb-1 px-3 pt-2.5'>
+                <CardTitle className='text-xs font-medium text-muted-foreground'>
                   {stat.title}
                 </CardTitle>
               </CardHeader>
-              <CardContent className='text-center'>
-                <div className='text-2xl font-bold'>{stat.value}</div>
+              <CardContent className='text-center px-3 pb-2.5 pt-0'>
+                <div className='text-xl font-semibold'>{stat.value}</div>
               </CardContent>
             </Card>
           ))}
@@ -65,23 +65,29 @@ export default function OverviewPage() {
 
         {/* Quick Actions */}
         <section>
-          <h2 className='text-lg font-semibold mb-4'>Quick Actions</h2>
-          <div className='flex flex-wrap gap-3'>
-            <Button variant='outline' size='default'>
-              Customize Bot
+          <h2 className='text-base font-semibold mb-2'>Quick Actions</h2>
+          <div className='flex flex-wrap gap-2'>
+            <Button variant='outline' size='default' asChild>
+              <Link href='/dashboard/bot/interactions'>
+                Customize Bot
+              </Link>
             </Button>
-            <Button variant='outline' size='default'>
-              Add Knowledge Base
+            <Button variant='outline' size='default' asChild>
+              <Link href='/dashboard/bot/training'>
+                Add Knowledge Base
+              </Link>
             </Button>
-            <Button variant='outline' size='default'>
-              View API Key
+            <Button variant='outline' size='default' asChild>
+              <Link href='/dashboard/bot/api'>
+                View API Key
+              </Link>
             </Button>
           </div>
         </section>
 
         {/* Recent Conversations */}
         <section>
-          <h2 className='text-lg font-semibold my-4'>Recent Conversations</h2>
+          <h2 className='text-base font-semibold mb-2'>Recent Conversations</h2>
           <Table className='bg-white'>
             <TableHeader>
               <TableRow>

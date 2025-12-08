@@ -114,6 +114,8 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
+
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -138,6 +140,9 @@
   }
   .dashboard-title{
     @apply text-2xl font-bold tracking-tight;
+  }
+  .alert-muted{
+    @apply bg-slate-200 px-2 py-3 rounded-md text-xs text-muted-foreground text-center transition-all duration-300;
   }
   .shadow-default {
     box-shadow: var(--shadow-default);

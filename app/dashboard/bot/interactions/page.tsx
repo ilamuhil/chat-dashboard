@@ -12,8 +12,13 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
+import { useState } from 'react'
+import { cn } from '@/lib/utils'
+import { Checkbox } from '@/components/ui/checkbox'
 
 export default function BotInteractionsPage() {
+  const [leadCapture, setLeadCapture] = useState(false)
   return (
     <div className='space-y-6'>
       <div>
@@ -114,7 +119,19 @@ export default function BotInteractionsPage() {
               className='text-xs min-h-[120px]'
             />
           </div>
-          <div className='space-y-4'>
+          <div className='col-span-2 space-y-3'>
+            <Label className='text-xs font-medium text-muted-foreground'>
+              Enable Lead Capture ?
+            </Label>
+            <Switch
+              id='lead-capture'
+              className='mr-2'
+              checked={leadCapture}
+              onCheckedChange={() => setLeadCapture(!leadCapture)}
+            />
+          </div>
+          <div
+            className={cn('space-y-4', leadCapture ? 'block' : 'hidden')}>
             <Label className='text-xs font-medium text-muted-foreground'>
               Lead Capture Timing
             </Label>
@@ -135,24 +152,35 @@ export default function BotInteractionsPage() {
               </div>
             </RadioGroup>
           </div>
-          <div className='space-y-4'>
+          <div
+            className={cn('space-y-4', leadCapture ? 'block' : 'hidden')}>
             <Label className='text-xs font-medium text-muted-foreground'>
-              Lead Capture Timing
+              Lead Information to Capture
             </Label>
             <RadioGroup defaultValue='before-conversation'>
               <div className='flex items-center gap-3'>
-                <RadioGroupItem value='before-conversation' id='r1' />
-                <Label htmlFor='r1' className='text-xs text-muted-foreground'>
-                  Before starting the conversation
-                </Label>
-              </div>
-              <div className='flex items-center gap-3'>
-                <RadioGroupItem value='after-first-message' id='r2' />
-                <Label
-                  htmlFor='r2'
-                  className='text-xs text-muted-foreground focus:text-sky-800'>
-                  After the first message
-                </Label>
+                <div
+                  className={cn(
+                    'space-y-2',
+                    leadCapture ? 'visible' : 'invisible'
+                  )}>
+                  <div className='flex items-center gap-3'>
+                    <Checkbox id='r1' />
+                    <Label
+                      htmlFor='r1'
+                      className='text-xs text-muted-foreground'>
+                      Email
+                    </Label>
+                  </div>
+                  <div className='flex items-center gap-3'>
+                    <Checkbox id='r2' />
+                    <Label
+                      htmlFor='r2'
+                      className='text-xs text-muted-foreground focus:text-sky-800'>
+                      Phone Number
+                    </Label>
+                  </div>
+                </div>
               </div>
             </RadioGroup>
           </div>
