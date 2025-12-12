@@ -7,7 +7,8 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Check } from 'lucide-react'
-
+import { Badge } from '@/components/ui/badge'
+import { formatDistanceToNow } from 'date-fns'
 export default function SubscriptionPage() {
   const plans = [
     {
@@ -55,17 +56,17 @@ export default function SubscriptionPage() {
   ]
 
   return (
-    <div className='space-y-6'>
-      <div>
+    <main className='space-y-6'>
+      <header>
         <h1 className='dashboard-title'>Subscription Details</h1>
-      </div>
-      <div className='space-y-4'>
-        <h2 className='text-lg font-semibold'>Choose your plan</h2>
-        <div className='flex flex-wrap justify-center gap-4 max-w-7xl mx-auto'>
-          {plans.map((plan) => (
+      </header>
+      <section className='space-y-4'>
+        <h2 className='text-2xl font-bold text-center uppercase my-4'>Choose your plan</h2>
+        <div className='flex flex-wrap justify-center gap-4 max-w-7xl mx-auto mt-12'>
+          {plans.map(plan => (
             <Card
               key={plan.name}
-              className='flex flex-col rounded-md shadow-xs border w-full sm:w-[calc(50%-0.5rem)] lg:w-[calc(25%-0.75rem)] max-w-sm'>
+              className='flex flex-col rounded-lg shadow-xs border w-full sm:w-[calc(50%-0.5rem)] lg:w-[calc(25%-0.75rem)] max-w-sm bg-sidebar'>
               <CardHeader className='text-center pb-2'>
                 <CardTitle className='text-xl font-bold'>{plan.name}</CardTitle>
                 <div className='text-3xl font-bold mt-2'>{plan.price}</div>
@@ -91,9 +92,26 @@ export default function SubscriptionPage() {
               </CardFooter>
             </Card>
           ))}
+          <aside className='rounded bg-[#dbeafe] p-3 mr-auto min-w-sm mt-4'>
+            <div className='p-2 bg-sky-100 rounded ring-1 ring-white'>
+              <h5 className='font-semibold'>Current Plan</h5>
+              <p className='text-sky-600 text-xs'>
+                You are currently on the
+                <Badge className='text-white text-xs mx-1 rounded bg-amber-500'>
+                  Basic
+                </Badge>{' '}
+                plan.
+              </p>
+              <p className='text-xs text-muted-foreground'>
+                Your next billing will be in {formatDistanceToNow(new Date('1/1/2026'))} from now.
+              </p>
+            </div>
+            <Button variant='destructive' size='sm' className='mt-2 text-xs'>
+              Cancel Subscription
+            </Button>
+          </aside>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   )
 }
-

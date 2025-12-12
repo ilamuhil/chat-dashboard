@@ -125,6 +125,8 @@
   }
 }
 
+
+
 @layer components {
   .alert-danger{
     @apply bg-red-200 p-2 rounded-md text-sm text-destructive text-center transition-all duration-300;
@@ -147,6 +149,10 @@
   .shadow-default {
     box-shadow: var(--shadow-default);
   }
+}
+
+@utility no-scrollbar {
+  @apply [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
 }
 
 /* View Transitions API - Page Transition Animations */

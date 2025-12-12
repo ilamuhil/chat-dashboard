@@ -11,12 +11,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function BotTrainingPage() {
   return (
-    <div className='space-y-6'>
-      <div>
+    <main className='space-y-6'>
+      <header>
         <h1 className='dashboard-title'>Training Data</h1>
-      </div>
-      <div className='space-y-4'>
-        <div className='space-y-1'>
+      </header>
+      <form className='space-y-4'>
+        <section className='space-y-1'>
           <Label className='text-xs font-medium text-muted-foreground '>
             Enter Url
           </Label>
@@ -25,12 +25,12 @@ export default function BotTrainingPage() {
             placeholder='https://example.com'
             className='text-xs placeholder:text-xs'
           />
-        </div>
+        </section>
         <Button variant='outline' size='default'>
           Add URL
         </Button>
-        <div className='alert-muted'>No Urls added yet</div>
-        <div className='space-y-4'>
+        <aside className='alert-muted' role='status'>No Urls added yet</aside>
+        <section className='space-y-4'>
           <Label className='text-xs font-medium text-muted-foreground '>
             Upload Files
           </Label>
@@ -81,25 +81,25 @@ export default function BotTrainingPage() {
                   Processing
                 </Badge>
               </div>
-              <div className='space-y-1 pt-1.5 border-t'>
+              <dl className='space-y-1 pt-1.5 border-t'>
                 <div className='flex items-center justify-between text-xs'>
-                  <span className='text-muted-foreground'>
+                  <dt className='text-muted-foreground'>
                     Total Files Uploaded
-                  </span>
-                  <span className='font-medium text-foreground'>10</span>
+                  </dt>
+                  <dd className='font-medium text-foreground'>10</dd>
                 </div>
                 <div className='flex items-center justify-between text-xs'>
-                  <span className='text-muted-foreground'>Last Updated</span>
-                  <span className='font-medium text-foreground'>
+                  <dt className='text-muted-foreground'>Last Updated</dt>
+                  <dd className='font-medium text-foreground'>
                     12/08/2025
-                  </span>
+                  </dd>
                 </div>
-              </div>
+              </dl>
             </CardContent>
           </Card>
           <Button>Confirm and Start Training</Button>
-        </div>
-      </div>
-    </div>
+        </section>
+      </form>
+    </main>
   )
 }

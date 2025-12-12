@@ -36,7 +36,7 @@ export default function OverviewPage() {
   }))
 
   return (
-    <div className='space-y-4'>
+    <main className='space-y-4'>
       <header>
         <h1 className='dashboard-title'>Overview</h1>
         <p className='text-muted-foreground mt-1 text-sm'>
@@ -57,7 +57,7 @@ export default function OverviewPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className='text-center px-3 pb-2.5 pt-0'>
-                <div className='text-xl font-semibold'>{stat.value}</div>
+                <p className='text-xl font-semibold'>{stat.value}</p>
               </CardContent>
             </Card>
           ))}
@@ -122,6 +122,6 @@ export default function OverviewPage() {
           </Table>
         </section>
       </section>
-    </div>
+    </main>
   )
 }

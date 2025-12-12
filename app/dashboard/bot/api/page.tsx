@@ -16,17 +16,17 @@ import {
 
 export default function BotApiPage() {
   return (
-    <div className='space-y-6'>
-      <div>
+    <main className='space-y-6'>
+      <header>
         <h1 className='dashboard-title'>API & Integrations</h1>
-      </div>
-      <div className='space-y-4 px-12 mt-12 max-w-4xl'>
+      </header>
+      <section className='space-y-4 px-12 mt-12 max-w-4xl'>
         <h2 className='text-lg font-bold mb-4'>SETUP API</h2>
         <Button variant='default' className='text-xs px-2'>
           Generate API Key
         </Button>
-        <div className='alert-muted italic'>No API Keys Created</div>
-        <div className='bg-white p-2 rounded'>
+        <aside className='alert-muted italic' role='status'>No API Keys Created</aside>
+        <section className='bg-white p-2 rounded'>
           <h3 className='font-bold mb-4'>Your API Keys</h3>
           <Table>
             <TableHeader>
@@ -58,8 +58,8 @@ export default function BotApiPage() {
               ))}
             </TableBody>
           </Table>
-        </div>
-        <div className='bg-white p-2 rounded'>
+        </section>
+        <section className='bg-white p-2 rounded'>
           <h3 className='font-bold mb-4'>Embeddable Code</h3>
           <div className='bg-gray-100 p-2 rounded'>
             <h4 className='font-bold mb-2'>Script</h4>
@@ -85,8 +85,8 @@ export default function BotApiPage() {
               </code>
             </pre>
           </div>
-        </div>
-      </div>
-    </div>
+        </section>
+      </section>
+    </main>
   )
 }

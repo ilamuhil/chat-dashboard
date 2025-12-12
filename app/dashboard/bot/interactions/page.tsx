@@ -20,11 +20,11 @@ import { Checkbox } from '@/components/ui/checkbox'
 export default function BotInteractionsPage() {
   const [leadCapture, setLeadCapture] = useState(false)
   return (
-    <div className='space-y-6'>
-      <div>
+    <main className='space-y-6'>
+      <header>
         <h1 className='dashboard-title'>Interactions</h1>
-      </div>
-      <div className='space-y-4'>
+      </header>
+      <form className='space-y-4'>
         <section className='grid grid-cols-2 gap-x-3 gap-y-6'>
           <div className='space-y-1'>
             <Label className='text-xs font-medium text-muted-foreground'>
@@ -186,7 +186,7 @@ export default function BotInteractionsPage() {
           </div>
           <Button className='mt-6 w-2/3'>Save Configuration</Button>
         </section>
-      </div>
-    </div>
+      </form>
+    </main>
   )
 }
