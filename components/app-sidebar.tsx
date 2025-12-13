@@ -6,7 +6,6 @@ import {
   Wallet,
   MonitorCog,
   MessageCircleMore,
-  ChartNoAxesCombined,
   Users,
   LayoutDashboard,
   UserRoundPen,
@@ -78,11 +77,6 @@ const data = {
           icon: Users,
         }
       ]
-    },
-    {
-      title: "Analytics",
-      url: "/dashboard/analytics",
-      icon: ChartNoAxesCombined,
     },
     {
       title: "Profile",
