@@ -110,27 +110,26 @@ export default function LeadsPage() {
         <h1 className='dashboard-title'>Leads</h1>
       </header>
 
-      {/* Summary Stats */}
-      <Card>
-        <CardContent className='pt-6'>
+      <Card className='py-3 px-1 rounded shadow-none'>
+        <CardContent>
           <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
             <div>
-              <div className='text-sm font-medium text-muted-foreground mb-1'>
+              <div className='text-sm font-semibold text-muted-foreground'>
                 Total Leads
               </div>
-              <div className='text-2xl font-bold'>{stats.total}</div>
+              <div className='text-xl font-bold'>{stats.total}</div>
             </div>
             <div>
-              <div className='text-sm font-medium text-muted-foreground mb-1'>
+              <div className='text-sm font-semibold text-muted-foreground'>
                 Last Week&apos;s Leads
               </div>
-              <div className='text-2xl font-bold'>{stats.lastWeek}</div>
+              <div className='text-xl font-bold'>{stats.lastWeek}</div>
             </div>
             <div>
-              <div className='text-sm font-medium text-muted-foreground mb-1'>
+              <div className='text-sm font-semibold text-muted-foreground'>
                 Last Month&apos;s Leads
               </div>
-              <div className='text-2xl font-bold'>{stats.lastMonth}</div>
+              <div className='text-xl font-bold'>{stats.lastMonth}</div>
             </div>
           </div>
         </CardContent>
