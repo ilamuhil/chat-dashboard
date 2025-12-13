@@ -5,9 +5,18 @@ import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { EllipsisVerticalIcon, PaperclipIcon } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
-import { SendIcon } from 'lucide-react'
+import { SendIcon, ExpandIcon, Minimize2Icon } from 'lucide-react'
 import { useRef } from 'react'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
+import { useState } from 'react'
+
 export default function ConversationsPage() {
+  const [expandedChat, setExpandedChat] = useState<boolean>(false)
   const chats = [
     {
       id: 1,
@@ -102,12 +111,38 @@ export default function ConversationsPage() {
               ))}
             </nav>
           </aside>
-          <section className='bg-white rounded p-2 flex flex-col h-full overflow-hidden min-h-0'>
+          {expandedChat && (
+            <div
+              className='fixed inset-0 bg-black/50 z-40 transition-opacity duration-300'
+              onClick={() => setExpandedChat(false)}
+            />
+          )}
+          <section
+            className={cn(
+              'bg-white rounded p-2 flex flex-col h-full overflow-hidden min-h-0 transition-all duration-300 ease-in-out',
+              expandedChat
+                ? 'fixed z-50 inset-4 w-[calc(100vw-2rem)] h-[calc(100vh-2rem)]'
+                : 'relative'
+            )}>
             <header className='flex justify-between items-center shrink-0 px-2'>
               <h2 className='text-md font-medium'>Chat with John Doe</h2>
               <p className='text-xs text-muted-foreground'>
                 Email: john.doe@example.com - Phone: +1234567890
               </p>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={() => setExpandedChat(!expandedChat)}
+                    variant='icon'
+                    size='icon'
+                    className='bg-gray-100 hover:bg-gray-200'>
+                    {!expandedChat ? <ExpandIcon /> : <Minimize2Icon />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{expandedChat ? 'Collapse chat' : 'Expand chat'}</p>
+                </TooltipContent>
+              </Tooltip>
             </header>
             <Separator className='my-2' />
             <ChatWindow messages={messages} />
@@ -116,15 +151,6 @@ export default function ConversationsPage() {
       </section>
     </main>
   )
-}
-
-type Props = {
-  messages: Array<{
-    id: string
-    content: string
-    role: 'user' | 'assistant'
-    createdAt: Date
-  }>
 }
 
 const messages = [
@@ -204,7 +230,16 @@ const messages = [
   },
 ]
 
-const ChatWindow = (props: Props) => {
+type ChatWindowProps = {
+  messages: Array<{
+    id: string
+    content: string
+    role: 'user' | 'assistant'
+    createdAt: Date
+  }>
+}
+
+const ChatWindow = (props: ChatWindowProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileUpload = () => {
@@ -221,9 +256,19 @@ const ChatWindow = (props: Props) => {
   }
 
   const renderMessage = (
-    message: { id: string; content: string; role: 'user' | 'assistant'; createdAt: Date },
+    message: {
+      id: string
+      content: string
+      role: 'user' | 'assistant'
+      createdAt: Date
+    },
     index: number,
-    messages: Array<{ id: string; content: string; role: 'user' | 'assistant'; createdAt: Date }>
+    messages: Array<{
+      id: string
+      content: string
+      role: 'user' | 'assistant'
+      createdAt: Date
+    }>
   ) => {
     const isUser = message.role === 'user'
     const isLastMessage = index === messages.length - 1
@@ -246,12 +291,11 @@ const ChatWindow = (props: Props) => {
     const hasPreviousSameSender =
       prevMessage && prevMessage.role === message.role
     // Check if next message is from same sender
-    const hasNextSameSender =
-      nextMessage && nextMessage.role === message.role
+    const hasNextSameSender = nextMessage && nextMessage.role === message.role
 
     // Determine border radius classes based on position in sequence
     let borderRadiusClasses = ''
-    
+
     if (isUser) {
       if (hasNextSameSender && hasPreviousSameSender) {
         // Middle message in sequence
@@ -324,7 +368,11 @@ const ChatWindow = (props: Props) => {
   }
 
   return (
-    <div className='rounded p-4 bg-muted h-full flex flex-col min-h-0'>
+    <div
+      className={cn(
+        'rounded p-4 bg-muted h-full flex flex-col min-h-0',
+        props.expanded ? 'fixed z-50 w-dvw h-dvh inset-0' : ''
+      )}>
       <div className='flex-1 overflow-y-auto no-scrollbar mb-4'>
         {props.messages.map((message, index) =>
           renderMessage(message, index, props.messages)

@@ -20,7 +20,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 export default function BotInteractionsPage() {
   const [leadCapture, setLeadCapture] = useState(false)
   return (
-    <main className='space-y-6'>
+    <main className='max-h-dvh overflow-y-auto no-scrollbar space-y-4'>
       <header>
         <h1 className='dashboard-title'>Interactions</h1>
       </header>
@@ -184,7 +184,7 @@ export default function BotInteractionsPage() {
               </div>
             </RadioGroup>
           </div>
-          <Button className='mt-6 w-2/3'>Save Configuration</Button>
+          <Button className='m lg:w-[40%] md:w-1/2 w-full'>Save Configuration</Button>
         </section>
       </form>
     </main>

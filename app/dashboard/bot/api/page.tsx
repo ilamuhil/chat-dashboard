@@ -1,3 +1,5 @@
+'use client'
+
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -13,16 +15,20 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from '@/components/ui/tooltip'
+import ApiKeyManagementDialog from './ApiKeyManagementDialog'
+import { useState } from 'react'
 
 export default function BotApiPage() {
+  const [open, setOpen] = useState(false)
   return (
     <main className='space-y-6'>
       <header>
         <h1 className='dashboard-title'>API & Integrations</h1>
       </header>
+      <ApiKeyManagementDialog open={open} onOpenChange={(open) => setOpen(open)} />
       <section className='space-y-4 px-12 mt-12 max-w-4xl'>
         <h2 className='text-lg font-bold mb-4'>SETUP API</h2>
-        <Button variant='default' className='text-xs px-2'>
+        <Button variant='default' className='text-xs px-2' onClick={() => setOpen(true)}>
           Generate API Key
         </Button>
         <aside className='alert-muted italic' role='status'>No API Keys Created</aside>
