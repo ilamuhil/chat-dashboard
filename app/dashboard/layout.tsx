@@ -7,15 +7,30 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar'
 import React from 'react'
+import { createClient } from '@/lib/supabase-server'
+import { redirect } from 'next/navigation'
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
-}) {
+  }) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    redirect('/auth/login')
+  }
+  
+  // Fetch user profile to get full_name
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name')
+    .eq('id', user.id)
+    .single()
+  
   return (
     <SidebarProvider>
-      <AppSidebar />
+      <AppSidebar user={user} profile={profile} />
       <SidebarInset>
         <header className='flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12'>
           <div className='flex items-center gap-2 px-4'>

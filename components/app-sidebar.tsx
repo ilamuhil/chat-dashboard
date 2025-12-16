@@ -22,14 +22,13 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar"
+import type { User } from "@supabase/supabase-js"
 
-// This is sample data.
+type Profile = {
+  full_name: string | null
+} | null
+
 const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
   teams: [
     {
       name: "Acme Inc",
@@ -91,7 +90,7 @@ const data = {
   ],
 }
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({ user, profile, ...props }: React.ComponentProps<typeof Sidebar> & { user: User; profile?: Profile }) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -102,7 +101,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         {/* <NavProjects projects={data.projects} /> */}
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={user} profile={profile} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

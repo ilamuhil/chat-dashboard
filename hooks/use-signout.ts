@@ -1,11 +1,12 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import supabase from '@/lib/supabase'
+import { createClient } from '@/lib/supabase-client'
 
 const useSignout = () => {
   const router = useRouter()
   const signOut = async () => {
+    const supabase = createClient()
     const { error } = await supabase.auth.signOut()
     if (error) {
       console.error('Sign out error:', error)
