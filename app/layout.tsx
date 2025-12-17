@@ -14,6 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.APP_URL || "http://localhost:3000"
+  ),
   title: "Chat Dashboard Application",
   description: "Dashboard application for the chatbot widget",
   icons: {
@@ -44,7 +47,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Toaster />
+        <Toaster richColors/>
         {children}
       </body>
     </html>

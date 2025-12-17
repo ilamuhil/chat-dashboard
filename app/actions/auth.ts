@@ -33,7 +33,7 @@ const signup = async (
   }
   const { email, password, fullname, phone } = validatedFields.data
   
-  const supabase = await createClient()
+  const supabase = await createClient(true)
   
   // Sign up the user - store fullname and phone in user metadata
   const { data, error } = await supabase.auth.signUp({
@@ -50,24 +50,6 @@ const signup = async (
     console.error(error)
     return { error: error.message }
   }
-  
-  // Create profile if user is available immediately
-  if (data?.user) {
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .insert({
-        id: data.user.id,
-        email: email,
-        full_name: fullname,
-        phone: phone || null,
-      })
-    if (profileError) {
-      console.error('Profile creation failed:', profileError)
-      return { error: profileError.message }
-    }
-  }
-  // If data.user is null (email confirmation required), fullname/phone are stored
-  // in user metadata and will be used to create profile on first login
   
   return { success: 'Please check your email for a verification link' }
 }

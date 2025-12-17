@@ -13,34 +13,69 @@ import { Textarea } from '@/components/ui/textarea'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import { useState } from 'react'
+import { useActionState, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Checkbox } from '@/components/ui/checkbox'
+import { updateBotInteractions } from './action'
+import { Spinner } from '@/components/ui/spinner'
+
+type BotResult = {
+  error?: string | Record<string, string[]>
+  success?: string
+}
 
 export default function BotInteractionsPage() {
+  const [state, formAction, isPending] = useActionState<BotResult | null, FormData>(
+    updateBotInteractions,
+    null
+  )
+  
   const [leadCapture, setLeadCapture] = useState(false)
+
+  const errorMessage = 
+    typeof state?.error === 'string' 
+      ? state.error 
+      : state?.error 
+        ? Object.values(state.error).flat()[0] 
+        : null
+
+  const successMessage = state?.success
+  
   return (
     <main className='max-h-dvh overflow-y-auto no-scrollbar space-y-4'>
       <header>
         <h1 className='dashboard-title'>Interactions</h1>
       </header>
-      <form className='space-y-4'>
+      <form action={formAction} className='space-y-4'>
+        <div
+          className={cn(
+            successMessage && 'alert-success',
+            errorMessage && 'alert-danger',
+            !successMessage &&
+              !errorMessage &&
+              '-translate-y-full opacity-0 h-0 pointer-events-none'
+          )}>
+          {successMessage && successMessage}
+          {errorMessage && errorMessage}
+        </div>
         <section className='grid grid-cols-2 gap-x-3 gap-y-6'>
           <div className='space-y-1'>
             <Label className='text-xs font-medium text-muted-foreground'>
               Bot Name
             </Label>
             <Input
+              name='name'
               type='text'
               placeholder='Ex: Siri, Alexa, etc.'
               className='text-xs'
+              required
             />
           </div>
           <div className='space-y-1'>
             <Label className='text-xs font-medium text-muted-foreground'>
               Tone
             </Label>
-            <Select>
+            <Select name='tone' required>
               <SelectTrigger className='w-full'>
                 <SelectValue placeholder='Friendly' />
               </SelectTrigger>
@@ -62,7 +97,7 @@ export default function BotInteractionsPage() {
             <Label className='text-xs font-medium text-muted-foreground'>
               Role of the Bot
             </Label>
-            <Select>
+            <Select name='role' required>
               <SelectTrigger className='w-full'>
                 <SelectValue placeholder='Customer Support' />
               </SelectTrigger>
@@ -84,9 +119,11 @@ export default function BotInteractionsPage() {
               First Message
             </Label>
             <Input
+              name='firstMessage'
               type='text'
               placeholder='Ex: Hello, how can I help you today?'
               className='text-xs'
+              required
             />
           </div>
           <div className='space-y-1'>
@@ -94,6 +131,7 @@ export default function BotInteractionsPage() {
               Lead Capture Message
             </Label>
             <Textarea
+              name='leadCaptureMessage'
               placeholder='Can i please get your name and email for more information?'
               rows={4}
               className='text-xs min-h-[120px]'
@@ -104,6 +142,7 @@ export default function BotInteractionsPage() {
               Confirmation Message
             </Label>
             <Textarea
+              name='confirmationMessage'
               placeholder='Thank you for your information! We will get back to you soon.'
               rows={4}
               className='text-xs min-h-[120px]'
@@ -114,9 +153,11 @@ export default function BotInteractionsPage() {
               Business Description
             </Label>
             <Textarea
+              name='businessDescription'
               placeholder='Describe your business in a few sentences.'
               rows={6}
               className='text-xs min-h-[120px]'
+              required
             />
           </div>
           <div className='col-span-2 space-y-3'>
@@ -125,9 +166,12 @@ export default function BotInteractionsPage() {
             </Label>
             <Switch
               id='lead-capture'
+              name='leadCapture'
               className='mr-2'
               checked={leadCapture}
-              onCheckedChange={() => setLeadCapture(!leadCapture)}
+              onCheckedChange={(checked) => {
+                setLeadCapture(checked)
+              }}
             />
           </div>
           <div
@@ -135,7 +179,7 @@ export default function BotInteractionsPage() {
             <Label className='text-xs font-medium text-muted-foreground'>
               Lead Capture Timing
             </Label>
-            <RadioGroup defaultValue='before-conversation'>
+            <RadioGroup name='leadCaptureTiming' defaultValue='before-conversation'>
               <div className='flex items-center gap-3'>
                 <RadioGroupItem value='before-conversation' id='r1' />
                 <Label htmlFor='r1' className='text-xs text-muted-foreground'>
@@ -165,26 +209,45 @@ export default function BotInteractionsPage() {
                     leadCapture ? 'visible' : 'invisible'
                   )}>
                   <div className='flex items-center gap-3'>
-                    <Checkbox id='r1' />
+                    <Checkbox id='capture-email' name='captureEmail' />
                     <Label
-                      htmlFor='r1'
+                      htmlFor='capture-email'
                       className='text-xs text-muted-foreground'>
                       Email
                     </Label>
                   </div>
                   <div className='flex items-center gap-3'>
-                    <Checkbox id='r2' />
+                    <Checkbox id='capture-phone' name='capturePhone' />
                     <Label
-                      htmlFor='r2'
+                      htmlFor='capture-phone'
                       className='text-xs text-muted-foreground focus:text-sky-800'>
                       Phone Number
+                    </Label>
+                  </div>
+                  <div className='flex items-center gap-3'>
+                    <Checkbox id='capture-name' name='captureName' />
+                    <Label
+                      htmlFor='capture-name'
+                      className='text-xs text-muted-foreground'>
+                      Name
                     </Label>
                   </div>
                 </div>
               </div>
             </RadioGroup>
           </div>
-          <Button className='m lg:w-[40%] md:w-1/2 w-full'>Save Configuration</Button>
+          <Button 
+            type='submit' 
+            disabled={isPending} 
+            className='m lg:w-[40%] md:w-1/2 w-full'>
+            {isPending ? (
+              <>
+                Saving... <Spinner />
+              </>
+            ) : (
+              'Save Configuration'
+            )}
+          </Button>
         </section>
       </form>
     </main>
