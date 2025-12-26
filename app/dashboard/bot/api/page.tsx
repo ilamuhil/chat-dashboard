@@ -25,13 +25,13 @@ export default function BotApiPage() {
       <header>
         <h1 className='dashboard-title'>API & Integrations</h1>
       </header>
-      <ApiKeyManagementDialog open={open} onOpenChange={(open) => setOpen(open)} />
+      <ApiKeyManagementDialog open={open} onOpenChange={(open) => setOpen(open)} bots={[{id: '1', name: 'Bot 1'}, {id: '2', name: 'Bot 2'}]} />
       <section className='space-y-4 px-12 mt-12 max-w-4xl'>
         <h2 className='text-lg font-bold mb-4'>SETUP API</h2>
         <Button variant='default' className='text-xs px-2' onClick={() => setOpen(true)}>
           Generate API Key
         </Button>
-        <aside className='alert-muted italic' role='status'>No API Keys Created</aside>
+        {<aside className='alert-muted italic' role='status'>No API Keys Created</aside>}
         <section className='bg-white p-2 rounded'>
           <h3 className='font-bold mb-4'>Your API Keys</h3>
           <Table>
@@ -51,7 +51,7 @@ export default function BotApiPage() {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
-                          variant='icon'
+                          variant='ghost'
                           size='sm'
                           className='text-xs bg-red-500/20 hover:bg-red-500/30 rounded-full'>
                           <TrashIcon className='size-4 text-red-500' />
@@ -79,7 +79,7 @@ export default function BotApiPage() {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        variant='icon'
+                        variant='ghost'
                         size='icon-sm'
                         className='text-xs bg-gray-500/20 hover:bg-gray-500/30 rounded'>
                         <CopyIcon className='size-4 text-gray-500' />

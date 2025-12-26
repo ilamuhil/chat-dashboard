@@ -1,138 +1,204 @@
-'use server'
+"use server";
 
-import { nanoid } from 'nanoid'
-import { createClient } from '@/lib/supabase-server'
-import { redirect } from 'next/navigation'
-import { z } from 'zod'
+import { nanoid } from "nanoid";
+import { createClient } from "@/lib/supabase-server";
+import { redirect } from "next/navigation";
+import { z } from "zod";
 
 const businessProfileSchema = z.object({
   id: z.string().optional(),
-  name: z.string().min(3, 'Name must be at least 3 characters').max(50),
-  email: z.string().email('Invalid email address'),
+  name: z.string().min(3, "Name must be at least 3 characters").max(50),
+  email: z.string().email("Invalid email address"),
   phone: z.string().optional(),
-  logo_url: z.string().url('Logo URL must be a valid URL').optional(),
-  address_line1: z.string().min(1, 'Address line 1 is required').max(100),
+  logo_url: z.string().url("Logo URL must be a valid URL").optional(),
+  address_line1: z.string().min(1, "Address line 1 is required").max(100),
   address_line2: z.string().optional(),
-  city: z.string().min(3, 'City must be at least 3 characters').max(100),
-  state: z.string().min(3, 'State must be at least 3 characters').max(100),
-  zip: z.string().min(3, 'Zip code must be at least 3 characters').max(100),
-  country: z.string().min(3, 'Country must be at least 3 characters').max(100),
-})
+  city: z.string().min(3, "City must be at least 3 characters").max(100),
+  state: z.string().min(3, "State must be at least 3 characters").max(100),
+  zip: z.string().min(3, "Zip code must be at least 3 characters").max(100),
+  country: z.string().min(3, "Country must be at least 3 characters").max(100),
+});
 
-export async function updateProfile(state: unknown, formData: FormData) {
-  const supabaseUserClient = await createClient()
+export type ProfileResult = {
+  error?: string | Record<string, string[]>;
+  success?: string;
+  organization?: {
+    id: string;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    logo_url: string | null;
+    address: {
+      address_line1: string | null;
+      address_line2: string | null;
+      city: string | null;
+      state: string | null;
+      zip: string | null;
+      country: string | null;
+    };
+  };
+  id?: string;
+};
+
+export async function updateProfile(
+  prevState: ProfileResult | null,
+  formData: FormData
+): Promise<ProfileResult> {
+  const supabaseUserClient = await createClient();
   const {
     data: { user },
     error: userError,
-  } = await supabaseUserClient.auth.getUser()
-  const supabase = await createClient(true)
+  } = await supabaseUserClient.auth.getUser();
+  const supabase = await createClient(true);
   if (userError || !user) {
-    redirect('/auth/login')
+    redirect("/auth/login");
   } else {
     // Helper to convert null/empty to undefined for optional fields
     const getValue = (key: string) => {
-      const value = formData.get(key)
-      return value === null || value === '' ? undefined : value.toString()
-    }
+      const value = formData.get(key);
+      return value === null || value === "" ? undefined : value.toString();
+    };
 
     const validatedFields = businessProfileSchema.safeParse({
-      name: formData.get('name')?.toString() || '',
-      email: formData.get('email')?.toString() || '',
-      phone: getValue('phone'),
-      logo_url: getValue('logo_url'),
-      address_line1: formData.get('address_line1')?.toString() || '',
-      address_line2: getValue('address_line2'),
-      city: formData.get('city')?.toString() || '',
-      state: formData.get('state')?.toString() || '',
-      zip: formData.get('zip')?.toString() || '',
-      country: formData.get('country')?.toString() || '',
-      id: getValue('id'),
-    })
+      name: formData.get("name")?.toString() || "",
+      email: formData.get("email")?.toString() || "",
+      phone: getValue("phone"),
+      logo_url: getValue("logo_url"),
+      address_line1: formData.get("address_line1")?.toString() || "",
+      address_line2: getValue("address_line2"),
+      city: formData.get("city")?.toString() || "",
+      state: formData.get("state")?.toString() || "",
+      zip: formData.get("zip")?.toString() || "",
+      country: formData.get("country")?.toString() || "",
+      id: getValue("id"),
+    });
     if (!validatedFields.success) {
-      console.error(validatedFields.error.flatten().fieldErrors)
-      return { error: validatedFields.error.flatten().fieldErrors }
+      console.error(validatedFields.error.flatten().fieldErrors);
+      return { error: validatedFields.error.flatten().fieldErrors };
     }
     const response = await createOrUpdateOrganization(
       validatedFields.data.name,
       validatedFields.data.email,
-      validatedFields.data.phone ?? '',
-      validatedFields.data.logo_url ?? '',
+      validatedFields.data.phone ?? "",
+      validatedFields.data.logo_url ?? "",
       validatedFields.data.address_line1,
-      validatedFields.data.address_line2 ?? '',
+      validatedFields.data.address_line2 ?? "",
       validatedFields.data.city,
       validatedFields.data.state,
       validatedFields.data.zip,
       validatedFields.data.country,
       validatedFields.data.id
-    )
+    );
 
     if (response.error) {
-      console.error('Error creating or updating organization:', response.error)
-      return { error: response.error }
+      console.error("Error creating or updating organization:", response.error);
+      return { error: response.error };
     }
     if (!response.id) {
-      console.error('Organization ID not found')
-      return { error: 'Organization ID not found' }
+      console.error("Organization ID not found");
+      return { error: "Organization ID not found" };
     }
     //Associate user with organization if not already associated
 
     const { data: existingAssociation } = await supabase
-      .from('organization_members')
-      .select('id')
-      .eq('organization_id', response.id)
-      .eq('user_id', user.id)
-      .maybeSingle()
+      .from("organization_members")
+      .select("id")
+      .eq("organization_id", response.id)
+      .eq("user_id", user.id)
+      .maybeSingle();
     if (existingAssociation) {
       // Use organization from response if available, otherwise fetch it
       if (response.organization) {
-        console.log('Organization updated successfully')
-        console.log('Organization:', response.organization)
-        console.log('creating user association if not already exists')
+        console.log("Organization updated successfully");
+        console.log("Organization:", response.organization);
+        console.log("creating user association if not already exists");
+        // Supabase returns address as nested JSONB, so use it directly
+        const transformedOrg = {
+          id: response.organization.id,
+          name: response.organization.name,
+          email: response.organization.email,
+          phone: response.organization.phone,
+          logo_url: response.organization.logo_url,
+          address: response.organization.address || {
+            address_line1: null,
+            address_line2: null,
+            city: null,
+            state: null,
+            zip: null,
+            country: null,
+          },
+        };
         return {
-          success: 'Organization updated successfully',
-          organization: response.organization,
-        }
+          success: "Organization updated successfully",
+          organization: transformedOrg,
+        };
       }
-      const orgData = response.organization
       return {
-        success: 'Organization updated successfully',
-        organization: orgData || undefined,
-      }
+        success: "Organization updated successfully",
+      };
     }
     const { error: associationError } = await supabase
-      .from('organization_members')
+      .from("organization_members")
       .insert({
         organization_id: response.id,
         user_id: user.id,
-        role: 'admin',
-      })
+        role: "admin",
+      });
     if (associationError) {
       console.error(
-        'Error associating user with organization:',
+        "Error associating user with organization:",
         associationError
-      )
-      return { error: associationError.message }
+      );
+      return { error: associationError.message };
     } else {
-      console.log('User associated with organization successfully')
-      return response
+      console.log("User associated with organization successfully");
+      // Supabase returns address as nested JSONB, so use it directly
+      if (response.organization) {
+        const transformedOrg = {
+          id: response.organization.id,
+          name: response.organization.name,
+          email: response.organization.email,
+          phone: response.organization.phone,
+          logo_url: response.organization.logo_url,
+          address: response.organization.address || {
+            address_line1: null,
+            address_line2: null,
+            city: null,
+            state: null,
+            zip: null,
+            country: null,
+          },
+        };
+        return {
+          success: response.success,
+          id: response.id,
+          organization: transformedOrg,
+        };
+      }
+      return {
+        success: response.success,
+        id: response.id,
+      };
     }
   }
 }
 
 type Organization = {
-  id: string
-  name: string
-  email: string | null
-  phone: string | null
-  logo_url: string | null
-  address_line1: string | null
-  address_line2: string | null
-  city: string | null
-  state: string | null
-  zip: string | null
-  country: string | null
-  created_at: string
-}
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  logo_url: string | null;
+  address: {
+    address_line1: string | null;
+    address_line2: string | null;
+    city: string | null;
+    state: string | null;
+    zip: string | null;
+    country: string | null;
+  } | null;
+  created_at?: string;
+};
 
 async function createOrUpdateOrganization(
   name: string,
@@ -147,12 +213,12 @@ async function createOrUpdateOrganization(
   country: string,
   id?: string
 ): Promise<{
-  error?: string
-  success?: string
-  id?: string
-  organization?: Organization
+  error?: string;
+  success?: string;
+  id?: string;
+  organization?: Organization;
 }> {
-  const supabase = await createClient(true)
+  const supabase = await createClient(true);
   const organizationData = {
     id: id || nanoid(),
     name: name,
@@ -167,36 +233,68 @@ async function createOrUpdateOrganization(
       zip: zip,
       country: country,
     },
-  }
+  };
   if (id) {
     const { data: updatedOrg, error: updateError } = await supabase
-      .from('organizations')
+      .from("organizations")
       .update(organizationData)
-      .eq('id', id)
+      .eq("id", id)
       .select()
-      .single()
+      .single();
     if (updateError) {
-      console.error('Error updating organization:', updateError)
-      return { error: updateError?.message || 'Failed to update organization' }
+      console.error("Error updating organization:", updateError);
+      return { error: updateError?.message || "Failed to update organization" };
     }
+    // Transform to match expected structure
+    const transformedOrg = {
+      id: updatedOrg.id,
+      name: updatedOrg.name,
+      email: updatedOrg.email,
+      phone: updatedOrg.phone,
+      logo_url: updatedOrg.logo_url,
+      address: updatedOrg.address || {
+        address_line1: null,
+        address_line2: null,
+        city: null,
+        state: null,
+        zip: null,
+        country: null,
+      },
+    };
     return {
-      success: 'Organization updated successfully',
+      success: "Organization updated successfully",
       id: id,
-      organization: updatedOrg,
-    }
+      organization: transformedOrg,
+    };
   }
   const { data: orgData, error } = await supabase
-    .from('organizations')
+    .from("organizations")
     .insert(organizationData)
     .select()
-    .single()
+    .single();
   if (error) {
-    console.error('Error creating organization:', error)
-    return { error: error?.message || 'Failed to create organization' }
+    console.error("Error creating organization:", error);
+    return { error: error?.message || "Failed to create organization" };
   }
-  return {
-    success: 'Organization created successfully',
+  // Transform to match expected structure
+  const transformedOrg = {
     id: orgData.id,
-    organization: orgData,
-  }
+    name: orgData.name,
+    email: orgData.email,
+    phone: orgData.phone,
+    logo_url: orgData.logo_url,
+    address: orgData.address || {
+      address_line1: null,
+      address_line2: null,
+      city: null,
+      state: null,
+      zip: null,
+      country: null,
+    },
+  };
+  return {
+    success: "Organization created successfully",
+    id: orgData.id,
+    organization: transformedOrg,
+  };
 }

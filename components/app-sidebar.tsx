@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import * as React from "react"
+import * as React from "react";
 import {
   GalleryVerticalEnd,
   Wallet,
@@ -9,24 +9,24 @@ import {
   Users,
   LayoutDashboard,
   UserRoundPen,
-} from "lucide-react"
+} from "lucide-react";
 
-import { NavMain } from "@/components/nav-main"
+import { NavMain } from "@/components/nav-main";
 // import { NavProjects } from "@/components/nav-projects"
-import { NavUser } from "@/components/nav-user"
-import { TeamSwitcher } from "@/components/team-switcher"
+import { NavUser } from "@/components/nav-user";
+import { TeamSwitcher } from "@/components/team-switcher";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
-} from "@/components/ui/sidebar"
-import type { User } from "@supabase/supabase-js"
+} from "@/components/ui/sidebar";
+import type { User } from "@supabase/supabase-js";
 
 type Profile = {
-  full_name: string | null
-} | null
+  full_name: string | null;
+} | null;
 
 const data = {
   teams: [
@@ -34,7 +34,7 @@ const data = {
       name: "Acme Inc",
       logo: GalleryVerticalEnd,
       plan: "Enterprise",
-    }
+    },
   ],
   navMain: [
     {
@@ -67,15 +67,15 @@ const data = {
       isActive: true,
       items: [
         {
-          title:"Conversations",
+          title: "Conversations",
           url: "/dashboard/users/conversations",
         },
         {
           title: "Leads",
           url: "/dashboard/users/leads",
           icon: Users,
-        }
-      ]
+        },
+      ],
     },
     {
       title: "Profile",
@@ -88,9 +88,13 @@ const data = {
       icon: Wallet,
     },
   ],
-}
+};
 
-export function AppSidebar({ user, profile, ...props }: React.ComponentProps<typeof Sidebar> & { user: User; profile?: Profile }) {
+export function AppSidebar({
+  user,
+  profile,
+  ...props
+}: React.ComponentProps<typeof Sidebar> & { user: User; profile?: Profile }) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -105,5 +109,5 @@ export function AppSidebar({ user, profile, ...props }: React.ComponentProps<typ
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
-  )
+  );
 }
