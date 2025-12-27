@@ -19,6 +19,7 @@ const businessProfileSchema = z.object({
   country: z.string().min(3, "Country must be at least 3 characters").max(100),
 });
 
+
 export type ProfileResult = {
   error?: string | Record<string, string[]>;
   success?: string;
@@ -39,6 +40,22 @@ export type ProfileResult = {
   };
   id?: string;
 };
+
+export async function updatePassword(state: unknown, formData: FormData) {
+  const supabaseUserClient = await createClient()
+  const new_password = formData.get('new-password')?.toString()
+  const confirm_password = formData.get('confirm-password')?.toString()
+  if (new_password !== confirm_password) {
+    return { error: 'Passwords do not match' }
+  }
+  const { error } = await supabaseUserClient.auth.updateUser({
+    password: new_password,
+  })
+  if (error) {
+    return { error: error.message }
+  }
+  return { success: 'Password updated successfully' }
+}
 
 export async function updateProfile(
   prevState: ProfileResult | null,

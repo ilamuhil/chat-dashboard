@@ -76,11 +76,11 @@ export default function ConversationsPage() {
     },
   ]
   return (
-    <main className='flex flex-col h-full min-h-0'>
+    <main className='flex flex-col h-full min-h-0 overflow-hidden'>
       <header className='shrink-0'>
         <h1 className='dashboard-title'>Conversations</h1>
       </header>
-      <section className='flex-1 min-h-0 mt-6'>
+      <section className='flex-1 min-h-0 mt-6 overflow-hidden'>
         <div className='grid grid-cols-[1fr_2fr] gap-2 h-full min-h-0'>
           <aside className='bg-white rounded p-2 flex flex-col h-full overflow-hidden min-h-0'>
             <header className='flex justify-between items-center shrink-0'>

@@ -1,16 +1,17 @@
 "use client";
 
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
-import { updateProfile } from "./action";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { ImageUploadDialog } from "./ImageUploadDialog";
-import { Activity, useState, useActionState, useEffect } from "react";
-import { toast } from "sonner";
-import { Spinner } from "@/components/ui/spinner";
-import { ProfileResult } from "./action";
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { Separator } from '@/components/ui/separator'
+import { updateProfile } from './action'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
+import { ImageUploadDialog } from './ImageUploadDialog'
+import { Activity, useState, useActionState, useEffect } from 'react'
+import { toast } from 'sonner'
+import { Spinner } from '@/components/ui/spinner'
+import { updatePassword, type ProfileResult } from './action'
+
 type Organization = {
   id: string;
   name: string;
@@ -31,9 +32,14 @@ type Props = {
   organization: Organization;
 };
 
+type PasswordResult = {
+  error?: string | Record<string, string[]>
+  success?: string
+}
+
 const ProfileForm = ({ organization: initialOrganization }: Props) => {
-  const [open, setOpen] = useState(false);
-  const [organizationState, action, isPending] = useActionState<
+  const [open, setOpen] = useState(false)
+  const [organizationState, businessProfileSubmitAction, isPending] = useActionState<
     ProfileResult | null,
     FormData
   >(updateProfile, {
@@ -58,23 +64,40 @@ const ProfileForm = ({ organization: initialOrganization }: Props) => {
       : undefined,
   });
 
-  const organization = organizationState?.organization || initialOrganization;
+
+  const [passwordState, passwordSubmitAction, isPendingPassword] = useActionState<
+    PasswordResult | null,
+    FormData
+  >(updatePassword,null)
+
+  const organization = organizationState?.organization || initialOrganization
 
   useEffect(() => {
-    if (!organizationState) return;
-    const errorMessage =
-      typeof organizationState?.error === "string"
-        ? organizationState.error
-        : organizationState?.error
-        ? Object.values(organizationState.error).flat()[0]
-        : null;
-    if (organizationState.success) {
-      toast.success(organizationState.success, { position: "top-center" });
+    if (!organizationState || !passwordState) return
+    const organizationErrorMessage =
+      typeof organizationState?.error === 'string'
+        ? organizationState.error as string
+        : organizationState?.error as Record<string, string[]>
+        ? Object.values(organizationState.error).flat()[0] as string | undefined : null
+    const passwordErrorMessage =
+      typeof passwordState?.error === 'string'
+        ? passwordState.error as string
+        : passwordState?.error as Record<string, string[]>
+        ? Object.values(passwordState.error).flat()[0] as string | undefined : null
+    if (organizationState?.success) {
+      toast.success(organizationState?.success, { position: 'top-center' })
     }
-    if (errorMessage) {
-      toast.error(errorMessage, { position: "top-center" });
+    else if (organizationErrorMessage) {
+      toast.error(organizationErrorMessage, { position: 'top-center' })
     }
-  }, [organizationState]);
+    else if (passwordErrorMessage) {
+      toast.error(passwordErrorMessage, { position: 'top-center' })
+    }
+    else if (passwordState?.success) {
+      toast.success(passwordState?.success, { position: 'top-center' })
+    }
+  }, [organizationState,passwordState])
+
 
   // once user types in the form, set the submitDisabled to false
 
@@ -83,8 +106,8 @@ const ProfileForm = ({ organization: initialOrganization }: Props) => {
       <Activity mode={open ? "visible" : "hidden"}>
         <ImageUploadDialog open={open} setOpen={setOpen} />
       </Activity>
-      <form key={organization?.id || "new"} action={action}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <form>
+        <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
           <section>
             <Button
               variant="ghost"
@@ -218,9 +241,15 @@ const ProfileForm = ({ organization: initialOrganization }: Props) => {
               autoComplete="off"
             />
           </section>
-          <section className="col-span-2">
-            <Button variant="default" className="text-xs px-2 mb-1">
-              Update Password
+          <section className='col-span-2'>
+            <Button variant='default' className='text-xs px-2 mb-1' type='submit' formAction={passwordSubmitAction}>
+              {isPendingPassword ? (
+                <>
+                  Updating Password... <Spinner />
+                </>
+              ) : (
+                'Update Password'
+              )}
             </Button>
           </section>
           <Separator className="col-span-2" />
@@ -325,8 +354,8 @@ const ProfileForm = ({ organization: initialOrganization }: Props) => {
               defaultValue={organization?.phone || ""}
             />
           </section>
-          <section className="col-span-2">
-            <Button variant="default" className="text-xs" disabled={isPending}>
+          <section className='col-span-2'>
+            <Button variant='default' type='submit' formAction={businessProfileSubmitAction} className='text-xs' disabled={isPending}>
               {isPending ? (
                 <>
                   Saving... <Spinner />

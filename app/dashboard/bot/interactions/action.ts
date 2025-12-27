@@ -66,13 +66,13 @@ export async function updateBotInteractions(
   prevState: BotResult | null,
   formData: FormData
 ): Promise<BotResult> {
-  const supabase = await createClient();
+  const supabase = await createClient()
 
-  // Get current user
+  
   const {
     data: { user },
     error: userError,
-  } = await supabase.auth.getUser();
+  } = await supabase.auth.getUser()
   if (userError || !user) {
     return { error: "You must be logged in to update bot configuration" };
   }
@@ -114,19 +114,19 @@ export async function updateBotInteractions(
     capturePhoneValue?.toString() === "true";
 
   const validatedFields = botMetSchema.safeParse({
-    name: formData.get("name"),
-    tone: formData.get("tone"),
-    role: formData.get("role"),
-    first_message: formData.get("first_message"),
-    lead_capture_message: formData.get("lead_capture_message") || "",
-    confirmation_message: formData.get("confirmation_message") || "",
-    business_description: formData.get("business_description"),
+    name: formData.get('name'),
+    tone: formData.get('tone'),
+    role: formData.get('role'),
+    first_message: formData.get('first_message'),
+    lead_capture_message: formData.get('lead_capture_message') || '',
+    confirmation_message: formData.get('confirmation_message') || '',
+    business_description: formData.get('business_description'),
     capture_leads: captureLeads,
-    lead_capture_timing: formData.get("lead_capture_timing"),
+    lead_capture_timing: formData.get('lead_capture_timing'),
     capture_name: captureName,
     capture_email: captureEmail,
     capture_phone: capturePhone,
-  });
+  })
 
   if (!validatedFields.success) {
     const fieldErrors: Record<string, string[]> = {};
