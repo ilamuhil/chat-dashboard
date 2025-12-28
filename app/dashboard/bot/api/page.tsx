@@ -1,6 +1,5 @@
-'use client'
-
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
   TableHeader,
@@ -9,89 +8,195 @@ import {
   TableCell,
   TableHead,
 } from '@/components/ui/table'
-import { TrashIcon, CopyIcon } from 'lucide-react'
+import { TrashIcon } from 'lucide-react'
 import {
   Tooltip,
   TooltipTrigger,
   TooltipContent,
 } from '@/components/ui/tooltip'
-import ApiKeyManagementDialog from './ApiKeyManagementDialog'
-import { useState } from 'react'
+import ApiKeyLauncher from './ApiKeyLauncher'
+import CodeBlock from './CodeBlock'
+import { createClient } from '@/lib/supabase-server'
+import { redirect } from 'next/navigation'
+import { revokeApiKey } from './action'
+import { format } from 'date-fns'
 
-export default function BotApiPage() {
-  const [open, setOpen] = useState(false)
+export default async function BotApiPage() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
+  if (userError || !user) {
+    redirect('/auth/login')
+  }
+  const { data: organizationMember, error: organizationMemberError } =
+    await supabase
+      .from('organization_members')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .single()
+  if (organizationMemberError) {
+    console.error('Error getting organization member:', organizationMemberError)
+    return <div className='alert-danger'> Unknown error occurred!</div>
+  }
+  if (!organizationMember) {
+    console.error('Organization member not found!')
+    return (
+      <div className='alert-danger'>
+        Update your business profile to include your organization, create a bot
+        and then return here to setup API.
+      </div>
+    )
+  }
+  const { data: bots, error: botsError } = await supabase
+    .from('bots')
+    .select('*')
+    .eq('organization_id', organizationMember.organization_id)
+  if (botsError && !bots) {
+    console.error('Error getting bots:', botsError)
+    return (
+      <div className='alert-danger'>
+        Error getting bots: {botsError.message}
+      </div>
+    )
+  }
+  if (!bots.length) {
+    return (
+      <main className='space-y-3'>
+        <header>
+          <h1 className='dashboard-title'>API & Integrations</h1>
+        </header>
+
+        <Card className='rounded-md shadow-none py-3 gap-3'>
+          <CardContent className='py-0 px-4'>
+            <p className='text-sm text-muted-foreground italic'>
+              You do not have any bots yet. Please create a bot and then return
+              here to setup API.
+            </p>
+            <div className='pt-2'>
+              <Button
+                variant='outline'
+                className='text-xs px-3'
+                onClick={() => redirect('/dashboard/bot/interactions')}>
+                Create Bot
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </main>
+    )
+  }
+  const { data: apiKeys, error: apiKeysError } = await supabase
+    .from('api_keys')
+    .select('*')
+    .eq('organization_id', organizationMember.organization_id)
+    .eq('is_active', true)
+
+  if (apiKeysError && !apiKeys) {
+    console.error('Error getting API keys:', apiKeysError)
+    return <div className='alert-danger'>Error getting API keys</div>
+  }
+
+  const keys = apiKeys?.map(key => {
+    const bot = bots?.find(bot => bot.id === key.bot_id)
+    return {
+      ...key,
+      bot: bot?.name,
+    }
+  })
+
   return (
-    <main className='space-y-6'>
+    <main className='space-y-3'>
       <header>
         <h1 className='dashboard-title'>API & Integrations</h1>
       </header>
-      <ApiKeyManagementDialog open={open} onOpenChange={(open) => setOpen(open)} bots={[{id: '1', name: 'Bot 1'}, {id: '2', name: 'Bot 2'}]} />
-      <section className='space-y-4 px-12 mt-12 max-w-4xl'>
-        <h2 className='text-lg font-bold mb-4'>SETUP API</h2>
-        <Button variant='default' className='text-xs px-2' onClick={() => setOpen(true)}>
-          Generate API Key
-        </Button>
-        {<aside className='alert-muted italic' role='status'>No API Keys Created</aside>}
-        <section className='bg-white p-2 rounded'>
-          <h3 className='font-bold mb-4'>Your API Keys</h3>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Label</TableHead>
-                <TableHead>Created At</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {Array.from({ length: 3 }).map((_, index) => (
-                <TableRow key={index}>
-                  <TableCell>My first API Key</TableCell>
-                  <TableCell>12/08/2025</TableCell>
-                  <TableCell>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant='ghost'
-                          size='sm'
-                          className='text-xs bg-red-500/20 hover:bg-red-500/30 rounded-full'>
-                          <TrashIcon className='size-4 text-red-500' />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side='right'>Revoke</TooltipContent>
-                    </Tooltip>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </section>
-        <section className='bg-white p-2 rounded'>
-          <h3 className='font-bold mb-4'>Embeddable Code</h3>
-          <div className='bg-gray-100 p-2 rounded'>
-            <h4 className='font-bold mb-2'>Script</h4>
-            <pre className='text-xs bg-white p-2 rounded'>
-              <code className='flex justify-between gap-2 items-center'>
-                <span>
-                  &lt;script
-                  src=&quot;https://api.your-domain.com/embed.js&quot;&gt;&lt;/script&gt;
-                </span>
-                <span>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant='ghost'
-                        size='icon-sm'
-                        className='text-xs bg-gray-500/20 hover:bg-gray-500/30 rounded'>
-                        <CopyIcon className='size-4 text-gray-500' />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side='right'>Copy</TooltipContent>
-                  </Tooltip>
-                </span>
-              </code>
-            </pre>
-          </div>
-        </section>
+
+      <section className='space-y-3'>
+        <h2 className='text-sm font-semibold'>SETUP API</h2>
+
+        <Card className='rounded-md shadow-none py-3 gap-3'>
+          <CardContent className='py-0 px-4'>
+            <ApiKeyLauncher bots={bots} />
+          </CardContent>
+        </Card>
+
+        {keys?.length === 0 && (
+          <Card className='rounded-md shadow-none border-dashed py-3 gap-3'>
+            <CardContent className='py-0 px-4 text-sm text-muted-foreground italic'>
+              No API Keys Created
+            </CardContent>
+          </Card>
+        )}
+        {keys?.length > 0 && (
+          <Card className='rounded-md shadow-none py-3 gap-3'>
+            <CardHeader className='px-4 py-1.5'>
+              <CardTitle className='text-sm'>Your API Keys</CardTitle>
+            </CardHeader>
+            <CardContent className='px-4 pb-0'>
+              <Table className='bg-white'>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Label</TableHead>
+                    <TableHead>Bot</TableHead>
+                    <TableHead>Created At</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {keys.map(apiKey => (
+                    <TableRow key={apiKey.id}>
+                      <TableCell className='font-medium'>
+                        {apiKey.name}
+                      </TableCell>
+                      <TableCell>{apiKey.bot}</TableCell>
+                      <TableCell className='text-muted-foreground'>
+                        {format(apiKey.created_at, 'do MMM yyyy')}
+                      </TableCell>
+                      <TableCell>
+                        <form action={revokeApiKey} id='revoke-api-key-form'>
+                          <input
+                            type='hidden'
+                            name='api_key_id'
+                            value={apiKey.id}
+                          />
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant='ghost'
+                                size='icon-sm'
+                                className='bg-red-500/15 hover:bg-red-500/25 rounded-md'>
+                                <TrashIcon className='size-4 text-red-500' />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side='right'>Revoke</TooltipContent>
+                          </Tooltip>
+                        </form>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
+        {apiKeys?.length > 0 && (
+          <Card className='rounded-md shadow-none py-3 gap-3'>
+            <CardHeader className='px-4 py-1.5'>
+              <CardTitle className='text-sm'>Embeddable Code</CardTitle>
+            </CardHeader>
+            <CardContent className='px-4 pb-0'>
+              <div className='bg-muted/20 p-2 rounded-md border'>
+                <h4 className='text-xs font-semibold text-muted-foreground mb-2'>
+                  Script
+                </h4>
+                <pre className='text-xs rounded-md border bg-white p-2 overflow-x-auto'>
+                  <CodeBlock />
+                </pre>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </section>
     </main>
   )

@@ -42,7 +42,7 @@ export default async function DashboardLayout({
             <DashboardBreadcrumb />
           </div>
         </header>
-        <main className='flex flex-1 flex-col gap-4 px-4 py-6 bg-gray-100 min-h-0 overflow-hidden'>
+        <main className='flex flex-1 flex-col gap-4 px-4 py-6 bg-gray-100 min-h-0 overflow-y-auto'>
           {children}
         </main>
       </SidebarInset>

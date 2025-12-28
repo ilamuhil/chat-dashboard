@@ -81,17 +81,6 @@ const BotConfigForm = ({ botConfig }: Props) => {
 
   return (
     <form className='space-y-4'>
-      <div
-        className={cn(
-          successMessage && 'alert-success',
-          errorMessage && 'alert-danger',
-          !successMessage &&
-            !errorMessage &&
-            '-translate-y-full opacity-0 h-0 pointer-events-none'
-        )}>
-        {successMessage && successMessage}
-        {errorMessage && errorMessage}
-      </div>
       <section className='grid grid-cols-2 gap-x-3 gap-y-6'>
         <div className='space-y-1'>
           <Label className='text-xs font-medium text-muted-foreground'>

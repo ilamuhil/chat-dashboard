@@ -17,6 +17,7 @@ import ConfirmationDialog from "@/components/auth/ConfirmationDialog";
 import { useState, useActionState } from "react";
 import { cn } from "@/lib/utils";
 import supabase from "@/lib/supabase-client";
+import { toast } from "sonner";
 
 type AuthResult = {
   error?: string | Record<string, string[]>;
@@ -55,6 +56,7 @@ const AuthForm = (props: Props) => {
     if (data) {
       console.log(data);
     }
+    toast.success("An email will be sent with a password reset link.");
     setOpen(false);
   };
 
