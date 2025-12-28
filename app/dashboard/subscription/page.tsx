@@ -40,7 +40,7 @@ export default function SubscriptionPage() {
     {
       id: 'basic',
       name: 'Basic',
-      priceLabel: '₹499 / mo',
+      priceLabel: '₹799 / mo',
       limits: {
         aiUsage: '5,000 AI messages / month',
         orgUsers: '3 users in org',
@@ -52,7 +52,7 @@ export default function SubscriptionPage() {
     {
       id: 'pro',
       name: 'Pro',
-      priceLabel: '₹999 / mo',
+      priceLabel: '₹1499 / mo',
       limits: {
         aiUsage: '50,000 AI messages / month',
         orgUsers: '10 users in org',
@@ -100,17 +100,17 @@ export default function SubscriptionPage() {
             return (
             <Card
               key={plan.id}
-              className={`flex flex-col rounded-lg shadow-xs border w-full sm:w-[calc(50%-0.5rem)] lg:w-[calc(25%-0.75rem)] max-w-sm bg-sidebar transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm hover:border-muted-foreground/30 ${
+              className={`flex flex-col rounded-md shadow-xs border w-full sm:w-[calc(50%-0.5rem)] lg:w-[calc(25%-0.75rem)] max-w-xs bg-sidebar transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm hover:border-muted-foreground/30 ${
                 isCurrent
                   ? 'bg-linear-to-b from-emerald-500/10 to-transparent ring-1 ring-emerald-500/20'
                   : ''
               }`}>
-              <CardHeader className='text-center pb-2'>
-                <CardTitle className='text-xl font-bold'>{plan.name}</CardTitle>
-                <div className='text-3xl font-bold mt-2'>{plan.priceLabel}</div>
+              <CardHeader className='text-center pb-1 px-3 pt-2.5'>
+                <CardTitle className='text-sm font-semibold'>{plan.name}</CardTitle>
+                <div className='text-xl font-bold mt-1'>{plan.priceLabel}</div>
               </CardHeader>
-              <CardContent className='flex-1 space-y-3'>
-                <ul className='space-y-2'>
+              <CardContent className='flex-1 space-y-2 px-3'>
+                <ul className='space-y-1.5'>
                   {[
                     plan.limits.aiUsage,
                     plan.limits.orgUsers,
@@ -119,16 +119,17 @@ export default function SubscriptionPage() {
                     plan.limits.conversations,
                   ].map((feature, idx) => (
                     <li key={idx} className='flex items-center gap-2'>
-                      <Check className='size-4 text-green-600 shrink-0' />
-                      <span className='text-sm'>{feature}</span>
+                      <Check className='size-3.5 text-green-600 shrink-0' />
+                      <span className='text-xs'>{feature}</span>
                     </li>
                   ))}
                 </ul>
               </CardContent>
-              <CardFooter>
+              <CardFooter className='px-3 pt-0'>
                 <Button
                   variant={isCurrent ? 'default' : 'outline'}
-                  className={`w-full ${
+                  size='sm'
+                  className={`w-full text-xs h-8 ${
                     isCurrent ? 'bg-green-600 hover:bg-green-700' : ''
                   }`}>
                   {buttonText}
