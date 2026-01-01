@@ -80,7 +80,9 @@ api_key_id           uuid REFERENCES api_keys(id)
 
 user_name            text
 user_email           text
-
+mode                 text CHECK (
+  MODE IN ('ai','human')
+)
 status               text CHECK (
   status IN ('connected','disconnected')
 )

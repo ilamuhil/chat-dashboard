@@ -1,9 +1,9 @@
 'use server'
-import { nanoid } from 'nanoid'
+
 import { createClient } from '@/lib/supabase-server'
-import { createHash } from 'crypto'
 import { ApiKeyResult } from './types'
 import { revalidatePath } from 'next/cache'
+import { createApiKey, hashApiKey } from '@/lib/utils'
 
 export async function saveApiKey(
   prevState: ApiKeyResult | null,
@@ -126,14 +126,4 @@ export async function revokeApiKey(formData: FormData) {
     nonce: Date.now().toString(),
     error: null,
   }
-}
-
-function createApiKey(): string {
-  // Short, still cryptographically-random (nanoid uses WebCrypto/crypto)
-  // Example: bot_V1StGXR8_Z5jdHi6B-myT
-  return `bot_${nanoid(24)}`
-}
-
-function hashApiKey(apiKey: string): string {
-  return createHash('sha256').update(apiKey).digest('hex')
 }
