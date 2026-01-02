@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
           bot_id: conversation.bot_id,
           conversation_id,
           organization_id: conversation.organization_id,
-          type: 'assistant',
+          type: 'agent',
         },
         privateKey
       )

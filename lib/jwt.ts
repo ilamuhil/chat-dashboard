@@ -24,7 +24,7 @@ export function signToken(
     organization_id: string
     bot_id: number
     conversation_id: string
-    type: 'user' | 'assistant'
+    type: 'user' | 'agent'
     [key: string]: unknown
   },
   privateKey: string
