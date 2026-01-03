@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase-server";
 import { z } from "zod";
+import { resolveCurrentOrganizationId } from "@/lib/current-organization";
 
 export type Bot = {
   id: string;
@@ -26,6 +27,7 @@ export type BotResult = {
   error?: string | Record<string, string[]>;
   success?: string;
   bot?: Bot | null;
+  nonce?: string | null;
 };
 
 const botMetSchema = z.object({
@@ -67,6 +69,7 @@ export async function updateBotInteractions(
   formData: FormData
 ): Promise<BotResult> {
   const supabase = await createClient()
+  const nonce = Date.now().toString()
 
   
   const {
@@ -74,18 +77,19 @@ export async function updateBotInteractions(
     error: userError,
   } = await supabase.auth.getUser()
   if (userError || !user) {
-    return { error: "You must be logged in to update bot configuration" };
+    return {
+      error: "You must be logged in to update bot configuration",
+      nonce,
+    };
   }
 
-  // Get user's organization
-  const { data: organizationMember, error: orgError } = await supabase
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", user.id)
-    .single();
+  const organizationId = await resolveCurrentOrganizationId({
+    supabase,
+    userId: user.id,
+  });
 
-  if (orgError || !organizationMember) {
-    return { error: "You must belong to an organization to create a bot" };
+  if (!organizationId) {
+    return { error: "You must belong to an organization to create a bot", nonce };
   }
 
   // Convert form data to proper types
@@ -137,7 +141,7 @@ export async function updateBotInteractions(
       }
       fieldErrors[path].push(issue.message);
     });
-    return { error: fieldErrors };
+    return { error: fieldErrors, nonce };
   }
 
   const data = validatedFields.data;
@@ -155,11 +159,11 @@ export async function updateBotInteractions(
   const { data: existingBot } = await supabase
     .from("bots")
     .select("id")
-    .eq("organization_id", organizationMember.organization_id)
+    .eq("organization_id", organizationId)
     .maybeSingle();
 
   const botData = {
-    organization_id: organizationMember.organization_id,
+    organization_id: organizationId,
     name: data.name,
     tone: data.tone,
     role: data.role,
@@ -186,12 +190,13 @@ export async function updateBotInteractions(
 
     if (updateError) {
       console.error("Bot update error:", updateError);
-      return { error: updateError.message };
+      return { error: updateError.message, nonce };
     }
 
     return {
       success: "Bot configuration updated successfully",
       bot: updatedBot,
+      nonce,
     };
   } else {
     // Create new bot
@@ -203,12 +208,13 @@ export async function updateBotInteractions(
 
     if (insertError) {
       console.error("Bot creation error:", insertError);
-      return { error: insertError.message };
+      return { error: insertError.message, nonce };
     }
 
     return {
       success: "Bot configuration saved successfully",
       bot: newBot,
+      nonce,
     };
   }
 }

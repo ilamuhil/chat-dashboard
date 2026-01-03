@@ -35,6 +35,7 @@ type Props = {
 type PasswordResult = {
   error?: string | Record<string, string[]>
   success?: string
+  nonce?: string | null
 }
 
 const ProfileForm = ({ organization: initialOrganization }: Props) => {
@@ -73,30 +74,36 @@ const ProfileForm = ({ organization: initialOrganization }: Props) => {
   const organization = organizationState?.organization || initialOrganization
 
   useEffect(() => {
-    if (!organizationState || !passwordState) return
-    const organizationErrorMessage =
-      typeof organizationState?.error === 'string'
-        ? organizationState.error as string
-        : organizationState?.error as Record<string, string[]>
-        ? Object.values(organizationState.error).flat()[0] as string | undefined : null
-    const passwordErrorMessage =
-      typeof passwordState?.error === 'string'
-        ? passwordState.error as string
-        : passwordState?.error as Record<string, string[]>
-        ? Object.values(passwordState.error).flat()[0] as string | undefined : null
-    if (organizationState?.success) {
-      toast.success(organizationState?.success, { position: 'top-center' })
+    if (!organizationState?.nonce) return
+    if (organizationState.success) {
+      toast.success(organizationState.success, { position: 'top-center' })
+      return
     }
-    else if (organizationErrorMessage) {
-      toast.error(organizationErrorMessage, { position: 'top-center' })
+    if (organizationState.error) {
+      const msg =
+        typeof organizationState.error === 'string'
+          ? organizationState.error
+          : Object.values(organizationState.error).flat()[0]
+      toast.error(msg, { position: 'top-center' })
     }
-    else if (passwordErrorMessage) {
-      toast.error(passwordErrorMessage, { position: 'top-center' })
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [organizationState?.nonce])
+
+  useEffect(() => {
+    if (!passwordState?.nonce) return
+    if (passwordState.success) {
+      toast.success(passwordState.success, { position: 'top-center' })
+      return
     }
-    else if (passwordState?.success) {
-      toast.success(passwordState?.success, { position: 'top-center' })
+    if (passwordState.error) {
+      const msg =
+        typeof passwordState.error === 'string'
+          ? passwordState.error
+          : Object.values(passwordState.error).flat()[0]
+      toast.error(msg, { position: 'top-center' })
     }
-  }, [organizationState,passwordState])
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [passwordState?.nonce])
 
 
   // once user types in the form, set the submitDisabled to false

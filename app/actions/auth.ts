@@ -3,11 +3,22 @@
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
+import { getSecretKey, signToken } from '@/lib/jwt'
 
 type AuthResult = {
   error?: string | Record<string, string[]>
   success?: string
 }
+
+export type AgentJwtResult =
+  | { status: number; error: string }
+  | {
+      status: 200
+      token: string
+      conversation_id: string
+      bot_id: number
+      organization_id: string
+    }
 
 const authSchema = z.object({
   email: z.email({ message: 'Invalid email address' }),
@@ -36,7 +47,7 @@ const signup = async (
   const supabase = await createClient(true)
   
   // Sign up the user - store fullname and phone in user metadata
-  const { data, error } = await supabase.auth.signUp({
+  const { error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -112,4 +123,68 @@ const login = async (
   return { error: 'Login failed' }
 }
 
-export { signup, login }
+
+const getAgentJwt = async (conversation_id: string): Promise<AgentJwtResult> => {
+  const supabase = await createClient()
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
+  if (userError || !user) {
+    return {error: 'Unauthorized/User not found', status: 401 }
+  }
+
+  const { data: conversation, error: conversationError } = await supabase
+    .from('conversations_meta')
+    .select('id, bot_id, organization_id')
+    .eq('id', conversation_id)
+    .maybeSingle()
+
+  if (conversationError || !conversation) {
+    console.error(
+      'Failed to authenticate agent. Conversation not found.',
+      conversationError
+    )
+    return { error: 'Conversation not found', status: 404 }
+  }
+
+  const { data: membership, error: membershipError } = await supabase
+    .from('organization_members')
+    .select('organization_id')
+    .eq('user_id', user.id)
+    .eq('organization_id', conversation.organization_id)
+    .maybeSingle()
+
+  if (membershipError || !membership) {
+    console.error(
+      'Failed to authenticate agent. Unauthorized. User not found in organization members table for this conversation org.',
+      membershipError
+    )
+    return { error: 'Unauthorized', status: 401 }
+  }
+
+  const privateKey = getSecretKey()
+  if (!privateKey) {
+    return { error: 'Failed to create token', status: 500 }
+  }
+
+  const token = signToken(
+    {
+      organization_id: conversation.organization_id,
+      bot_id: conversation.bot_id,
+      conversation_id: conversation.id,
+      type: 'agent',
+    },
+    privateKey
+  )
+
+  return {
+    token,
+    conversation_id: conversation.id,
+    bot_id: conversation.bot_id,
+    organization_id: conversation.organization_id,
+    status: 200,
+  }
+}
+
+export { signup, login, getAgentJwt }

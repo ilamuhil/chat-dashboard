@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
 import ProfileForm from './ProfileForm'
+import { resolveCurrentOrganizationId } from '@/lib/current-organization'
 
 export default async function ProfilePage() {
   const supabase = await createClient()
@@ -11,28 +12,21 @@ export default async function ProfilePage() {
     redirect('/auth/login')
   }
 
-  // Get user's organization membership
-  const { data: organizationMember,error: organizationMemberError } = await supabase
-    .from('organization_members')
-    .select('organization_id')
-    .eq('user_id', user.id)
-    .maybeSingle()
-  console.log('organizationMember', organizationMember)
-  if (organizationMemberError) {
-    console.error('Error getting organization member:', organizationMemberError)
-    return <div className='alert-danger'>Error getting organization member: {organizationMemberError.message}</div>
-  }
+  const organizationId = await resolveCurrentOrganizationId({
+    supabase,
+    userId: user.id,
+  })
+
   // Get organization data if user belongs to one
   let organization = null
-  if (organizationMember?.organization_id) {
+  if (organizationId) {
     const { data } = await supabase
       .from('organizations')
       .select('*')
-      .eq('id', organizationMember.organization_id)
+      .eq('id', organizationId)
       .maybeSingle()
     organization = data
   }
-  console.log('organization', organization)
 
   return (
     <main className='max-h-dvh overflow-y-auto no-scrollbar space-y-4'>

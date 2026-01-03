@@ -23,6 +23,7 @@ export function TeamSwitcher({
   teams,
 }: {
   teams: {
+    id: string
     name: string
     logo: React.ElementType
     plan: string
@@ -30,6 +31,35 @@ export function TeamSwitcher({
 }) {
   const { isMobile } = useSidebar()
   const [activeTeam, setActiveTeam] = React.useState(teams[0])
+
+  React.useEffect(() => {
+    if (!teams?.length) return
+    try {
+      const stored = window.localStorage.getItem("current_organization_id")
+      if (stored) {
+        const match = teams.find(t => t.id === stored)
+        if (match) setActiveTeam(match)
+      }
+    } catch {
+      // ignore
+    }
+  }, [teams])
+
+  const selectTeam = React.useCallback(
+    (team: (typeof teams)[number]) => {
+      setActiveTeam(team)
+      try {
+        window.localStorage.setItem("current_organization_id", team.id)
+        // Mirror to cookie so Server Components can read it.
+        document.cookie = `current_organization_id=${encodeURIComponent(
+          team.id
+        )}; Path=/; SameSite=Lax`
+      } catch {
+        // ignore
+      }
+    },
+    []
+  )
 
   if (!activeTeam) {
     return null
@@ -66,7 +96,7 @@ export function TeamSwitcher({
             {teams.map((team, index) => (
               <DropdownMenuItem
                 key={team.name}
-                onClick={() => setActiveTeam(team)}
+                onClick={() => selectTeam(team)}
                 className="gap-2 p-2"
               >
                 <div className="flex size-6 items-center justify-center rounded-md border">

@@ -37,15 +37,6 @@ const ConfigureBotForm = (props: BotProps) => {
 
   const [leadCapture, setLeadCapture] = useState(bot?.capture_leads || false);
 
-  const errorMessage =
-    typeof state?.error === "string"
-      ? state.error
-      : state?.error
-      ? Object.values(state.error).flat()[0]
-      : null;
-
-  const successMessage = state?.success;
-
   // Sync state when bot changes
   useEffect(() => {
     if (bot) {
@@ -64,25 +55,14 @@ const ConfigureBotForm = (props: BotProps) => {
           : Object.values(state.error).flat()[0]
       );
     }
-  }, [state]);
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [state?.nonce]);
   return (
     <form
       key={bot?.updated_at || bot?.id || "new"}
       action={formAction}
       className="space-y-4"
     >
-      <div
-        className={cn(
-          successMessage && "alert-success",
-          errorMessage && "alert-danger",
-          !successMessage &&
-            !errorMessage &&
-            "-translate-y-full opacity-0 h-0 pointer-events-none"
-        )}
-      >
-        {successMessage && successMessage}
-        {errorMessage && errorMessage}
-      </div>
       <section className="grid grid-cols-2 gap-x-3 gap-y-6">
         <div className="space-y-1">
           <Label className="text-xs font-medium text-muted-foreground">

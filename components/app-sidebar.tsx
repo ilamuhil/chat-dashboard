@@ -29,13 +29,6 @@ type Profile = {
 } | null;
 
 const data = {
-  teams: [
-    {
-      name: "Acme Inc",
-      logo: GalleryVerticalEnd,
-      plan: "Enterprise",
-    },
-  ],
   navMain: [
     {
       title: "Overview",
@@ -93,12 +86,24 @@ const data = {
 export function AppSidebar({
   user,
   profile,
+  organizations,
   ...props
-}: React.ComponentProps<typeof Sidebar> & { user: User; profile?: Profile }) {
+}: React.ComponentProps<typeof Sidebar> & {
+  user: User
+  profile?: Profile
+  organizations: { id: string; name: string; role: string }[]
+}) {
+  const orgsForSwitcher = organizations.map(org => ({
+    id: org.id,
+    name: org.name,
+    logo: GalleryVerticalEnd,
+    plan: org.role,
+  }))
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={data.teams} />
+        <TeamSwitcher teams={orgsForSwitcher} />
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />

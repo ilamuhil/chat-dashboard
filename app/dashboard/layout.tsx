@@ -27,10 +27,26 @@ export default async function DashboardLayout({
     .select('full_name')
     .eq('id', user.id)
     .single()
+
+  const { data: orgMemberships, error: orgMembershipsError } = await supabase
+    .from('organization_members')
+    .select('organization_id, role, organizations ( id, name )')
+    .eq('user_id', user.id)
+
+  if (orgMembershipsError) {
+    console.error('Error fetching organization memberships:', orgMembershipsError)
+  }
+
+  const organizations =
+    orgMemberships?.map(m => ({
+      id: m.organizations?.id ?? m.organization_id,
+      name: m.organizations?.name ?? 'Organization',
+      role: m.role ?? 'member',
+    })) ?? []
   
   return (
     <SidebarProvider className='h-svh overflow-hidden'>
-      <AppSidebar user={user} profile={profile} />
+      <AppSidebar user={user} profile={profile} organizations={organizations} />
       <SidebarInset className='min-h-0 overflow-hidden'>
         <header className='flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12'>
           <div className='flex items-center gap-2 px-4'>

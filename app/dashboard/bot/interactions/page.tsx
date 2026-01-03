@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase-server"
 import ConfigureBotForm from "./ConfigureBotForm"
 import { redirect } from "next/navigation"
+import { resolveCurrentOrganizationId } from "@/lib/current-organization"
 
 export default async function BotInteractionsPage() {
   
@@ -9,18 +10,19 @@ export default async function BotInteractionsPage() {
   if (userError || !user) {
     redirect('/auth/login')
   }
-  const { data: organizationMember, error: orgError } = await supabase
-    .from('organization_members')
-    .select('organization_id')
-    .eq('user_id', user.id)
-    .single()
-  if (orgError || !organizationMember) {
+
+  const organizationId = await resolveCurrentOrganizationId({
+    supabase,
+    userId: user.id,
+  })
+
+  if (!organizationId) {
     redirect('/auth/login')
   }
   const { data: bots, error: botError } = await supabase
     .from('bots')
     .select('*')
-    .eq('organization_id', organizationMember.organization_id)
+    .eq('organization_id', organizationId)
   if (botError){
     console.error('Error getting bots:', botError)
     return <div className='alert-danger'>Error getting bots: {botError.message}</div>

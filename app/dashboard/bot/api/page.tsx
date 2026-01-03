@@ -20,6 +20,7 @@ import { createClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
 import { revokeApiKey } from './action'
 import { format } from 'date-fns'
+import { resolveCurrentOrganizationId } from '@/lib/current-organization'
 
 export default async function BotApiPage() {
   const supabase = await createClient()
@@ -30,17 +31,13 @@ export default async function BotApiPage() {
   if (userError || !user) {
     redirect('/auth/login')
   }
-  const { data: organizationMember, error: organizationMemberError } =
-    await supabase
-      .from('organization_members')
-      .select('organization_id')
-      .eq('user_id', user.id)
-      .single()
-  if (organizationMemberError) {
-    console.error('Error getting organization member:', organizationMemberError)
-    return <div className='alert-danger'> Unknown error occurred!</div>
-  }
-  if (!organizationMember) {
+
+  const organizationId = await resolveCurrentOrganizationId({
+    supabase,
+    userId: user.id,
+  })
+
+  if (!organizationId) {
     console.error('Organization member not found!')
     return (
       <div className='alert-danger'>
@@ -49,10 +46,11 @@ export default async function BotApiPage() {
       </div>
     )
   }
+
   const { data: bots, error: botsError } = await supabase
     .from('bots')
     .select('*')
-    .eq('organization_id', organizationMember.organization_id)
+    .eq('organization_id', organizationId)
   if (botsError && !bots) {
     console.error('Error getting bots:', botsError)
     return (
@@ -90,7 +88,7 @@ export default async function BotApiPage() {
   const { data: apiKeys, error: apiKeysError } = await supabase
     .from('api_keys')
     .select('*')
-    .eq('organization_id', organizationMember.organization_id)
+    .eq('organization_id', organizationId)
     .eq('is_active', true)
 
   if (apiKeysError && !apiKeys) {

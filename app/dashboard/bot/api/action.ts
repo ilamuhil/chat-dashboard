@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase-server'
 import { ApiKeyResult } from './types'
 import { revalidatePath } from 'next/cache'
 import { createApiKey, hashApiKey } from '@/lib/utils'
+import { resolveCurrentOrganizationId } from '@/lib/current-organization'
 
 export async function saveApiKey(
   prevState: ApiKeyResult | null,
@@ -40,12 +41,12 @@ export async function saveApiKey(
       nonce: Date.now().toString(),
     }
   }
-  const { data: organizationMember, error: orgError } = await supabase
-    .from('organization_members')
-    .select('organization_id')
-    .eq('user_id', user.id)
-    .single()
-  if (orgError || !organizationMember) {
+
+  const organizationId = await resolveCurrentOrganizationId({
+    supabase,
+    userId: user.id,
+  })
+  if (!organizationId) {
     return {
       error: 'You must belong to an organization to generate an API key',
       success: null,
@@ -59,7 +60,7 @@ export async function saveApiKey(
     .from('bots')
     .select('id')
     .eq('id', bot_id.toString())
-    .eq('organization_id', organizationMember.organization_id)
+    .eq('organization_id', organizationId)
     .single()
   if (botError || !bot) {
     return {
@@ -75,7 +76,7 @@ export async function saveApiKey(
   const hashedApiKey = hashApiKey(apiKey)
 
   const { error: apiKeyError } = await supabase.from('api_keys').insert({
-    organization_id: organizationMember.organization_id,
+    organization_id: organizationId,
     bot_id: bot.id,
     name: api_key_label.toString(),
     key_hash: hashedApiKey,

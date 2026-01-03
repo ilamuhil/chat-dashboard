@@ -23,6 +23,7 @@ const businessProfileSchema = z.object({
 export type ProfileResult = {
   error?: string | Record<string, string[]>;
   success?: string;
+  nonce?: string | null;
   organization?: {
     id: string;
     name: string;
@@ -42,25 +43,27 @@ export type ProfileResult = {
 };
 
 export async function updatePassword(state: unknown, formData: FormData) {
+  const nonce = Date.now().toString()
   const supabaseUserClient = await createClient()
   const new_password = formData.get('new-password')?.toString()
   const confirm_password = formData.get('confirm-password')?.toString()
   if (new_password !== confirm_password) {
-    return { error: 'Passwords do not match' }
+    return { error: 'Passwords do not match', nonce }
   }
   const { error } = await supabaseUserClient.auth.updateUser({
     password: new_password,
   })
   if (error) {
-    return { error: error.message }
+    return { error: error.message, nonce }
   }
-  return { success: 'Password updated successfully' }
+  return { success: 'Password updated successfully', nonce }
 }
 
 export async function updateProfile(
   prevState: ProfileResult | null,
   formData: FormData
 ): Promise<ProfileResult> {
+  const nonce = Date.now().toString()
   const supabaseUserClient = await createClient();
   const {
     data: { user },
@@ -91,7 +94,7 @@ export async function updateProfile(
     });
     if (!validatedFields.success) {
       console.error(validatedFields.error.flatten().fieldErrors);
-      return { error: validatedFields.error.flatten().fieldErrors };
+      return { error: validatedFields.error.flatten().fieldErrors, nonce };
     }
     const response = await createOrUpdateOrganization(
       validatedFields.data.name,
@@ -109,11 +112,11 @@ export async function updateProfile(
 
     if (response.error) {
       console.error("Error creating or updating organization:", response.error);
-      return { error: response.error };
+      return { error: response.error, nonce };
     }
     if (!response.id) {
       console.error("Organization ID not found");
-      return { error: "Organization ID not found" };
+      return { error: "Organization ID not found", nonce };
     }
     //Associate user with organization if not already associated
 
@@ -148,10 +151,12 @@ export async function updateProfile(
         return {
           success: "Organization updated successfully",
           organization: transformedOrg,
+          nonce,
         };
       }
       return {
         success: "Organization updated successfully",
+        nonce,
       };
     }
     const { error: associationError } = await supabase
@@ -166,7 +171,7 @@ export async function updateProfile(
         "Error associating user with organization:",
         associationError
       );
-      return { error: associationError.message };
+      return { error: associationError.message, nonce };
     } else {
       console.log("User associated with organization successfully");
       // Supabase returns address as nested JSONB, so use it directly
@@ -190,11 +195,13 @@ export async function updateProfile(
           success: response.success,
           id: response.id,
           organization: transformedOrg,
+          nonce,
         };
       }
       return {
         success: response.success,
         id: response.id,
+        nonce,
       };
     }
   }
