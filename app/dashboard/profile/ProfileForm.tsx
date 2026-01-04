@@ -6,11 +6,13 @@ import { Separator } from '@/components/ui/separator'
 import { updateProfile } from './action'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { ImageUploadDialog } from './ImageUploadDialog'
+import { ImageUploadDialog, getLogoUrl } from './ImageUploadDialog'
 import { Activity, useState, useActionState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { Spinner } from '@/components/ui/spinner'
 import { updatePassword, type ProfileResult } from './action'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import React from 'react'
 
 type Organization = {
   id: string;
@@ -52,7 +54,7 @@ const ProfileForm = ({ organization: initialOrganization }: Props) => {
           name: initialOrganization.name,
           email: initialOrganization.email,
           phone: initialOrganization.phone,
-          logo_url: initialOrganization.logo_url,
+          logo_url: null,
           address: initialOrganization.address || {
             address_line1: null,
             address_line2: null,
@@ -108,33 +110,126 @@ const ProfileForm = ({ organization: initialOrganization }: Props) => {
 
   // once user types in the form, set the submitDisabled to false
 
+  const [currentLogoUrl, setCurrentLogoUrl] = useState<string | null>(null)
+  
+  // Generate placeholder URL based on organization ID for consistency (human profile images only)
+  const getPlaceholderUrl = () => {
+    return 'https://avatar.iran.liara.run/public'
+  }
+
+  // Fetch logo directly from Supabase storage based on organizationId
+  // Use organization?.id or initialOrganization?.id
+  useEffect(() => {
+    const fetchLogo = async () => {
+      const orgId = organization?.id || initialOrganization?.id
+      if (orgId) {
+        try {
+          const logoUrl = await getLogoUrl(orgId)
+          setCurrentLogoUrl(logoUrl)
+        } catch (error) {
+          console.error('Error fetching logo:', error)
+          setCurrentLogoUrl(null)
+        }
+      } else {
+        setCurrentLogoUrl(null)
+      }
+    }
+
+    fetchLogo()
+  }, [organization?.id, initialOrganization?.id])
+
+  const handleAvatarClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    if (!organization?.id) {
+      return; // Don't open dialog if organizationId doesn't exist
+    }
+    setOpen(true);
+  };
+
+  const handleLogoUploadSuccess = async (url: string) => {
+    // Use the URL directly from upload (it already has cache-busting parameter)
+    // This ensures immediate update without waiting for storage fetch
+    setCurrentLogoUrl(url)
+    
+    // Also fetch from storage after a short delay to ensure we have the latest
+    // This handles cases where the file might be processed asynchronously
+    if (organization?.id) {
+      setTimeout(async () => {
+        try {
+          const logoUrl = await getLogoUrl(organization.id)
+          if (logoUrl) {
+            // Add cache-busting to ensure fresh image
+            const cacheBustUrl = `${logoUrl}?t=${Date.now()}`
+            setCurrentLogoUrl(cacheBustUrl)
+          }
+        } catch (error) {
+          console.error('Error fetching logo URL:', error)
+        }
+      }, 500)
+    }
+  };
+
+  const handleLogoDeleteSuccess = async () => {
+    // Clear the logo URL display
+    setCurrentLogoUrl(null)
+    
+    // Verify deletion by fetching logo URL
+    if (organization?.id) {
+      try {
+        const logoUrl = await getLogoUrl(organization.id)
+        if (!logoUrl) {
+          setCurrentLogoUrl(null)
+        } else {
+          // Logo still exists, restore it
+          setCurrentLogoUrl(logoUrl)
+        }
+      } catch (error) {
+        console.error('Error verifying logo deletion:', error)
+        setCurrentLogoUrl(null)
+      }
+    }
+  };
+
   return (
     <>
       <Activity mode={open ? "visible" : "hidden"}>
-        <ImageUploadDialog open={open} setOpen={setOpen} />
+        <ImageUploadDialog 
+          open={open} 
+          setOpen={setOpen} 
+          organizationId={organization?.id}
+          onUploadSuccess={handleLogoUploadSuccess}
+          onDeleteSuccess={handleLogoDeleteSuccess}
+        />
       </Activity>
       <form>
         <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
           <section>
-            <Button
-              variant="ghost"
-              size="icon-lg"
-              className="size-32"
-              onClick={() => {
-                setOpen(true);
-              }}
-            >
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-lg"
+                  className="size-32"
+                  onClick={handleAvatarClick}
+                  disabled={!organization?.id}
+                >
               <Avatar className="size-32 shadow-md border-3 border-sky-600">
                 <AvatarImage
                   sizes="100%"
-                  src={
-                    organization?.logo_url || "https://github.com/shadcn.png"
-                  }
-                  alt="@shadcn"
+                  src={currentLogoUrl || getPlaceholderUrl()}
+                  alt="Organization logo"
                 />
                 <AvatarFallback>CN</AvatarFallback>
               </Avatar>
-            </Button>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {!organization?.id 
+                  ? 'Please save other information first'
+                  : 'Profile image'
+                }
+              </TooltipContent>
+            </Tooltip>
           </section>
           <section className="my-auto">
             <Label
@@ -211,11 +306,6 @@ const ProfileForm = ({ organization: initialOrganization }: Props) => {
                 </small>
               )}
           </section>
-          <input
-            type="hidden"
-            name="logo_url"
-            defaultValue={organization?.logo_url || ""}
-          />
           <Separator className="col-span-2" />
           <h2 className="text-lg font-medium text-muted-foreground col-span-2">
             Update Password
