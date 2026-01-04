@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase-server"
-import ConfigureBotForm from "./ConfigureBotForm"
 import { redirect } from "next/navigation"
 import { resolveCurrentOrganizationId } from "@/lib/current-organization"
+import BotInteractionsClient from "./BotInteractionsClient"
 
 export default async function BotInteractionsPage() {
   
@@ -23,6 +23,8 @@ export default async function BotInteractionsPage() {
     .from('bots')
     .select('*')
     .eq('organization_id', organizationId)
+    .order('created_at', { ascending: false })
+  
   if (botError){
     console.error('Error getting bots:', botError)
     return <div className='alert-danger'>Error getting bots: {botError.message}</div>
@@ -33,7 +35,7 @@ export default async function BotInteractionsPage() {
       <header>
         <h1 className='dashboard-title'>Interactions</h1>
       </header>
-      <ConfigureBotForm bot={bots?.length ? bots[0] : null}/>
+      <BotInteractionsClient bots={bots || []} />
     </main>
   )
 }

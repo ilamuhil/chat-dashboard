@@ -23,6 +23,7 @@ import { useEffect } from "react";
 
 type BotProps = {
   bot: Bot | null;
+  onSuccess?: () => void;
 };
 
 const ConfigureBotForm = (props: BotProps) => {
@@ -47,6 +48,12 @@ const ConfigureBotForm = (props: BotProps) => {
   useEffect(() => {
     if (state?.success) {
       toast.success(state.success);
+      // Call onSuccess callback after a short delay to allow toast to show
+      if (props.onSuccess) {
+        setTimeout(() => {
+          props.onSuccess?.();
+        }, 500);
+      }
     }
     if (state?.error) {
       toast.error(

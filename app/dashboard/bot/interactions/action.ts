@@ -155,12 +155,8 @@ export async function updateBotInteractions(
       ? "after_first"
       : null;
 
-  // Check if bot already exists for this organization
-  const { data: existingBot } = await supabase
-    .from("bots")
-    .select("id")
-    .eq("organization_id", organizationId)
-    .maybeSingle();
+  // Get bot_id from formData to determine if this is an update or create
+  const botId = formData.get("bot_id")?.toString();
 
   const botData = {
     organization_id: organizationId,
@@ -179,12 +175,28 @@ export async function updateBotInteractions(
     updated_at: new Date().toISOString(),
   };
 
-  if (existingBot) {
+  if (botId) {
+    // Verify the bot belongs to this organization before updating
+    const { data: existingBot, error: verifyError } = await supabase
+      .from("bots")
+      .select("id")
+      .eq("id", botId)
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+
+    if (verifyError || !existingBot) {
+      return {
+        error: "Bot not found or you don't have permission to update it",
+        nonce,
+      };
+    }
+
     // Update existing bot
     const { data: updatedBot, error: updateError } = await supabase
       .from("bots")
       .update(botData)
-      .eq("id", existingBot.id)
+      .eq("id", botId)
+      .eq("organization_id", organizationId)
       .select()
       .single();
 
