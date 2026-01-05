@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import Link from "next/link";
-import ConfirmationDialog from "@/components/auth/ConfirmationDialog";
+import ConfirmationDialog from "@/components/ui/ConfirmationDialog";
 import { useState, useActionState } from "react";
 import { cn } from "@/lib/utils";
 import supabase from "@/lib/supabase-client";

@@ -40,7 +40,8 @@ type BotConfig = {
 type BotConfigResult = {
   error?: string | Record<string, string[]>
   success?: string
-  botConfig?: BotConfig
+  botConfig?: BotConfig 
+  nonce: string | null
 }
 
 type Props = {
@@ -55,29 +56,21 @@ const BotConfigForm = ({ botConfig }: Props) => {
     error: null,
     success: null,
     botConfig: botConfig,
+    nonce: null,
   })
 
   const [captureLeads, setCaptureLeads] = useState(false)
-  const errorMessage =
-    typeof botConfigFormState?.error === 'string'
-      ? botConfigFormState.error
-      : botConfigFormState?.error
-      ? Object.values(botConfigFormState.error).flat()[0]
-      : null
-
-  const successMessage = botConfigFormState?.success
-
-  
 
   useEffect(() => {
-    if (!botConfigFormState) return
+    if (!botConfigFormState?.nonce) return
     if (botConfigFormState?.success) {
       toast.success(botConfigFormState.success, { position: 'top-center' })
     }
     if (botConfigFormState?.error) {
       toast.error(botConfigFormState.error, { position: 'top-center' })
     }
-  }, [botConfigFormState])
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [botConfigFormState?.nonce])
 
   return (
     <form className='space-y-4'>

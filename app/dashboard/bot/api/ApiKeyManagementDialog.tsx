@@ -68,6 +68,7 @@ const ApiKeyManagementDialog = (props: ApiKeyManagementDialogProps) => {
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [state.nonce])
 
+
   return (
     <Dialog open={props.open} onOpenChange={handleOpenChange}>
       <DialogContent aria-describedby='api-key-form'>
@@ -96,13 +97,13 @@ const ApiKeyManagementDialog = (props: ApiKeyManagementDialogProps) => {
                   name='bot_id'
                   required
                   disabled={isPending}
-                  defaultValue={props.bots[0].id || ''}>
+                  >
                   <SelectTrigger className='w-full'>
                     <SelectValue placeholder='Select a bot' />
                   </SelectTrigger>
                   <SelectContent>
                     {props.bots.map(bot => (
-                      <SelectItem key={bot.id} value={bot.id}>
+                      <SelectItem key={bot.id} value={bot.id + ''}>
                         {bot.name}
                       </SelectItem>
                     ))}

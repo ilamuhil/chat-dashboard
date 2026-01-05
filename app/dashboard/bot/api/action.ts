@@ -20,7 +20,7 @@ export async function saveApiKey(
       nonce: Date.now().toString(),
     }
   }
-  const bot_id = formData.get('bot_id')
+  const bot_id = +formData.get('bot_id')
   if (!bot_id) {
     return {
       error: 'Please select a bot to generate an API key',
