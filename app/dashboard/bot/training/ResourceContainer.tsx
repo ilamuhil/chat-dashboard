@@ -14,6 +14,7 @@ import { Separator } from '@/components/ui/separator'
 import { StatusChip, type StatusChipStatus } from '@/components/status-chip'
 type Props = {
   resources: Array<{
+    id: string
     type: 'url' | 'file'
     value: string
     status: StatusChipStatus
@@ -35,7 +36,7 @@ const ResourceContainer = (props: Props) => {
         className='grid gap-4 bg-slate-50 rounded p-2'
         style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
         {props.resources.map(resource => (
-          <React.Fragment key={resource.value}>
+          <React.Fragment key={resource.id}>
             <div className='bg-sky-800/10 p-2 flex flex-col gap-1 w-[clamp(100px,100%,600px)] rounded'>
               <div className='flex items-center justify-between'>
                 <StatusChip status={resource.status} className='rounded p-1' />

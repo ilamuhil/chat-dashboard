@@ -11,60 +11,247 @@ import { Separator } from '@/components/ui/separator'
 import { Progress } from '@/components/ui/progress'
 import { Bot } from '../interactions/action'
 import BotSelectionGrid from './BotSelectionGrid'
+import { useQuery, useMutation } from '@tanstack/react-query'
+import { nanoid } from 'nanoid'
+import { toast } from 'sonner'
+import { createClient } from '@/lib/supabase-client'
 
+type TrainingSourceStatus = 'pending' | 'processing' | 'completed' | 'failed'
+type TrainingSourceType = 'url' | 'file'
+
+type TrainingSource = {
+  id: string
+  type: TrainingSourceType
+  value: string
+  status: TrainingSourceStatus
+  onDelete: () => Promise<void>
+}
+
+type ApiTrainingSource = {
+  id: string
+  type: TrainingSourceType
+  source_value: string | null
+  status: TrainingSourceStatus
+  file?: {
+    original_filename?: string | null
+    path?: string | null
+  } | null
+}
 
 type Props = {
   bots: Bot[]
 }
 export default function TrainingDataClient({ bots }: Props) {
-  const [trainingProgress] = useState(45) // Dummy value
+  const [progress] = useState(45) // Dummy value
   // Dummy values for training stats
   const [totalFilesUploaded] = useState(10)
   const [totalFilesProcessed] = useState(8)
   const [failedFiles] = useState(2)
   const [lastTrainedAt] = useState('12/08/2025 14:30')
   const [selectedBot, setSelectedBot] = useState<Bot | null>(null)
+  const [sources, setSources] = useState<TrainingSource[]>([])
+  const [url, setUrl] = useState('')
+  //query to fetch training sources for the selected bot if training has been completed previously
+  const {
+    data: trainingSources,
+    isLoading: isLoadingTrainingSources,
+  } = useQuery({
+    queryKey: ['training-sources', selectedBot?.id],
+    queryFn: async () => {
+      if (!selectedBot?.id) return []
+      const response = await fetch(`/api/training/${selectedBot.id}`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch training sources')
+      }
+      const { sources: apiSources } = (await response.json()) as {
+        sources: ApiTrainingSource[]
+      }
+      setSources(
+        apiSources.map(source => {
+          const status = (source.status ?? 'pending') as TrainingSourceStatus
+          if (source.type === 'file') {
+            return {
+              id: source.id,
+              type: source.type,
+              value: source.file?.original_filename || source.source_value || 'file',
+              status,
+              onDelete: async () => deleteTrainingSource(source.id),
+            }
+          }
+          return {
+            id: source.id,
+            type: source.type,
+            value: source.source_value || '',
+            status,
+            onDelete: async () => deleteTrainingSource(source.id),
+          }
+        })
+      )
+      return apiSources
+    },
+    enabled: !!selectedBot?.id,
+  })
+
+  // query to queue training for the selected bot with the uploaded training sources and urls
+  const {
+    isPending: isPendingTraining,
+    mutate: train_bot,
+  } = useMutation({
+    mutationFn: async () => {
+      if (!selectedBot?.id) throw new Error('Please select a bot to train')
+      const response = await fetch(`/api/training/${selectedBot.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ training_sources: sources }),
+      })
+      if (!response.ok) {
+        throw new Error(await response.text())
+      }
+      const { message } = await response.json()
+      return message
+    },
+    onSuccess: (message: string) => {
+      toast.success(message)
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to train bot. Please try again.')
+    },
+  })
+
+  //!NOTE: All deletion should be done in server side.
+  /**  Below is the query to delete training sources for the selected bot
+  2 types of deletions are happening here depending on the status of the training source:
+  1. if training source has been trained on before (i.e it has a state of success or failed) then we need to delete the training source, the embeddings, and the document chunks from the database (either soft or hard delete) and remove files from the storage if source type is file
+  2. if the training source has not been trained on before (either no status or status is pending) then (a) if source is url then remove from sources state and (b) if source is file then remove from sources state and remove file from storage
+  **/
+
+  const {
+    isLoading: isSourceDeletionLoading,
+    mutate: deleteTrainingSource,
+  } = useMutation({
+    mutationFn: async (training_source_id: string) => {
+      if (!training_source_id) {
+        toast.error('Invalid training source selected for deletion')
+        return
+      }
+      const source = sources.find(source => source.id === training_source_id)
+      if (!source) {
+        toast.error('Invalid training source selected for deletion')
+        return
+      }
+      if (source.status === 'pending') {
+        if (source.type === 'file') { 
+          await deleteFileFromStorage(source.value)
+        }
+        setSources(prev => prev.filter(source => source.id !== training_source_id))
+        toast.success('Training source deleted successfully')
+        return
+      } else {
+        if (!selectedBot?.id) throw new Error('No bot selected')
+        const response = await fetch(`/api/training/${selectedBot.id}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source_id: training_source_id }),
+        })
+        if (!response.ok) {
+          const errorData = await response.json()
+          console.error('Error deleting training source:', errorData)
+          throw new Error(errorData.error || 'Failed to delete training source')
+        }
+        const { message } = await response.json()
+        return message as string
+      }
+    },
+    onSuccess: (message: string) => {
+      if (message) toast.success(message)
+    },
+    onError: (error: Error) => {
+      console.error('Error deleting training source:', error)
+      toast.error(
+        error.message || 'Failed to delete training source. Please try again.'
+      )
+    },
+  })
+
+  async function deleteFileFromStorage(filename: string): Promise<void> {
+    const supabase = createClient()
+    const file_path =
+      (trainingSources as unknown as { sources?: ApiTrainingSource[] } | undefined)?.sources?.find(
+        source => source.type === 'file' && source.file?.original_filename === filename
+      )?.file?.path ?? null
+    if (!file_path) {
+      toast.error('File not found in storage')
+      return
+    }
+    const { error } = await supabase.storage.from('bot-files').remove([file_path])
+    if (error) {
+      toast.error('Failed to delete file from storage')
+      return
+    }
+    toast.success('File deleted from storage successfully')
+  }
 
   if (!selectedBot) {
     return <BotSelectionGrid bots={bots} onSelectBot={setSelectedBot} />
   }
 
   return (
-    <form className='space-y-4'>
-      <div className="flex items-end gap-2">
+    <main className='space-y-4'>
+      <div className='flex items-end gap-2'>
         <Button
-          variant="outline"
-          type="button"
-          size="default"
-          className="h-8 px-2 flex items-center gap-1 font-normal text-xs rounded mr-2"
-          onClick={() => setSelectedBot(null)}
-        >
-          <ArrowLeftIcon className="size-4 mr-1" />
+          variant='outline'
+          type='button'
+          size='default'
+          className='h-8 px-2 flex items-center gap-1 font-normal text-xs rounded mr-2'
+          onClick={() => setSelectedBot(null)}>
+          <ArrowLeftIcon className='size-4 mr-1' />
           Back to Bot Selection
         </Button>
-        <section className="space-y-1 flex-1">
-          <Label className="text-xs font-medium text-muted-foreground">
+        <section className='space-y-1 flex-1'>
+          <Label className='text-xs font-medium text-muted-foreground'>
             Enter Url
           </Label>
-          <div className="flex w-full items-end">
+          <div className='flex w-full items-end'>
             <Input
-              type="text"
-              placeholder="https://example.com"
-              className="h-8 text-[0.9em] placeholder:text-xs w-full min-w-[180px] max-w-[330px] rounded-r-none border-r-0"
-              style={{ fontSize: "0.65em" }}
+              type='text'
+              placeholder='https://example.com'
+              className='h-8 placeholder:text-xs w-full min-w-[180px] max-w-[330px] rounded-r-none border-r-0'
+              style={{ fontSize: '0.65em' }}
+              value={url}
+              onChange={e => {
+                setUrl(e.target.value)
+              }}
             />
             <Button
-              variant="outline"
-              size="default"
-              className="h-8 px-3 text-xl flex items-center rounded-l-none border-l-0"
-            >
+              disabled={!url.trim()}
+              variant='outline'
+              size='default'
+              className='h-8 px-3 text-xl flex items-center rounded-l-none border-l-0'
+              onClick={e => {
+                e.preventDefault()
+                e.stopPropagation()
+                const id = nanoid(24)
+                if (url.trim()) {
+                  setSources(prev => [
+                    ...prev,
+                    {
+                      id,
+                      type: 'url',
+                      value: url,
+                      status: 'pending',
+                      onDelete: async () => deleteTrainingSource(id),
+                    },
+                  ])
+                  setUrl('')
+                }
+              }}>
               +
             </Button>
           </div>
         </section>
       </div>
       <section className='space-y-4'>
-        <Label className='text-xs font-medium text-muted-foreground '>
+        <Label className='text-xs font-medium text-muted-foreground'>
           Upload Files
         </Label>
         <Input
@@ -90,45 +277,10 @@ export default function TrainingDataClient({ bots }: Props) {
           </p>
         </div>
         <ResourceContainer
-          resources={[
-            {
-              type: 'url',
-              value: 'https://example.com',
-              status: 'pending',
-              onDelete: async () => {},
-            },
-            {
-              type: 'file',
-              value: 'example.pdf',
-              status: 'processing',
-              onDelete: async () => {},
-            },
-            {
-              type: 'url',
-              value: 'https://another.com',
-              status: 'completed',
-              onDelete: async () => {},
-            },
-            {
-              type: 'file',
-              value: 'notes.docx',
-              status: 'failed',
-              onDelete: async () => {},
-            },
-            {
-              type: 'url',
-              value: 'https://somesite.com',
-              status: 'processing',
-              onDelete: async () => {},
-            },
-            {
-              type: 'file',
-              value: 'presentation.pptx',
-              status: 'completed',
-              onDelete: async () => {},
-            },
-          ]}
-          isDisabled={true}
+          resources={sources}
+          isDisabled={
+            isLoadingTrainingSources || isPendingTraining || isSourceDeletionLoading
+          }
         />
         <Separator />
         <div className='flex items-center gap-2'>
@@ -142,42 +294,65 @@ export default function TrainingDataClient({ bots }: Props) {
         </div>
         <div className='w-full md:w-1/2 rounded-sm border border-gray-200 bg-white p-2'>
           <div className='mb-1.5'>
-            <h3 className='text-sm font-medium'>
-              Training Progress
-            </h3>
+            <h3 className='text-sm font-medium'>Training Progress</h3>
           </div>
           <div className='space-y-2'>
             <div className='space-y-1'>
               <div className='flex items-center justify-between'>
-                <span className='text-[0.65em] text-muted-foreground'>Completed</span>
-                <span className='text-[0.65em] font-medium text-foreground'>{trainingProgress}%</span>
+                <span className='text-[0.65em] text-muted-foreground'>
+                  Completed
+                </span>
+                <span className='text-[0.65em] font-medium text-foreground'>
+                  {progress}%
+                </span>
               </div>
-              <Progress value={trainingProgress} className='h-1.5 rounded-sm' />
+              <Progress value={progress} className='h-1.5 rounded-sm' />
             </div>
             <div className='pt-1.5 border-t space-y-1.5'>
               <div className='grid grid-cols-2 gap-x-3 gap-y-1.5'>
                 <div className='flex flex-col gap-0.5'>
-                  <span className='text-[0.65em] text-muted-foreground leading-tight font-medium'>Total Files Uploaded</span>
-                  <span className='text-[0.65em] font-semibold text-foreground leading-tight'>{totalFilesUploaded}</span>
+                  <span className='text-[0.65em] text-muted-foreground leading-tight font-medium'>
+                    Total Files Uploaded
+                  </span>
+                  <span className='text-[0.65em] font-semibold text-foreground leading-tight'>
+                    {totalFilesUploaded}
+                  </span>
                 </div>
                 <div className='flex flex-col gap-0.5'>
-                  <span className='text-[0.65em] text-muted-foreground leading-tight font-medium'>Total Files Successfully Processed</span>
-                  <span className='text-[0.65em] font-semibold leading-tight text-emerald-600'>{totalFilesProcessed}</span>
+                  <span className='text-[0.65em] text-muted-foreground leading-tight font-medium'>
+                    Total Files Successfully Processed
+                  </span>
+                  <span className='text-[0.65em] font-semibold leading-tight text-emerald-600'>
+                    {totalFilesProcessed}
+                  </span>
                 </div>
                 <div className='flex flex-col gap-0.5'>
-                  <span className='text-[0.65em] text-muted-foreground leading-tight font-medium'>Failed Files</span>
-                  <span className='text-[0.65em] font-semibold text-rose-600 leading-tight'>{failedFiles}</span>
+                  <span className='text-[0.65em] text-muted-foreground leading-tight font-medium'>
+                    Failed Files
+                  </span>
+                  <span className='text-[0.65em] font-semibold text-rose-600 leading-tight'>
+                    {failedFiles}
+                  </span>
                 </div>
                 <div className='flex flex-col gap-0.5'>
-                  <span className='text-[0.65em] text-muted-foreground leading-tight font-medium'>Last Trained At</span>
-                  <span className='text-[0.65em] font-semibold text-foreground leading-tight'>{lastTrainedAt}</span>
+                  <span className='text-[0.65em] text-muted-foreground leading-tight font-medium'>
+                    Last Trained At
+                  </span>
+                  <span className='text-[0.65em] font-semibold text-foreground leading-tight'>
+                    {lastTrainedAt}
+                  </span>
                 </div>
               </div>
             </div>
           </div>
         </div>
-        <Button>Confirm and Start Training</Button>
+        <Button
+          type='button'
+          disabled={isPendingTraining || !selectedBot?.id}
+          onClick={() => train_bot()}>
+          {isPendingTraining ? 'Starting…' : 'Confirm and Start Training'}
+        </Button>
       </section>
-    </form>
+    </main>
   )
 }
