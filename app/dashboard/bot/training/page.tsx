@@ -1,105 +1,38 @@
-'use client'
+import { createClient } from '@/lib/supabase-server'
+import { redirect } from 'next/navigation'
+import { resolveCurrentOrganizationId } from '@/lib/current-organization'
 
-import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
-import { CloudUpload } from 'lucide-react'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import TrainingDataClient from './TrainingDataClient'
 
-export default function BotTrainingPage() {
+
+export default async function BotTrainingPage() {
+  const supabase = await createClient()
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) {
+    redirect('/auth/login')
+  }
+  const organizationId = await resolveCurrentOrganizationId({
+    supabase,
+    userId: user.id,
+  })
+  if (!organizationId) {
+    console.error('Organization not found!')
+    return <div className='alert-danger'>Organization not found!</div>
+  }
+  const { data: bots, error: botError } = await supabase
+    .from('bots')
+    .select('*')
+    .eq('organization_id', organizationId)
+  if (botError) {
+    console.error('Error getting bots:', botError)
+    return <div className='alert-danger'>Error getting bots: {botError.message}</div>
+  }
   return (
     <main className='space-y-6'>
       <header>
         <h1 className='dashboard-title'>Training Data</h1>
       </header>
-      <form className='space-y-4'>
-        <section className='space-y-1'>
-          <Label className='text-xs font-medium text-muted-foreground '>
-            Enter Url
-          </Label>
-          <Input
-            type='text'
-            placeholder='https://example.com'
-            className='text-xs placeholder:text-xs'
-          />
-        </section>
-        <Button variant='outline' size='default'>
-          Add URL
-        </Button>
-        <aside className='alert-muted' role='status'>No Urls added yet</aside>
-        <section className='space-y-4'>
-          <Label className='text-xs font-medium text-muted-foreground '>
-            Upload Files
-          </Label>
-          <Input
-            id='file-input'
-            type='file'
-            multiple
-            className='text-xs placeholder:text-xs hidden'
-          />
-          <div
-            className={cn('alert-muted cursor-pointer', 'py-6')}
-            htmlFor='file-input'
-            onClick={() => document.getElementById('file-input')?.click()}>
-            <CloudUpload className='size-6 my-3 mx-auto ' />
-            <p className='mb-1'>
-              Click to upload files or drag and drop files here
-            </p>
-            <p className='mb-1'>
-              Supported formats: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX
-            </p>
-            <p>Max file size: 10MB</p>
-            <p className='italic mt-2 text-amber-600 mb-4'>
-              No files uploaded yet
-            </p>
-          </div>
-          <div className='flex items-center gap-2'>
-            <Checkbox id='terms-and-conditions' />
-            <Label
-              htmlFor='terms-and-conditions'
-              className='text-xs font-medium text-muted-foreground'>
-              I agree to the terms and conditions and privacy policy of the data
-              submitted.
-            </Label>
-          </div>
-          <Card className='w-full md:w-1/2 rounded-md shadow-xs border gap-2'>
-            <CardHeader className='pb-2 px-4'>
-              <CardTitle className='text-sm font-medium'>
-                Training Progress
-              </CardTitle>
-            </CardHeader>
-            <CardContent className='space-y-2.5 px-4 pb-3'>
-              <div className='flex items-center gap-2'>
-                <span className='text-xs text-muted-foreground'>Status:</span>
-                <Badge
-                  variant='outline'
-                  className='ring-2 ring-amber-400 text-amber-400 border-0 text-xs px-1.5 py-0.5'>
-                  <span className='inline-flex size-1 animate-ping rounded-full bg-amber-400 mr-1'></span>
-                  Processing
-                </Badge>
-              </div>
-              <dl className='space-y-1 pt-1.5 border-t'>
-                <div className='flex items-center justify-between text-xs'>
-                  <dt className='text-muted-foreground'>
-                    Total Files Uploaded
-                  </dt>
-                  <dd className='font-medium text-foreground'>10</dd>
-                </div>
-                <div className='flex items-center justify-between text-xs'>
-                  <dt className='text-muted-foreground'>Last Updated</dt>
-                  <dd className='font-medium text-foreground'>
-                    12/08/2025
-                  </dd>
-                </div>
-              </dl>
-            </CardContent>
-          </Card>
-          <Button>Confirm and Start Training</Button>
-        </section>
-      </form>
+     <TrainingDataClient bots={bots} />
     </main>
   )
 }

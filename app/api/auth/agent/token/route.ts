@@ -1,6 +1,6 @@
 //agent joins in to the chat conversation
 import { NextRequest, NextResponse } from 'next/server'
-import { getAgentJwt } from '@/app/actions/auth'
+import { getAgentJwt } from '@/app/auth/actions'
 import { createClient } from '@/lib/supabase-server'
 
 export const runtime = 'nodejs'

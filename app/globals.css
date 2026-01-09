@@ -1,5 +1,5 @@
-@import "tailwindcss";
-@import "tw-animate-css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -114,8 +114,6 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
-
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -125,25 +123,23 @@
   }
 }
 
-
-
 @layer components {
-  .alert-danger{
+  .alert-danger {
     @apply bg-red-200 p-2 rounded-md text-sm text-destructive text-center transition-all duration-300;
   }
-  .alert-success{
+  .alert-success {
     @apply bg-green-200 p-2 rounded-md text-sm text-green-800 text-center transition-all duration-300;
   }
-  .alert-warning{
+  .alert-warning {
     @apply bg-yellow-200 p-2 rounded-md text-sm text-yellow-800 text-center transition-all duration-300;
   }
-  .alert-info{
+  .alert-info {
     @apply bg-blue-200 p-2 rounded-md text-sm text-sky-800 text-center transition-all duration-300;
   }
-  .dashboard-title{
+  .dashboard-title {
     @apply text-2xl font-bold tracking-tight;
   }
-  .alert-muted{
+  .alert-muted {
     @apply bg-slate-200 px-2 py-3 rounded-md text-xs text-muted-foreground text-center transition-all duration-300;
   }
   .shadow-default {
@@ -161,28 +157,28 @@
 }
 
 @keyframes blur-in {
-  from{
-    opacity:1;
+  from {
+    opacity: 1;
     filter: blur(0px);
   }
   to {
-    opacity:0;
+    opacity: 0;
     filter: blur(10px);
   }
 }
 
 @keyframes blur-out {
-  from{
-    opacity:0;
+  from {
+    opacity: 0;
     filter: blur(10px);
   }
   to {
-    opacity:1;
+    opacity: 1;
     filter: blur(0px);
   }
 }
 
-::view-transition-old(root){
+::view-transition-old(root) {
   animation: 300ms ease-in both blur-in;
 }
 ::view-transition-new(root) {

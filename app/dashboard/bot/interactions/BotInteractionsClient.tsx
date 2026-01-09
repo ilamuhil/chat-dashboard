@@ -3,9 +3,10 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import ConfigureBotForm from './ConfigureBotForm'
 import type { Bot } from './action'
-import { PlusIcon, TrashIcon } from 'lucide-react'
+import { PlusIcon, TrashIcon, CalendarIcon, MessageSquareIcon, SparklesIcon } from 'lucide-react'
 import ConfirmationDialog from '@/components/ui/ConfirmationDialog'
 import { createClient } from '@/lib/supabase-client'
 import { toast } from 'sonner'
@@ -29,7 +30,7 @@ export default function BotInteractionsClient({
     setSelectedBot(null)
     setShowForm(true)
   }
-  const handleDelete = async(botId: number) => {
+  const handleDelete = async(botId: string) => {
     //open alert dialog to confirm deletion
     const supabase = createClient()
     const { error } = await supabase.from('bots').delete().eq('id', botId)
@@ -40,7 +41,6 @@ export default function BotInteractionsClient({
       toast.success('Bot deleted successfully')
       handleFormSuccess()
     }
-    
   }
 
   const handleFormSuccess = () => {
@@ -49,6 +49,24 @@ export default function BotInteractionsClient({
     // Close the form and return to bot list view
     setShowForm(false)
     setSelectedBot(null)
+  }
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'N/A'
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })
+  }
+
+  const formatRole = (role: string | null) => {
+    if (!role) return 'Not set'
+    return role
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
   }
 
   // If form is shown, display the form
@@ -97,7 +115,7 @@ export default function BotInteractionsClient({
     <div className='space-y-4'>
       <ConfirmationDialog
         title='Delete Bot'
-        description='Are you sure you want to delete this bot? Deleting this bot will delete all associated API keys and stop all widget conversations in your applications.'
+        description='Are you sure you want to delete this bot? Deleting this bot will delete all associated API keys, stop all widget conversations in your applications and delete all trained data.'
         open={showDeleteDialog}
         setOpen={setShowDeleteDialog}
         onConfirm={() => handleDelete(selectedBot?.id)}
@@ -111,48 +129,78 @@ export default function BotInteractionsClient({
           <PlusIcon className='h-4 w-4' />
           Create New Bot
         </Button>
-        <p className='text-sm text-muted-foreground'>
+        <p className='text-[0.65em] text-muted-foreground'>
           {bots.length} {bots.length === 1 ? 'bot' : 'bots'} configured
         </p>
       </div>
-      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3'>
+      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2'>
         {bots.map(bot => (
           <div
             key={bot.id}
-            className={`cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all duration-200 bg-white p-4 rounded`}
+            className='cursor-pointer rounded hover:border-gray-300 hover:shadow-sm transition-all duration-200 border border-gray-200 bg-white p-2'
             onClick={() => {
               handleBotClick(bot)
             }}>
-            <div>
-              <div className='flex justify-between items-center'>
-                <div className='text-sm font-semibold leading-tight'>
-                  {bot.name}
-                </div>
-                <Button variant='outline' size='icon' onClick={(e) => {
-                  e.stopPropagation()
-                  setShowDeleteDialog(true)
-                  setSelectedBot(bot)
-                }}>
-                  <TrashIcon className='h-4 w-4' />
+            <div className='flex items-start justify-between gap-1 mb-1'>
+              <h3 className='text-sm font-semibold leading-tight line-clamp-1'>
+                {bot.name}
+              </h3>
+              <div className='flex items-center gap-1 shrink-0'>
+                {bot.capture_leads && (
+                  <Badge
+                    variant='outline'
+                    className='text-[0.65em] px-1 py-0.5 bg-emerald-50 text-emerald-700 border-emerald-200 rounded-sm'>
+                    Leads
+                  </Badge>
+                )}
+                <Button 
+                  type='button'
+                  variant='ghost' 
+                  size='icon' 
+                  className='h-5 w-5 p-0'
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setShowDeleteDialog(true)
+                    setSelectedBot(bot)
+                  }}>
+                  <TrashIcon className='h-3 w-3 text-red-500' />
                 </Button>
               </div>
-              <div className='text-xs capitalize mt-1'>
-                {bot.role?.replace('-', ' ')} • {bot.tone}
-              </div>
             </div>
-            <div>
-              <div className='space-y-2'>
-                <p className='text-xs text-muted-foreground line-clamp-2 leading-relaxed'>
+            <div className='space-y-0.5'>
+              {bot.role && (
+                <div className='flex items-center gap-1'>
+                  <MessageSquareIcon className='size-2.5 text-muted-foreground shrink-0' />
+                  <span className='text-[0.65em] text-muted-foreground'>
+                    Role:
+                  </span>
+                  <span className='text-[0.65em] font-medium text-foreground'>
+                    {formatRole(bot.role)}
+                  </span>
+                </div>
+              )}
+              {bot.tone && (
+                <div className='flex items-center gap-1'>
+                  <SparklesIcon className='size-2.5 text-muted-foreground shrink-0' />
+                  <span className='text-[0.65em] text-muted-foreground'>
+                    Tone:
+                  </span>
+                  <span className='text-[0.65em] font-medium text-foreground capitalize'>
+                    {bot.tone}
+                  </span>
+                </div>
+              )}
+              {bot.business_description && (
+                <p className='text-[0.65em] text-muted-foreground line-clamp-2 leading-tight'>
                   {bot.business_description}
                 </p>
-                {bot.capture_leads && (
-                  <div className='flex items-center gap-2 pt-1'>
-                    <span className='px-2 py-0.5 bg-primary/15 text-primary rounded-md text-xs font-medium'>
-                      Lead Capture
-                    </span>
-                  </div>
-                )}
-              </div>
+              )}
+            </div>
+            <div className='pt-1 mt-1 border-t flex items-center gap-1'>
+              <CalendarIcon className='size-2.5 text-muted-foreground shrink-0' />
+              <span className='text-[0.65em] text-muted-foreground'>
+                Updated {formatDate(bot.updated_at)}
+              </span>
             </div>
           </div>
         ))}
