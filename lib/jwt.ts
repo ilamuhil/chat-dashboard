@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken'
+import jwt, { type SignOptions } from 'jsonwebtoken'
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -22,12 +22,13 @@ export function getSecretKey(): string | null {
 export function signToken(
   payload: {
     organization_id: string
-    bot_id: number
-    conversation_id: string
+    bot_id: string | number
+    conversation_id?: string
     type: 'user' | 'agent'
     [key: string]: unknown
   },
-  privateKey: string
+  privateKey: string,
+  expiresIn: SignOptions['expiresIn'] = '5m'
 ): string {
   return jwt.sign(
     {
@@ -37,7 +38,7 @@ export function signToken(
     privateKey,
     {
       algorithm: 'RS256',
-      expiresIn: '5m',
+      expiresIn,
       issuer: 'next-server',
       audience: 'chat-server',
     }

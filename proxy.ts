@@ -65,7 +65,7 @@ export async function proxy(request: NextRequest) {
     // When creating a new response, must copy cookies (see comment below)
     const redirectResponse = NextResponse.redirect(url)
     supabaseResponse.cookies.getAll().forEach(cookie => {
-      redirectResponse.cookies.set(cookie.name,cookie.value,cookie.options)
+      redirectResponse.cookies.set(cookie.name, cookie.value, cookie)
     })
     return redirectResponse
   }

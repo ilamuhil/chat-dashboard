@@ -17,5 +17,5 @@ export type ApiKeyResult = {
 }
 
 export type LauncherProps = {
-  bots: Record<string, string>[] & {id: string, name: string};
+  bots: { id: string; name: string }[]
 }

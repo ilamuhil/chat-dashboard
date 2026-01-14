@@ -40,7 +40,9 @@ function TooltipContent({
   children,
   arrowClassName,
   ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Content>) {
+}: React.ComponentProps<typeof TooltipPrimitive.Content> & {
+  arrowClassName?: string
+}) {
   return (
     <TooltipPrimitive.Portal>
       <TooltipPrimitive.Content

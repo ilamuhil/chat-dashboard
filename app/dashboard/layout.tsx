@@ -30,17 +30,32 @@ export default async function DashboardLayout({
 
   const { data: orgMemberships, error: orgMembershipsError } = await supabase
     .from('organization_members')
-    .select('organization_id, role, organizations ( id, name )')
+    .select('organization_id, role')
     .eq('user_id', user.id)
 
   if (orgMembershipsError) {
-    console.error('Error fetching organization memberships:', orgMembershipsError)
+    console.error(
+      'Error fetching organization memberships:',
+      orgMembershipsError
+    )
   }
+
+  const orgIds = orgMemberships?.map(m => m.organization_id) ?? []
+  const { data: orgs, error: orgsError } = await supabase
+    .from('organizations')
+    .select('id, name')
+    .in('id', orgIds)
+
+  if (orgsError) {
+    console.error('Error fetching organizations:', orgsError)
+  }
+
+  const orgNameById = new Map((orgs ?? []).map(o => [o.id, o.name]))
 
   const organizations =
     orgMemberships?.map(m => ({
-      id: m.organizations?.id ?? m.organization_id,
-      name: m.organizations?.name ?? 'Organization',
+      id: m.organization_id,
+      name: orgNameById.get(m.organization_id) ?? 'Organization',
       role: m.role ?? 'member',
     })) ?? []
   

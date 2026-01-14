@@ -20,7 +20,8 @@ export async function saveApiKey(
       nonce: Date.now().toString(),
     }
   }
-  const bot_id = +formData.get('bot_id')
+  const botIdRaw = formData.get('bot_id')
+  const bot_id = typeof botIdRaw === 'string' ? botIdRaw : null
   if (!bot_id) {
     return {
       error: 'Please select a bot to generate an API key',
@@ -59,7 +60,7 @@ export async function saveApiKey(
   const { data: bot, error: botError } = await supabase
     .from('bots')
     .select('id')
-    .eq('id', bot_id.toString())
+    .eq('id', bot_id)
     .eq('organization_id', organizationId)
     .single()
   if (botError || !bot) {
@@ -100,12 +101,12 @@ export async function saveApiKey(
   }
 }
 
-export async function revokeApiKey(formData: FormData) {
+export async function revokeApiKey(formData: FormData): Promise<void> {
   const supabase = await createClient()
   const id = formData.get('api_key_id')
   if (!id) {
     console.error('No API key ID provided')
-    return { error: 'Invalid Operation' }
+    return
   }
   const { error: apiKeyError } = await supabase
     .from('api_keys')
@@ -115,16 +116,8 @@ export async function revokeApiKey(formData: FormData) {
     .eq('id', id)
   if (apiKeyError) {
     console.error('Error revoking API key:', apiKeyError)
-    return {
-      error: 'Failed to revoke API key',
-      nonce: Date.now().toString(),
-      success: null,
-    }
+    return
   }
   revalidatePath('/dashboard/bot/api')
-  return {
-    success: 'API key revoked successfully',
-    nonce: Date.now().toString(),
-    error: null,
-  }
+  return
 }

@@ -118,7 +118,10 @@ export default function BotInteractionsClient({
         description='Are you sure you want to delete this bot? Deleting this bot will delete all associated API keys, stop all widget conversations in your applications and delete all trained data.'
         open={showDeleteDialog}
         setOpen={setShowDeleteDialog}
-        onConfirm={() => handleDelete(selectedBot?.id)}
+        onConfirm={() => {
+          if (!selectedBot?.id) return
+          handleDelete(selectedBot.id)
+        }}
       />
       <div className='flex items-center gap-4'>
         <Button

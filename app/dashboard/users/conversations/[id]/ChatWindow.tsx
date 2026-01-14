@@ -1,12 +1,11 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
-import {Input} from "@/components/ui/input"
-import {PaperclipIcon} from "lucide-react"
-import {SendIcon} from "lucide-react"
-import {useRef} from "react"
-import {formatDistanceToNow} from "date-fns"
-import {cn} from "@/lib/utils"
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { PaperclipIcon, SendIcon } from 'lucide-react'
+import { useRef } from 'react'
+import { formatDistanceToNow } from 'date-fns'
+import { cn } from '@/lib/utils'
 
 type ChatWindowProps = {
   messages: Array<{
@@ -16,6 +15,7 @@ type ChatWindowProps = {
     content_type: 'text' | 'file'
     created_at: Date
   }>
+  expanded?: boolean
 }
 
 export default function ChatWindow(props: ChatWindowProps) {
@@ -28,9 +28,7 @@ export default function ChatWindow(props: ChatWindowProps) {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
     if (files && files.length > 0) {
-      // Handle file upload logic here
       console.log('Files selected:', files)
-      // You can add file upload logic here
     }
   }
 
@@ -54,53 +52,39 @@ export default function ChatWindow(props: ChatWindowProps) {
     const nextMessage = messages[index + 1]
     const prevMessage = messages[index - 1]
 
-    // Show avatar on last message of consecutive group (for both user and assistant)
     const showAvatar =
       isLastMessage || (nextMessage && nextMessage.role !== message.role)
 
-    // Show timestamp only on the last message of consecutive group (for both user and assistant)
     const showTimestamp =
       isLastMessage || (nextMessage && nextMessage.role !== message.role)
 
-    // Reduce margin if next message is from the same sender
     const isConsecutive = nextMessage && nextMessage.role === message.role
     const marginBottom = isConsecutive ? 'mb-1' : 'mb-4'
 
-    // Check if previous message is from same sender
     const hasPreviousSameSender =
       prevMessage && prevMessage.role === message.role
-    // Check if next message is from same sender
     const hasNextSameSender = nextMessage && nextMessage.role === message.role
 
-    // Determine border radius classes based on position in sequence
     let borderRadiusClasses = ''
 
     if (isUser) {
       if (hasNextSameSender && hasPreviousSameSender) {
-        // Middle message in sequence
         borderRadiusClasses = 'rounded-3xl'
       } else if (hasNextSameSender) {
-        // First message in sequence
         borderRadiusClasses = 'rounded-t-[24px] rounded-b-3xl'
       } else if (hasPreviousSameSender) {
-        // Last message in sequence - rounded bottom with tail
         borderRadiusClasses = 'rounded-b-[24px] rounded-br-md rounded-t-3xl'
       } else {
-        // Single message - full rounding with tail
         borderRadiusClasses = 'rounded-[24px] rounded-br-md'
       }
     } else {
       if (hasNextSameSender && hasPreviousSameSender) {
-        // Middle message in sequence - minimal rounding, no tail
         borderRadiusClasses = 'rounded-3xl'
       } else if (hasNextSameSender) {
-        // First message in sequence - rounded top, minimal bottom
         borderRadiusClasses = 'rounded-t-[24px] rounded-b-3xl'
       } else if (hasPreviousSameSender) {
-        // Last message in sequence - rounded bottom with tail
         borderRadiusClasses = 'rounded-b-[24px] rounded-bl-md rounded-t-3xl'
       } else {
-        // Single message - full rounding with tail
         borderRadiusClasses = 'rounded-[24px] rounded-bl-md'
       }
     }
@@ -189,3 +173,4 @@ export default function ChatWindow(props: ChatWindowProps) {
     </div>
   )
 }
+

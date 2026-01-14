@@ -1,7 +1,7 @@
 'use client'
 
-import { useActionState, useEffect,useState } from 'react'
-import { updateBotInteractions } from './action'
+import { useActionState, useEffect, useState } from 'react'
+import { updateBotInteractions, type BotResult } from './action'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import {
@@ -37,27 +37,15 @@ type BotConfig = {
   updated_at?: string
 }
 
-type BotConfigResult = {
-  error?: string | Record<string, string[]>
-  success?: string
-  botConfig?: BotConfig 
-  nonce: string | null
-}
-
 type Props = {
   botConfig: BotConfig | null
 }
 
 const BotConfigForm = ({ botConfig }: Props) => {
-  const [botConfigSubmitAction, botConfigFormState, isPending] = useActionState<
-    BotConfigResult | null,
+  const [botConfigFormState, botConfigSubmitAction, isPending] = useActionState<
+    BotResult | null,
     FormData
-  >(updateBotInteractions, {
-    error: null,
-    success: null,
-    botConfig: botConfig,
-    nonce: null,
-  })
+  >(updateBotInteractions, null)
 
   const [captureLeads, setCaptureLeads] = useState(false)
 
@@ -67,13 +55,17 @@ const BotConfigForm = ({ botConfig }: Props) => {
       toast.success(botConfigFormState.success, { position: 'top-center' })
     }
     if (botConfigFormState?.error) {
-      toast.error(botConfigFormState.error, { position: 'top-center' })
+      const msg =
+        typeof botConfigFormState.error === 'string'
+          ? botConfigFormState.error
+          : Object.values(botConfigFormState.error).flat()[0]
+      toast.error(msg, { position: 'top-center' })
     }
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [botConfigFormState?.nonce])
 
   return (
-    <form className='space-y-4'>
+    <form className='space-y-4' action={botConfigSubmitAction}>
       <section className='grid grid-cols-2 gap-x-3 gap-y-6'>
         <div className='space-y-1'>
           <Label className='text-xs font-medium text-muted-foreground'>
@@ -186,7 +178,11 @@ const BotConfigForm = ({ botConfig }: Props) => {
             checked={captureLeads || false}
             onCheckedChange={setCaptureLeads}
           />
-          <input type="hidden" name="capture_leads" value={captureLeads ? true : false} />
+          <input
+            type='hidden'
+            name='capture_leads'
+            value={captureLeads ? 'true' : 'false'}
+          />
         </div>
         <div className={cn('space-y-4', captureLeads ? 'block' : 'hidden')}>
           <Label className='text-xs font-medium text-muted-foreground'>
@@ -253,7 +249,6 @@ const BotConfigForm = ({ botConfig }: Props) => {
         <Button
           type='submit'
           disabled={isPending}
-          formAction={botConfigSubmitAction}
           className='m lg:w-[40%] md:w-1/2 w-full'>
           {isPending ? (
             <>

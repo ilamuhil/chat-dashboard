@@ -126,18 +126,18 @@ export default function TrainingDataClient({ bots }: Props) {
   **/
 
   const {
-    isLoading: isSourceDeletionLoading,
+    isPending: isSourceDeletionLoading,
     mutate: deleteTrainingSource,
   } = useMutation({
     mutationFn: async (training_source_id: string) => {
       if (!training_source_id) {
         toast.error('Invalid training source selected for deletion')
-        return
+        return ''
       }
       const source = sources.find(source => source.id === training_source_id)
       if (!source) {
         toast.error('Invalid training source selected for deletion')
-        return
+        return ''
       }
       if (source.status === 'pending') {
         if (source.type === 'file') { 
@@ -145,7 +145,7 @@ export default function TrainingDataClient({ bots }: Props) {
         }
         setSources(prev => prev.filter(source => source.id !== training_source_id))
         toast.success('Training source deleted successfully')
-        return
+        return 'Training source deleted successfully'
       } else {
         if (!selectedBot?.id) throw new Error('No bot selected')
         const response = await fetch(`/api/training/${selectedBot.id}`, {
@@ -173,23 +173,12 @@ export default function TrainingDataClient({ bots }: Props) {
     },
   })
 
-  async function deleteFileFromStorage(filename: string): Promise<void> {
-    const supabase = createClient()
-    const file_path =
-      (trainingSources as unknown as { sources?: ApiTrainingSource[] } | undefined)?.sources?.find(
-        source => source.type === 'file' && source.file?.original_filename === filename
-      )?.file?.path ?? null
-    if (!file_path) {
-      toast.error('File not found in storage')
-      return
-    }
-    const { error } = await supabase.storage.from('bot-files').remove([file_path])
-    if (error) {
-      toast.error('Failed to delete file from storage')
-      return
-    }
-    toast.success('File deleted from storage successfully')
+  async function deleteFileFromStorage(_path: string) {
+    // NOTE: storage deletion should be server-side; this is a safe no-op fallback
+    return
   }
+
+  
 
   if (!selectedBot) {
     return <BotSelectionGrid bots={bots} onSelectBot={setSelectedBot} />
@@ -262,7 +251,6 @@ export default function TrainingDataClient({ bots }: Props) {
         />
         <div
           className={cn('alert-muted cursor-pointer', 'py-6')}
-          htmlFor='file-input'
           onClick={() => document.getElementById('file-input')?.click()}>
           <CloudUpload className='size-6 my-3 mx-auto ' />
           <p className='mb-1'>

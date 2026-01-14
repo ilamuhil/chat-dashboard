@@ -25,7 +25,8 @@ type Bot = {
   id: string
   name: string
 }
-import { saveApiKey, type ApiKeyResult } from './action'
+import { saveApiKey } from './action'
+import type { ApiKeyResult } from './types'
 import { useActionState } from 'react'
 
 type ApiKeyManagementDialogProps = {
@@ -41,6 +42,7 @@ const ApiKeyManagementDialog = (props: ApiKeyManagementDialogProps) => {
       error: null,
       success: null,
       apiKey: null,
+      nonce: null,
     }
   )
   const [apiKeyGenerated, setApiKeyGenerated] = useState(false)
@@ -93,11 +95,10 @@ const ApiKeyManagementDialog = (props: ApiKeyManagementDialogProps) => {
               />
               <div className='w-full'>
                 <Select
-                  id='bot_id'
                   name='bot_id'
                   required
                   disabled={isPending}
-                  >
+                >
                   <SelectTrigger className='w-full'>
                     <SelectValue placeholder='Select a bot' />
                   </SelectTrigger>

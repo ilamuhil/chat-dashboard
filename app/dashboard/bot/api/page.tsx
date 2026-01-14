@@ -49,7 +49,7 @@ export default async function BotApiPage() {
 
   const { data: bots, error: botsError } = await supabase
     .from('bots')
-    .select('*')
+    .select('id, name')
     .eq('organization_id', organizationId)
   if (botsError && !bots) {
     console.error('Error getting bots:', botsError)
@@ -115,7 +115,7 @@ export default async function BotApiPage() {
 
         <Card className='rounded-md shadow-none py-3 gap-3'>
           <CardContent className='py-0 px-4'>
-            <ApiKeyLauncher bots={bots} />
+            <ApiKeyLauncher bots={bots ?? []} />
           </CardContent>
         </Card>
 

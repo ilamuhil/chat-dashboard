@@ -7,6 +7,13 @@ import { EllipsisVerticalIcon } from 'lucide-react'
 import React from 'react'
 
 export default function ConversationsLayout({children}: {children: React.ReactNode}) {
+  const chats: Array<{
+    id: string
+    name: string
+    email: string
+    highlightSnippet: string
+    date: string
+  }> = []
   
   return (
     <main className='flex flex-col h-full min-h-0 overflow-hidden'>
@@ -18,7 +25,7 @@ export default function ConversationsLayout({children}: {children: React.ReactNo
           <aside className='bg-white rounded p-2 flex flex-col h-full overflow-hidden min-h-0'>
             <header className='flex justify-between items-center shrink-0'>
               <h2 className='text-md font-medium'>Chats</h2>
-              <Button variant='icon' size='icon'>
+              <Button variant='ghost' size='icon'>
                 <EllipsisVerticalIcon />
               </Button>
             </header>
@@ -28,7 +35,7 @@ export default function ConversationsLayout({children}: {children: React.ReactNo
               className='mt-2 shrink-0'
             />
             <nav className='flex-1 overflow-y-auto mt-2 space-y-2 min-h-0 no-scrollbar'>
-              {[].map(chat => (
+              {chats.map(chat => (
                 <article
                   key={chat.id}
                   className='shadow-none rounded bg-muted p-2 cursor-pointer hover:bg-gray-200 transition-all duration-300 hover:shadow-sm'>
