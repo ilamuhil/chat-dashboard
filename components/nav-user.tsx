@@ -6,6 +6,7 @@ import {
   ChevronsUpDown,
   CreditCard,
   LogOut,
+  Users2,
 } from "lucide-react"
 
 import {
@@ -31,6 +32,7 @@ import {
 import type { User } from "@supabase/supabase-js"
 
 import useSignout from '../hooks/use-signout';
+import Link from "next/link"
 
 type Profile = {
   full_name: string | null
@@ -67,14 +69,14 @@ export function NavUser({
 }) {
   const { isMobile } = useSidebar()
   const { signOut } = useSignout()
-  
+
   const fullName = profile?.full_name || user.user_metadata?.fullname || ''
   const rawDisplayName = fullName || user.email?.split('@')[0] || 'User'
   const displayName = capitalizeName(rawDisplayName)
   // Use displayName for initials to ensure we always have something to work with
   const initials = getInitials(fullName || rawDisplayName)
   const email = user.email || ''
-  
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -112,13 +114,21 @@ export function NavUser({
                   <span className="truncate text-[10px] text-muted-foreground">{email}</span>
                 </div>
               </div>
-            </DropdownMenuLabel>       
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem>
                 <BadgeCheck />
                 Account
               </DropdownMenuItem>
+
+              <Link href="/dashboard/org/users">
+                <DropdownMenuItem>
+                  <Users2 />
+                  Manage Users
+                </DropdownMenuItem>
+              </Link>
+
               <DropdownMenuItem>
                 <CreditCard />
                 Billing
