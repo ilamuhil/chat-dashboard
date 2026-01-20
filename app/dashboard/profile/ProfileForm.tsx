@@ -6,8 +6,9 @@ import { Separator } from '@/components/ui/separator'
 import { updateProfile } from './action'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { ImageUploadDialog, getLogoUrl } from './ImageUploadDialog'
-import { Activity, useState, useActionState, useEffect } from 'react'
+import { ImageUploadDialog } from './ImageUploadDialog'
+import { getOrganizationLogoUrl } from './action'
+import { Activity, useState, useActionState, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { Spinner } from '@/components/ui/spinner'
 import { updatePassword, type ProfileResult } from './action'
@@ -117,20 +118,32 @@ const ProfileForm = ({ organization: initialOrganization }: Props) => {
     return 'https://avatar.iran.liara.run/public'
   }
 
-  // Fetch logo directly from Supabase storage based on organizationId
-  // Use organization?.id or initialOrganization?.id
+  // Track the last organization ID we fetched logo for to prevent duplicate calls
+  const lastFetchedOrgId = useRef<string | null>(null)
+
+  // Fetch logo from R2 storage based on organizationId
+  // Only fetch once per organization ID to avoid duplicate API calls
   useEffect(() => {
+    const orgId = organization?.id || initialOrganization?.id
+    if (!orgId) {
+      setCurrentLogoUrl(null)
+      lastFetchedOrgId.current = null
+      return
+    }
+
+    // Skip if we already fetched for this organization ID
+    if (lastFetchedOrgId.current === orgId) {
+      return
+    }
+
+    lastFetchedOrgId.current = orgId
+
     const fetchLogo = async () => {
-      const orgId = organization?.id || initialOrganization?.id
-      if (orgId) {
-        try {
-          const logoUrl = await getLogoUrl(orgId)
-          setCurrentLogoUrl(logoUrl)
-        } catch (error) {
-          console.error('Error fetching logo:', error)
-          setCurrentLogoUrl(null)
-        }
-      } else {
+      try {
+        const logoUrl = await getOrganizationLogoUrl(orgId)
+        setCurrentLogoUrl(logoUrl)
+      } catch (error) {
+        console.error('Error fetching logo:', error)
         setCurrentLogoUrl(null)
       }
     }
@@ -147,47 +160,15 @@ const ProfileForm = ({ organization: initialOrganization }: Props) => {
   };
 
   const handleLogoUploadSuccess = async (url: string) => {
-    // Use the URL directly from upload (it already has cache-busting parameter)
-    // This ensures immediate update without waiting for storage fetch
+    // Presigned URLs are already time-limited and unique, so use them directly
+    // Adding cache-busting would break the signature
+    // Use the URL directly from upload - no need to refetch
     setCurrentLogoUrl(url)
-    
-    // Also fetch from storage after a short delay to ensure we have the latest
-    // This handles cases where the file might be processed asynchronously
-    if (organization?.id) {
-      setTimeout(async () => {
-        try {
-          const logoUrl = await getLogoUrl(organization.id)
-          if (logoUrl) {
-            // Add cache-busting to ensure fresh image
-            const cacheBustUrl = `${logoUrl}?t=${Date.now()}`
-            setCurrentLogoUrl(cacheBustUrl)
-          }
-        } catch (error) {
-          console.error('Error fetching logo URL:', error)
-        }
-      }, 500)
-    }
   };
 
   const handleLogoDeleteSuccess = async () => {
-    // Clear the logo URL display
+    // Clear the logo URL display - deletion was successful, no need to verify
     setCurrentLogoUrl(null)
-    
-    // Verify deletion by fetching logo URL
-    if (organization?.id) {
-      try {
-        const logoUrl = await getLogoUrl(organization.id)
-        if (!logoUrl) {
-          setCurrentLogoUrl(null)
-        } else {
-          // Logo still exists, restore it
-          setCurrentLogoUrl(logoUrl)
-        }
-      } catch (error) {
-        console.error('Error verifying logo deletion:', error)
-        setCurrentLogoUrl(null)
-      }
-    }
   };
 
   return (
@@ -213,7 +194,7 @@ const ProfileForm = ({ organization: initialOrganization }: Props) => {
                   onClick={handleAvatarClick}
                   disabled={!organization?.id}
                 >
-              <Avatar className="size-32 shadow-md border-3 border-sky-600">
+              <Avatar className="size-32 shadow-md border-3 border-sky-600" key={currentLogoUrl}>
                 <AvatarImage
                   sizes="100%"
                   src={currentLogoUrl || getPlaceholderUrl()}

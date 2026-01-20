@@ -4,6 +4,8 @@ import { nanoid } from "nanoid";
 import { createClient } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { uploadFile, deleteFile, getPresignedUrl, getPublicUrl, getPresignedGetUrl } from "@/lib/filemanagement";
+import axios from "axios";
 
 const businessProfileSchema = z.object({
   id: z.string().optional(),
@@ -321,4 +323,238 @@ async function createOrUpdateOrganization(
     id: orgData.id,
     organization: transformedOrg,
   };
+}
+
+// R2 Storage functions for organization logos
+const BUCKET = 'org-assets'
+const getFilePath = (organizationId: string, fileName: string) => `organizations/${organizationId}/${fileName}`
+
+/**
+ * Uploads an organization logo to R2 storage.
+ */
+export async function uploadOrganizationLogo(formData: FormData): Promise<{ error?: string; success?: string; url?: string }> {
+  try {
+    // Check if R2 environment variables are configured
+    if (!process.env.CLOUDFLARE_R2_BASE_URL || !process.env.ACCESS_KEY_ID || !process.env.SECRET_ACCESS_KEY) {
+      const missing = []
+      if (!process.env.CLOUDFLARE_R2_BASE_URL) missing.push('CLOUDFLARE_R2_BASE_URL')
+      if (!process.env.ACCESS_KEY_ID) missing.push('ACCESS_KEY_ID')
+      if (!process.env.SECRET_ACCESS_KEY) missing.push('SECRET_ACCESS_KEY')
+      console.error('R2 environment variables not configured. Missing:', missing.join(', '))
+      return { error: `R2 storage not configured. Missing: ${missing.join(', ')}` }
+    }
+
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      return { error: 'Unauthorized' }
+    }
+
+    const organizationId = formData.get('organizationId')?.toString()
+    const file = formData.get('file') as File | null
+
+    if (!organizationId) {
+      return { error: 'Organization ID is required' }
+    }
+    if (!file) {
+      return { error: 'File is required' }
+    }
+
+    // Verify user belongs to organization
+    const { data: membership } = await supabase
+      .from('organization_members')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .eq('organization_id', organizationId)
+      .maybeSingle()
+
+    if (!membership) {
+      return { error: 'Unauthorized: User does not belong to this organization' }
+    }
+
+    // Validate file
+    if (file.size > 5 * 1024 * 1024) {
+      return { error: 'File size must be less than 5MB' }
+    }
+    const fileExtension = file.name.split('.').pop()?.toLowerCase()
+    if (!fileExtension || !['jpg', 'jpeg', 'png', 'webp'].includes(fileExtension)) {
+      return { error: 'Invalid file type. Supported formats: JPG, JPEG, PNG, WEBP' }
+    }
+
+    const filePath = getFilePath(organizationId, `logo.${fileExtension}`)
+
+    // Delete old logo files first
+    const extensions = ['jpg', 'jpeg', 'png', 'webp']
+    for (const ext of extensions) {
+      if (ext !== fileExtension) {
+        const oldFilePath = getFilePath(organizationId, `logo.${ext}`)
+        try {
+          await deleteFile(BUCKET, oldFilePath)
+        } catch {
+          // Ignore errors - old files may not exist
+        }
+      }
+    }
+
+    // Upload new file
+    await uploadFile(file, filePath, BUCKET)
+
+    // Return presigned GET URL for immediate access (works for both public and private buckets)
+    // Presigned URL expires in 24 hours - long enough for the image to be displayed
+    const presignedUrl = getPresignedGetUrl(BUCKET, filePath, 60 * 60 * 24)
+    return { success: 'Image uploaded successfully', url: presignedUrl }
+  } catch (err) {
+    console.error('Error uploading logo:', err)
+    return { error: err instanceof Error ? err.message : 'Failed to upload image. Please try again later.' }
+  }
+}
+
+/**
+ * Deletes an organization logo from R2 storage.
+ */
+export async function deleteOrganizationLogo(organizationId: string): Promise<{ error?: string; success?: string }> {
+  try {
+    // Check if R2 environment variables are configured
+    if (!process.env.CLOUDFLARE_R2_BASE_URL || !process.env.ACCESS_KEY_ID || !process.env.SECRET_ACCESS_KEY) {
+      const missing = []
+      if (!process.env.CLOUDFLARE_R2_BASE_URL) missing.push('CLOUDFLARE_R2_BASE_URL')
+      if (!process.env.ACCESS_KEY_ID) missing.push('ACCESS_KEY_ID')
+      if (!process.env.SECRET_ACCESS_KEY) missing.push('SECRET_ACCESS_KEY')
+      console.error('R2 environment variables not configured. Missing:', missing.join(', '))
+      return { error: `R2 storage not configured. Missing: ${missing.join(', ')}` }
+    }
+
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      return { error: 'Unauthorized' }
+    }
+
+    // Verify user belongs to organization
+    const { data: membership } = await supabase
+      .from('organization_members')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .eq('organization_id', organizationId)
+      .maybeSingle()
+
+    if (!membership) {
+      return { error: 'Unauthorized: User does not belong to this organization' }
+    }
+
+    // Try to delete all possible logo file extensions
+    const extensions = ['jpg', 'jpeg', 'png', 'webp']
+    let deletedCount = 0
+
+    for (const ext of extensions) {
+      const fileName = `logo.${ext}`
+      const filePath = getFilePath(organizationId, fileName)
+      try {
+        await deleteFile(BUCKET, filePath)
+        deletedCount++
+      } catch {
+        // Ignore errors - files may not exist
+      }
+    }
+
+    if (deletedCount > 0) {
+      return { success: 'Logo deleted successfully' }
+    } else {
+      return { error: 'No logo files found to delete' }
+    }
+  } catch (err) {
+    console.error('Error deleting logo:', err)
+    return { error: err instanceof Error ? err.message : 'Failed to delete logo. Please try again later.' }
+  }
+}
+
+/**
+ * Gets the logo URL for an organization from R2 storage.
+ * Checks for common image extensions and returns the first found.
+ */
+export async function getOrganizationLogoUrl(organizationId: string): Promise<string | null> {
+  try {
+    if (!organizationId) {
+      console.error('getOrganizationLogoUrl: organizationId is required')
+      return null
+    }
+
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      console.warn('getOrganizationLogoUrl: User not authenticated')
+      return null
+    }
+
+    // Verify user belongs to organization
+    const { data: membership } = await supabase
+      .from('organization_members')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .eq('organization_id', organizationId)
+      .maybeSingle()
+
+    if (!membership) {
+      console.warn(`getOrganizationLogoUrl: User ${user.id} does not belong to organization ${organizationId}`)
+      return null
+    }
+
+    // Check if R2 environment variables are configured
+    if (!process.env.CLOUDFLARE_R2_BASE_URL || !process.env.ACCESS_KEY_ID || !process.env.SECRET_ACCESS_KEY) {
+      console.error('R2 environment variables not configured. Missing:', {
+        CLOUDFLARE_R2_BASE_URL: !process.env.CLOUDFLARE_R2_BASE_URL,
+        ACCESS_KEY_ID: !process.env.ACCESS_KEY_ID,
+        SECRET_ACCESS_KEY: !process.env.SECRET_ACCESS_KEY,
+      })
+      return null
+    }
+
+    // Try common image extensions - use HEAD request to check existence
+    const extensions = ['jpg', 'jpeg', 'png', 'webp']
+    for (const ext of extensions) {
+      const fileName = `logo.${ext}`
+      const filePath = getFilePath(organizationId, fileName)
+      try {
+        // Use HEAD request to check if file exists
+        const headUrl = getPresignedUrl({
+          method: 'HEAD',
+          bucket: BUCKET,
+          key: filePath,
+          expiresInSeconds: 60,
+        })
+        const response = await axios.head(headUrl, {
+          validateStatus: (status) => status >= 200 && status < 300,
+        })
+        // File exists (status 200-299), return presigned GET URL for immediate access
+        if (response.status >= 200 && response.status < 300) {
+          return getPresignedGetUrl(BUCKET, filePath, 60 * 60 * 24) // 24 hour expiry
+        }
+      } catch (err) {
+        // File doesn't exist (404) or other error, try next extension
+        // Only log non-404 errors for debugging
+        if (axios.isAxiosError(err) && err.response?.status !== 404) {
+          console.warn(`Error checking for logo file ${fileName}:`, err.response?.status, err.message)
+        }
+        continue
+      }
+    }
+    return null
+  } catch (err) {
+    // Log full error details for debugging
+    if (err instanceof Error) {
+      console.error('Error getting logo URL:', err.message, err.stack)
+    } else if (axios.isAxiosError(err)) {
+      console.error('Error getting logo URL (axios):', err.response?.status, err.response?.statusText, err.message)
+    } else {
+      console.error('Error getting logo URL (unknown):', err)
+    }
+    // Return null instead of throwing to prevent breaking the UI
+    return null
+  }
 }

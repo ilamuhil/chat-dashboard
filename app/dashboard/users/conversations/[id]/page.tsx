@@ -13,41 +13,48 @@ import { Separator } from '@/components/ui/separator'
 import { ExpandIcon, Minimize2Icon } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
 import { useParams } from 'next/navigation'
+import axios from 'axios'
 
 const getAgentJwt = async (conversation_id: string) => {
-  const response = await fetch('/api/auth/agent/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      conversation_id: conversation_id,
-      agent_takeover: false,
-    }),
-  })
-  if (!response.ok) {
-    console.error('Error minting agent jwt:', response.statusText)
+  try {
+    const response = await axios.post<{ token: string }>(
+      '/api/auth/agent/token',
+      {
+        conversation_id: conversation_id,
+        agent_takeover: false,
+      },
+      {
+        headers: { 'Content-Type': 'application/json' },
+      }
+    )
+    return response.data.token
+  } catch (err) {
+    console.error('Error minting agent jwt:', err)
     return null
   }
-  const { token } = await response.json()
-  return token as string
 }
 
 const getMessages = async (conversation_id: string, token: string) => {
-  const messagesResponse = await fetch(
-    `${process.env.NEXT_PUBLIC_PYTHON_SERVER_URL}/api/conversations/${conversation_id}/messages`,
-    {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
+  try {
+    const pythonApiUrl = process.env.NEXT_PUBLIC_PYTHON_SERVER_URL
+    if (!pythonApiUrl) {
+      console.error('Python server URL not configured')
+      return null
     }
-  )
-  if (!messagesResponse.ok) {
-    console.error('Error fetching messages:', messagesResponse.statusText)
+    const response = await axios.get<{ messages: unknown[] }>(
+      `${pythonApiUrl}/api/conversations/${conversation_id}/messages`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+    return response.data.messages
+  } catch (err) {
+    console.error('Error fetching messages:', err)
     return null
   }
-  const { messages } = await messagesResponse.json()
-  return messages as unknown[]
 }
 
 export default function ConversationPage() {

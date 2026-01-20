@@ -14,16 +14,18 @@ import BotSelectionGrid from './BotSelectionGrid'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { nanoid } from 'nanoid'
 import { toast } from 'sonner'
+import axios from 'axios'
 
 type TrainingSourceStatus = 'pending' | 'processing' | 'completed' | 'failed'
 type TrainingSourceType = 'url' | 'file'
 
-type TrainingSource = {
-  id: string
+
+
+type DraftSource = {
+  draft_id: string
   type: TrainingSourceType
-  value: string
-  status: TrainingSourceStatus
-  onDelete: () => Promise<void>
+  value: string | File
+  onDelete: (id:string) => Promise<void>
 }
 
 type ApiTrainingSource = {
@@ -43,62 +45,44 @@ type Props = {
 export default function TrainingDataClient({ bots }: Props) {
   const [progress] = useState(45) // Dummy value
   // Dummy values for training stats
-  const [totalFilesUploaded] = useState(10)
-  const [totalFilesProcessed] = useState(8)
-  const [failedFiles] = useState(2)
-  const [lastTrainedAt] = useState('12/08/2025 14:30')
+  const [totalFilesUploaded] = useState(0)
+  const [totalFilesProcessed] = useState(0)
+  const [failedFiles] = useState(0)
+  const [lastTrainedAt] = useState('')
   const [selectedBot, setSelectedBot] = useState<Bot | null>(null)
-  const [filesInfo, setFilesInfo] = useState<
-    Array<{
-      original_filename: string
-      size_bytes: number
-      mime_type: string
-      file: File
-    }>
-  >([])
-  const [sources, setSources] = useState<TrainingSource[]>([])
+  const [draftSources, setDraftSources] = useState<DraftSource[]>([])
   const [url, setUrl] = useState('')
-  //query to fetch training sources for the selected bot if training has been completed previously
-  const { data: trainingSources, isLoading: isLoadingTrainingSources } =
+
+  const {
+    data: trainingSources,
+    isLoading: isLoadingTrainingSources,
+    refetch: refetchTrainingSources,
+  } =
     useQuery({
       queryKey: ['training-sources', selectedBot?.id],
+      // refetchInterval: q => {
+      //   console.log('q', q)
+      //   const statuses = (q.state.data ?? { sources: [] }).sources.map(
+      //     source => source.status
+      //   )
+      //   return statuses.some(status =>
+      //     ['pending', 'processing'].includes(status)
+      //   )
+      //     ? 5000
+      //     : false
+      // },
       queryFn: async () => {
         if (!selectedBot?.id) return []
-        const response = await fetch(`/api/training/${selectedBot.id}`)
-        if (!response.ok) {
-          throw new Error('Failed to fetch training sources')
-        }
-        const { sources: apiSources } = (await response.json()) as {
-          sources: ApiTrainingSource[]
-        }
-        setSources(
-          apiSources.map(source => {
-            const status = (source.status ?? 'pending') as TrainingSourceStatus
-            if (source.type === 'file') {
-              return {
-                id: source.id,
-                type: source.type,
-                value:
-                  source.file?.original_filename ||
-                  source.source_value ||
-                  'file',
-                status,
-                onDelete: async () => deleteTrainingSource(source.id),
-              }
-            }
-            return {
-              id: source.id,
-              type: source.type,
-              value: source.source_value || '',
-              status,
-              onDelete: async () => deleteTrainingSource(source.id),
-            }
-          })
+        const response = await axios.get<{ sources: ApiTrainingSource[] }>(
+          `/api/training/${selectedBot.id}`
         )
-        return apiSources
-      },
+        return response.data.sources
+      }, 
+      initialData: [] as ApiTrainingSource[],
       enabled: !!selectedBot?.id,
     })
+
+  
 
   // query to queue training for the selected bot with the uploaded training sources and urls
   const { isPending: isPendingTraining, mutate: train_bot } = useMutation({
@@ -107,38 +91,54 @@ export default function TrainingDataClient({ bots }: Props) {
       const formData = new FormData()
       formData.append(
         'sources',
-        JSON.stringify(sources.map(s => ({ type: s.type, value: s.value })))
+        JSON.stringify(
+          draftSources.map(s => ({
+            type: s.type,
+            value: s.value instanceof File ? s.value.name : s.value,
+          }))
+        )
       )
-      for (const fileInfo of filesInfo) {
-        const { file } = fileInfo
-        formData.append('files', file)
+      const fileDrafts = draftSources.filter(
+        (s): s is DraftSource & { value: File } =>
+          s.type === 'file' && s.value instanceof File
+      )
+
+      for (const draft of fileDrafts) {
+        formData.append('files', draft.value)
       }
       formData.append(
         'files_meta',
         JSON.stringify(
-          filesInfo.map(f => ({
-            original_filename: f.original_filename,
-            size_bytes: f.size_bytes,
-            mime_type: f.mime_type,
+          fileDrafts.map(f => ({
+            original_filename: f.value.name,
+            size_bytes: f.value.size,
+            mime_type: f.value.type,
           }))
         )
       )
-      const response = await fetch(`/api/training/${selectedBot.id}`, {
-        method: 'POST',
-        body: formData,
-      })
-      if (!response.ok) {
-        throw new Error(await response.text())
-      }
-      const { message } = await response.json()
-      return message
+      const response = await axios.post<{ message: string }>(
+        `/api/training/${selectedBot.id}`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      )
+      return response.data.message
     },
     onSuccess: (message: string) => {
       toast.success(message)
+      //replace all draft sources with the new training sources
+      refetchTrainingSources()
+      setDraftSources([])
+      setUrl('')
+      toast.success('Training started successfully')
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Failed to train bot. Please try again.')
     },
+    
   })
 
   //!NOTE: All deletion should be done in server side.
@@ -155,37 +155,24 @@ export default function TrainingDataClient({ bots }: Props) {
           toast.error('Invalid training source selected for deletion')
           return ''
         }
-        const source = sources.find(source => source.id === training_source_id)
+        const source = trainingSources.find(source => source.id === training_source_id)
         if (!source) {
           toast.error('Invalid training source selected for deletion')
           return ''
         }
-        if (source.status === 'pending') {
-          setSources(prev =>
-            prev.filter(source => source.id !== training_source_id)
-          )
-          toast.success('Training source deleted successfully')
-          return 'Training source deleted successfully'
-        } else {
-          if (!selectedBot?.id) throw new Error('No bot selected')
-          const response = await fetch(`/api/training/${selectedBot.id}`, {
-            method: 'DELETE',
+        if (!selectedBot?.id) throw new Error('No bot selected')
+        await axios.delete<{ message?: string; error?: string }>(
+          `/api/training/${selectedBot.id}`,
+          {
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ source_id: training_source_id }),
-          })
-          if (!response.ok) {
-            const errorData = await response.json()
-            console.error('Error deleting training source:', errorData)
-            throw new Error(
-              errorData.error || 'Failed to delete training source'
-            )
+            data: { source_id: training_source_id },
           }
-          const { message } = await response.json()
-          return message as string
-        }
+        )
+        return 'Deleted successfully'
       },
       onSuccess: (message: string) => {
         if (message) toast.success(message)
+        refetchTrainingSources()
       },
       onError: (error: Error) => {
         console.error('Error deleting training source:', error)
@@ -195,14 +182,27 @@ export default function TrainingDataClient({ bots }: Props) {
       },
     })
 
-  const fileLimitAndSizeCheck = (files: FileList | null) => {
+  const fileLimitAndSizeCheck = (files: File[] | FileList | null) => {
     if (!files) return 'No files selected'
-    if (files.length > 10) return 'You can only upload up to 10 files'
-    for (const file of files) {
+    const list = Array.isArray(files) ? files : Array.from(files)
+    if (list.length > 10) return 'You can only upload up to 10 files'
+    for (const file of list) {
       if (file.size > 10 * 1024 * 1024)
         return 'File size must be less than 10MB'
     }
     return null
+  }
+
+  const invalidFileTypes = (files: File[]) => {
+    const allowed = new Set([
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain',
+    ])
+    const invalid = files.filter(f => !allowed.has(f.type))
+    if (invalid.length === 0) return null
+    return `Invalid file type(s): ${invalid.map(f => f.name).join(', ')}`
   }
 
   const handleUrlAddition = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -210,14 +210,13 @@ export default function TrainingDataClient({ bots }: Props) {
     e.stopPropagation()
     const id = nanoid(24)
     if (url.trim()) {
-      setSources(prev => [
+      setDraftSources(prev => [
         ...prev,
         {
-          id,
+          draft_id: id,
           type: 'url',
           value: url,
-          status: 'pending',
-          onDelete: async () => deleteTrainingSource(id),
+          onDelete: async () => setDraftSources(prev => prev.filter(s => s.draft_id !== id)),
         },
       ])
       setUrl('')
@@ -236,31 +235,11 @@ export default function TrainingDataClient({ bots }: Props) {
       toast.error(isInvalidFileTypeMessage)
       return
     } else {
-      setSources(prev => {
-        return [
-          ...prev,
-          ...files.map(file => ({
-            id: nanoid(24),
-            type: 'file',
-            value: file.name,
-            status: 'pending',
-            onDelete: async () => deleteTrainingSource(file.name),
-          })),
-        ]
-      })
-      setFilesInfo(prev => [
-        ...prev,
-        ...files.map(file => ({
-          id: nanoid(24),
-          original_filename: file.name,
-          size_bytes: file.size,
-          mime_type: file.type,
-          file: file,
-        })),
-      ])
-      toast.success('Files uploaded successfully')
+      // Upload files here itself -> call upload training files api
     }
   }
+
+  
 
   if (!selectedBot) {
     return <BotSelectionGrid bots={bots} onSelectBot={setSelectedBot} />
@@ -330,9 +309,9 @@ export default function TrainingDataClient({ bots }: Props) {
             No files uploaded yet
           </p>
         </div>
-        {sources.length > 0 && (
+        {[].length > 0 && (
           <ResourceContainer
-            resources={sources}
+            resources={[]}
             isDisabled={
               isLoadingTrainingSources ||
               isPendingTraining ||
