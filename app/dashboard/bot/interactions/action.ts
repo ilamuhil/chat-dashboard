@@ -1,8 +1,9 @@
 "use server";
 
-import { createClient } from "@/lib/supabase-server";
 import { z } from "zod";
 import { resolveCurrentOrganizationId } from "@/lib/current-organization";
+import { requireAuthUserId } from "@/lib/auth-server";
+import { prisma } from "@/lib/prisma";
 
 export type Bot = {
   id: string;
@@ -68,25 +69,9 @@ export async function updateBotInteractions(
   prevState: BotResult | null,
   formData: FormData
 ): Promise<BotResult> {
-  const supabase = await createClient()
   const nonce = Date.now().toString()
-
-  
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser()
-  if (userError || !user) {
-    return {
-      error: "You must be logged in to update bot configuration",
-      nonce,
-    };
-  }
-
-  const organizationId = await resolveCurrentOrganizationId({
-    supabase,
-    userId: user.id,
-  });
+  const userId = await requireAuthUserId()
+  const organizationId = await resolveCurrentOrganizationId({ userId });
 
   if (!organizationId) {
     return { error: "You must belong to an organization to create a bot", nonce };
@@ -158,74 +143,124 @@ export async function updateBotInteractions(
   // Get bot_id from formData to determine if this is an update or create
   const botId = formData.get("bot_id")?.toString();
 
-  const botData = {
-    organization_id: organizationId,
+  const dbData = {
+    organizationId,
     name: data.name,
     tone: data.tone,
     role: data.role,
-    business_description: data.business_description,
-    first_message: data.first_message,
-    confirmation_message: data.confirmation_message || null,
-    lead_capture_message: data.lead_capture_message || null,
-    capture_leads: data.capture_leads,
-    lead_capture_timing: leadCaptureTimingDb,
-    capture_name: data.capture_name || false,
-    capture_email: data.capture_email || false,
-    capture_phone: data.capture_phone || false,
-    updated_at: new Date().toISOString(),
+    businessDescription: data.business_description,
+    firstMessage: data.first_message,
+    confirmationMessage: data.confirmation_message || null,
+    leadCaptureMessage: data.lead_capture_message || null,
+    captureLeads: data.capture_leads,
+    leadCaptureTiming: leadCaptureTimingDb,
+    captureName: data.capture_name || false,
+    captureEmail: data.capture_email || false,
+    capturePhone: data.capture_phone || false,
   };
 
-  if (botId) {
-    // Verify the bot belongs to this organization before updating
-    const { data: existingBot, error: verifyError } = await supabase
-      .from("bots")
-      .select("id")
-      .eq("id", botId)
-      .eq("organization_id", organizationId)
-      .maybeSingle();
+  const mapBot = (b: {
+    id: string
+    organizationId: string | null
+    name: string
+    tone: string | null
+    role: string | null
+    businessDescription: string | null
+    firstMessage: string | null
+    confirmationMessage: string | null
+    leadCaptureMessage: string | null
+    captureLeads: boolean
+    leadCaptureTiming: string | null
+    captureName: boolean | null
+    captureEmail: boolean | null
+    capturePhone: boolean | null
+    createdAt: Date
+    updatedAt: Date
+  }): Bot => ({
+    id: b.id,
+    organization_id: b.organizationId ?? organizationId,
+    name: b.name,
+    tone: b.tone,
+    role: b.role,
+    business_description: b.businessDescription,
+    first_message: b.firstMessage,
+    confirmation_message: b.confirmationMessage,
+    lead_capture_message: b.leadCaptureMessage,
+    capture_leads: b.captureLeads,
+    lead_capture_timing: (b.leadCaptureTiming ?? null) as Bot["lead_capture_timing"],
+    capture_name: Boolean(b.captureName),
+    capture_email: Boolean(b.captureEmail),
+    capture_phone: Boolean(b.capturePhone),
+    created_at: b.createdAt.toISOString(),
+    updated_at: b.updatedAt.toISOString(),
+  })
 
-    if (verifyError || !existingBot) {
+  if (botId) {
+    const existingBot = await prisma.bots.findFirst({
+      where: { id: botId, organizationId },
+      select: { id: true },
+    })
+    if (!existingBot) {
       return {
         error: "Bot not found or you don't have permission to update it",
         nonce,
       };
     }
 
-    // Update existing bot
-    const { data: updatedBot, error: updateError } = await supabase
-      .from("bots")
-      .update(botData)
-      .eq("id", botId)
-      .eq("organization_id", organizationId)
-      .select()
-      .single();
-
-    if (updateError) {
-      console.error("Bot update error:", updateError);
-      return { error: updateError.message, nonce };
-    }
+    const updatedBot = await prisma.bots.update({
+      where: { id: botId },
+      data: dbData,
+      select: {
+        id: true,
+        organizationId: true,
+        name: true,
+        tone: true,
+        role: true,
+        businessDescription: true,
+        firstMessage: true,
+        confirmationMessage: true,
+        leadCaptureMessage: true,
+        captureLeads: true,
+        leadCaptureTiming: true,
+        captureName: true,
+        captureEmail: true,
+        capturePhone: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    })
 
     return {
       success: "Bot configuration updated successfully",
-      bot: updatedBot,
+      bot: mapBot(updatedBot),
       nonce,
     };
   } else {
-    // Create new bot
-    const { data: newBot, error: insertError } = await supabase
-      .from("bots")
-      .insert(botData)
-      .select()
-      .single();
-
-    if (insertError) {
-      console.error("Bot creation error:", insertError);
-      return { error: insertError.message, nonce };
-    }
+    const newBot = await prisma.bots.create({
+      data: dbData,
+      select: {
+        id: true,
+        organizationId: true,
+        name: true,
+        tone: true,
+        role: true,
+        businessDescription: true,
+        firstMessage: true,
+        confirmationMessage: true,
+        leadCaptureMessage: true,
+        captureLeads: true,
+        leadCaptureTiming: true,
+        captureName: true,
+        captureEmail: true,
+        capturePhone: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    })
 
     return {
       success: "Bot configuration saved successfully",
-      bot: newBot,
+      bot: mapBot(newBot),
       nonce,
     };
   }

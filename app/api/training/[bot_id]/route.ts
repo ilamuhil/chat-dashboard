@@ -2,6 +2,8 @@ import { getSecretKey, signToken } from '@/lib/jwt'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireUserOrgAndBot } from '@/lib/route-guards'
 import { pythonApiRequest } from '@/lib/axios-server-config'
+import { prisma } from '@/lib/prisma'
+import { uploadFile, deleteFile } from '@/lib/filemanagement'
 
 
 export const runtime = 'nodejs'
@@ -18,9 +20,8 @@ export async function GET(
       { status: 400 }
     )
   }
-  const guard = await requireUserOrgAndBot(bot_id)
+  const guard = await requireUserOrgAndBot(request, bot_id)
   if (!guard.ok) return guard.response
-  const { supabase } = guard
   type TrainingSource = {
     id: string
     type: 'file' | 'url'
@@ -28,34 +29,39 @@ export async function GET(
     status: string | null
   }
 
-  const { data: trainingSourcesRaw, error: trainingSourcesError } =
-    await supabase
-      .from('training_sources')
-      .select('id, type, source_value, status')
-      .eq('bot_id', bot_id)
-  if (trainingSourcesError) {
-    return NextResponse.json(
-      { error: 'Failed to get training sources' },
-      { status: 500 }
-    )
-  }
-  const trainingSources = (trainingSourcesRaw ?? []) as TrainingSource[]
+  const trainingSourcesRaw = await prisma.trainingSources.findMany({
+    where: { botId: bot_id },
+    select: { id: true, type: true, sourceValue: true, status: true },
+  })
+  const trainingSources = trainingSourcesRaw.map((source) => ({
+    id: source.id,
+    type: source.type as 'file' | 'url',
+    source_value: source.sourceValue ?? '',
+    status: source.status,
+  })) as TrainingSource[]
 
   const file_ids = trainingSources
     .filter((source: TrainingSource) => source.type === 'file')
     .map((source: TrainingSource) => source.id)
-  const { data: files, error: filesError } = await supabase
-    .from('files')
-    .select('id, original_filename, mime_type, size_bytes')
-    .in('id', file_ids)
-  if (filesError) {
-    return NextResponse.json({ error: 'Failed to get files' }, { status: 500 })
-  }
+  const files = await prisma.files.findMany({
+    where: { id: { in: file_ids } },
+    select: { id: true, originalFilename: true, mimeType: true, sizeBytes: true },
+  })
   const trainingSourcesWithFiles = trainingSources.map(
     (source: TrainingSource) => {
       if (source.type === 'file') {
         const file = files.find((file: { id: string }) => file.id === source.id)
-        return { ...source, file }
+        return {
+          ...source,
+          file: file
+            ? {
+                id: file.id,
+                original_filename: file.originalFilename,
+                mime_type: file.mimeType,
+                size_bytes: file.sizeBytes ? Number(file.sizeBytes) : null,
+              }
+            : null,
+        }
       }
       return source
     }
@@ -98,16 +104,15 @@ export async function POST(
   const filesMeta =
     typeof filesMetaRaw === 'string' ? JSON.parse(filesMetaRaw) : []
 
-  const guard = await requireUserOrgAndBot(bot_id)
+  const guard = await requireUserOrgAndBot(request, bot_id)
   if (!guard.ok) return guard.response
-  const { supabase, organizationId } = guard
+  const { organizationId } = guard
 
   // Prevent concurrent training
-  const { data: active } = await supabase
-    .from('training_sources')
-    .select('id')
-    .eq('bot_id', bot_id)
-    .in('status', ['pending', 'processing'])
+  const active = await prisma.trainingSources.findMany({
+    where: { botId: bot_id, status: { in: ['pending', 'processing'] } },
+    select: { id: true },
+  })
 
   if (active && active.length > 0) {
     return NextResponse.json(
@@ -135,62 +140,60 @@ export async function POST(
         meta.original_filename
       }`
 
-      const { error: uploadError } = await supabase.storage
-        .from(BUCKET)
-        .upload(path, file)
-
-      if (uploadError) {
-        await supabase.storage.from(BUCKET).remove(uploadedPaths)
+      try {
+        await uploadFile(file, path, BUCKET)
+      } catch {
+        await Promise.all(uploadedPaths.map((p) => deleteFile(BUCKET, p).catch(() => null)))
         return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
       }
 
       uploadedPaths.push(path)
 
-      const { data: fileRow, error: fileRowError } = await supabase
-        .from('files')
-        .insert({
-          organization_id: organizationId,
-          bot_id,
-          bucket: BUCKET,
-          path,
-          original_filename: meta.original_filename,
-          mime_type: meta.mime_type,
-          size_bytes: meta.size_bytes,
-          purpose: 'training',
-          status: 'uploaded',
+      let fileRowId: string
+      try {
+        const fileRow = await prisma.files.create({
+          data: {
+            organizationId,
+            botId: bot_id,
+            bucket: BUCKET,
+            path,
+            originalFilename: meta.original_filename,
+            mimeType: meta.mime_type,
+            sizeBytes: BigInt(meta.size_bytes ?? file.size),
+            purpose: 'training',
+            status: 'uploaded',
+            provider: 'r2',
+          },
+          select: { id: true },
         })
-        .select('id')
-        .single()
-
-      if (fileRowError || !fileRow) {
-        await supabase.storage.from(BUCKET).remove(uploadedPaths)
+        fileRowId = fileRow.id
+      } catch {
+        await Promise.all(uploadedPaths.map((p) => deleteFile(BUCKET, p).catch(() => null)))
         return NextResponse.json(
           { error: 'Failed to create file record' },
           { status: 500 }
         )
       }
 
-      const { data: source, error: sourceError } = await supabase
-        .from('training_sources')
-        .insert({
-          organization_id: organizationId,
-          bot_id,
-          type: 'file',
-          source_value: fileRow.id,
-          status: 'pending',
+      try {
+        const source = await prisma.trainingSources.create({
+          data: {
+            organizationId,
+            botId: bot_id,
+            type: 'file',
+            sourceValue: fileRowId,
+            status: 'pending',
+          },
+          select: { id: true },
         })
-        .select('id')
-        .single()
-
-      if (sourceError || !source) {
-        await supabase.storage.from(BUCKET).remove(uploadedPaths)
+        trainingSourceIds.push(source.id)
+      } catch {
+        await Promise.all(uploadedPaths.map((p) => deleteFile(BUCKET, p).catch(() => null)))
         return NextResponse.json(
           { error: 'Failed to create training source for file' },
           { status: 500 }
         )
       }
-
-      trainingSourceIds.push(source.id)
     }
   }
 
@@ -200,26 +203,24 @@ export async function POST(
   ]
 
   for (const url of uniqueUrls) {
-    const { data: source, error: urlSourceError } = await supabase
-      .from('training_sources')
-      .insert({
-        organization_id: organizationId,
-        bot_id,
-        type: 'url',
-        source_value: url,
-        status: 'pending',
+    try {
+      const source = await prisma.trainingSources.create({
+        data: {
+          organizationId,
+          botId: bot_id,
+          type: 'url',
+          sourceValue: url,
+          status: 'pending',
+        },
+        select: { id: true },
       })
-      .select('id')
-      .single()
-
-    if (urlSourceError || !source) {
+      trainingSourceIds.push(source.id)
+    } catch {
       return NextResponse.json(
         { error: 'Failed to create training source for URL' },
         { status: 500 }
       )
     }
-
-    trainingSourceIds.push(source.id)
   }
 
   /* ---------- CALL PYTHON ---------- */
@@ -248,10 +249,10 @@ export async function POST(
       }
     )
   } catch {
-    await supabase
-      .from('training_sources')
-      .update({ status: 'failed', error_message: 'Queueing failed' })
-      .in('id', trainingSourceIds)
+    await prisma.trainingSources.updateMany({
+      where: { id: { in: trainingSourceIds } },
+      data: { status: 'failed', errorMessage: 'Queueing failed' },
+    })
 
     return NextResponse.json({ error: 'Queueing failed' }, { status: 500 })
   }
@@ -274,17 +275,13 @@ export async function DELETE(
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
   }
 
-  const guard = await requireUserOrgAndBot(bot_id)
+  const guard = await requireUserOrgAndBot(request, bot_id)
   if (!guard.ok) return guard.response
-  const { supabase, organizationId } = guard
+  const { organizationId } = guard
 
-  const { data: source } = await supabase
-    .from('training_sources')
-    .select('*')
-    .eq('id', source_id)
-    .eq('bot_id', bot_id)
-    .eq('organization_id', organizationId)
-    .single()
+  const source = await prisma.trainingSources.findFirst({
+    where: { id: source_id, botId: bot_id, organizationId },
+  })
 
   if (!source) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -318,6 +315,12 @@ export async function DELETE(
       token,
       { source_id }
     )
+    await prisma.trainingSources.deleteMany({
+      where: { id: source_id, botId: bot_id },
+    })
+    await prisma.files.deleteMany({
+      where: { id: source_id, botId: bot_id },
+    })
     return NextResponse.json({ message: 'Deleted' }, { status: 200 })
   } catch {
     return NextResponse.json({ error: 'Delete failed' }, { status: 500 })

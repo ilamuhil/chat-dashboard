@@ -1,7 +1,8 @@
 //agent joins in to the chat conversation
 import { NextRequest, NextResponse } from 'next/server'
-import { getAgentJwt } from '@/app/auth/actions'
-import { createClient } from '@/lib/supabase-server'
+import { prisma } from '@/lib/prisma'
+import { getSecretKey, signToken } from '@/lib/jwt'
+import { verifyAuthToken } from '@/lib/auth-token'
 
 export const runtime = 'nodejs'
 
@@ -16,36 +17,62 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid conversation id' }, { status: 400 })
   }
 
-  const result = await getAgentJwt(conversation_id)
+  const authHeader = request.headers.get('authorization')
+  const token =
+    (authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : null) ??
+    request.cookies.get('auth_token')?.value ??
+    null
 
-  if ('error' in result) {
-    return NextResponse.json({ error: result.error }, { status: result.status ?? 500 })
+  if (!token) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  let userId: string
+  try {
+    userId = verifyAuthToken(token).sub
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const conversation = await prisma.conversationsMeta.findUnique({
+    where: { id: conversation_id },
+    select: { id: true, botId: true, organizationId: true },
+  })
+
+  if (!conversation || !conversation.organizationId || !conversation.botId) {
+    return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
+  }
+
+  const membership = await prisma.organizationMembers.findFirst({
+    where: { userId, organizationId: conversation.organizationId },
+    select: { id: true },
+  })
+
+  if (!membership) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   if (agent_takeover) {
-    const supabase = await createClient()
-
-    const { error: conversationUpdateError } = await supabase
-      .from('conversations_meta')
-      .update({ mode: 'human' })
-      .eq('id', result.conversation_id)
-      .eq('organization_id', result.organization_id)
-      .eq('bot_id', result.bot_id)
-
-    if (conversationUpdateError) {
-      console.error(
-        'Failed to update conversation meta table. Internal server error. Failed to update conversation mode to human.',
-        conversationUpdateError
-      )
-      return NextResponse.json(
-        { error: 'Failed to takeover conversation' },
-        { status: 500 }
-      )
-    }
+    await prisma.conversationsMeta.update({
+      where: { id: conversation.id },
+      data: { mode: 'human' },
+    })
   }
 
-  return NextResponse.json(
-    { token: result.token, conversation_id: result.conversation_id },
-    { status: result.status }
+  const privateKey = getSecretKey()
+  if (!privateKey) {
+    return NextResponse.json({ error: 'Failed to create token' }, { status: 500 })
+  }
+
+  const agentJwt = signToken(
+    {
+      organization_id: conversation.organizationId,
+      bot_id: conversation.botId,
+      conversation_id: conversation.id,
+      type: 'agent',
+    },
+    privateKey
   )
+
+  return NextResponse.json({ token: agentJwt, conversation_id: conversation.id }, { status: 200 })
 }

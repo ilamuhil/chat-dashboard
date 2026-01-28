@@ -1,4 +1,5 @@
 "use client";
+
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -9,206 +10,399 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import Link from "next/link";
-import ConfirmationDialog from "@/components/ui/ConfirmationDialog";
-import { useState, useActionState } from "react";
 import { cn } from "@/lib/utils";
-import supabase from "@/lib/supabase-client";
-import { toast } from "sonner";
-
-type AuthResult = {
-  error?: string | Record<string, string[]>;
-  success?: string;
-} | null;
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { type FormEvent, useMemo, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 
 type Props = {
   mode: "login" | "signup";
-  formAction: (
-    prevState: AuthResult | null,
-    formData: FormData
-  ) => Promise<AuthResult>;
 };
 
-const AuthForm = (props: Props) => {
-  const [open, setOpen] = useState(false);
-  const { formAction, mode } = props;
+type Banner = { type: "error" | "success"; msg: string } | null;
 
-  const [state, action, isPending] = useActionState<AuthResult, FormData>(
-    formAction,
-    null
-  );
+export default function AuthForm(props: Props) {
+  const router = useRouter();
+  const { mode } = props;
 
-  const resetPassword = async () => {
-    const emailInput = document.getElementById("email") as HTMLInputElement;
-    const email = emailInput?.value;
-    if (!email) {
-      return;
-    }
-    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/reset-password`,
-    });
-    if (error) {
-      console.error(error);
-    }
-    if (data) {
-      console.log(data);
-    }
-    toast.success("An email will be sent with a password reset link.");
-    setOpen(false);
+  const [banner, setBanner] = useState<Banner>(null);
+
+  // Signup
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  // no password-based login/signup
+  const [acceptTnc, setAcceptTnc] = useState(false);
+  const [emailOtpId, setEmailOtpId] = useState<string | null>(null);
+  const [emailOtpCode, setEmailOtpCode] = useState("");
+  const [emailOtpRequested, setEmailOtpRequested] = useState(false);
+  const [emailOtpCooldown, setEmailOtpCooldown] = useState(0);
+
+  // Login
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginOtpId, setLoginOtpId] = useState<string | null>(null);
+  const [loginOtpCode, setLoginOtpCode] = useState("");
+  const [loginOtpRequested, setLoginOtpRequested] = useState(false);
+  const [loginOtpCooldown, setLoginOtpCooldown] = useState(0);
+
+  const startCooldown = (setter: (v: number) => void) => {
+    setter(15);
   };
 
-  const errorMessage =
-    typeof state?.error === "string"
-      ? state.error
-      : state?.error
-      ? Object.values(state.error).flat()[0]
-      : null;
+  const tickCooldown = (value: number, setter: (v: number) => void) => {
+    if (value <= 0) return;
+    const id = setTimeout(() => setter(value - 1), 1000);
+    return () => clearTimeout(id);
+  };
 
-  const successMessage = state?.success;
+  // cooldown ticks
+  if (emailOtpCooldown > 0) tickCooldown(emailOtpCooldown, setEmailOtpCooldown);
+  if (loginOtpCooldown > 0) tickCooldown(loginOtpCooldown, setLoginOtpCooldown);
+
+  const canSubmitSignup = useMemo(() => {
+    return (
+      !!fullName.trim() &&
+      !!email.trim() &&
+      !!acceptTnc &&
+      !!emailOtpId &&
+      !!emailOtpCode.trim()
+    );
+  }, [acceptTnc, email, emailOtpCode, emailOtpId, fullName]);
+
+  const canSubmitLogin = useMemo(() => {
+    return !!loginEmail.trim() && !!loginOtpId && !!loginOtpCode.trim();
+  }, [loginEmail, loginOtpCode, loginOtpId]);
+
+  async function postJson<T>(url: string, body: unknown): Promise<T> {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok || data?.ok === false) {
+      throw new Error(data?.error || "Request failed");
+    }
+    return data as T;
+  }
+
+  const sendSignupEmailOtp = useMutation({
+    mutationFn: () =>
+      postJson<{ ok: true; otpId: string }>("/api/auth/otp/request", {
+        channel: "email",
+        purpose: "signup_email",
+        email,
+      }),
+    onSuccess: (data) => {
+      setEmailOtpId(data.otpId);
+      setEmailOtpRequested(true);
+      startCooldown(setEmailOtpCooldown);
+    },
+    onError: () => {
+      setBanner({
+        type: "error",
+        msg: "Could not send email. Please try again.",
+      });
+    },
+  });
+
+  async function handleSendSignupEmailOtp() {
+    setBanner(null);
+    if (!email.trim()) {
+      setBanner({ type: "error", msg: "Enter your email first." });
+      return;
+    }
+    if (emailOtpCooldown > 0) {
+      setBanner({ type: "error", msg: `Please wait ${emailOtpCooldown}s before resending.` });
+      return;
+    }
+    sendSignupEmailOtp.mutate();
+  }
+
+  const sendLoginOtp = useMutation({
+    mutationFn: () =>
+      postJson<{ ok: true; otpId?: string }>("/api/auth/otp/request", {
+        channel: "email",
+        purpose: "login",
+        email: loginEmail.trim(),
+      }),
+    onSuccess: (data) => {
+      if (data.otpId) setLoginOtpId(data.otpId);
+      setLoginOtpRequested(true);
+      startCooldown(setLoginOtpCooldown);
+    },
+    onError: () => {
+      setBanner({
+        type: "error",
+        msg: "Could not send email. Please try again.",
+      });
+    },
+  });
+
+  async function handleSendLoginOtp() {
+    setBanner(null);
+    const raw = loginEmail.trim();
+    if (!raw) {
+      setBanner({ type: "error", msg: "Enter your email first." });
+      return;
+    }
+    if (loginOtpCooldown > 0) {
+      setBanner({ type: "error", msg: `Please wait ${loginOtpCooldown}s before resending.` });
+      return;
+    }
+    sendLoginOtp.mutate();
+  }
+
+  const signupMutation = useMutation({
+    mutationFn: () =>
+      postJson<{ ok: true; token: string; onboardingCompleted?: boolean }>("/api/auth/signup", {
+        fullName,
+        email,
+        acceptTnc,
+        emailOtpId,
+        emailOtpCode,
+      }),
+    onSuccess: (data) => {
+      window.localStorage.setItem("auth_token", data.token);
+      router.push("/onboarding");
+    },
+    onError: () => {
+      setBanner({
+        type: "error",
+        msg: "Signup failed due to an internal server error.",
+      });
+    },
+  });
+
+  const loginMutation = useMutation({
+    mutationFn: () =>
+      postJson<{
+        ok: true;
+        token: string;
+        onboardingCompleted?: boolean;
+        organizationId?: string | null;
+      }>("/api/auth/login", { email: loginEmail, otpId: loginOtpId, otpCode: loginOtpCode }),
+    onSuccess: (data) => {
+      window.localStorage.setItem("auth_token", data.token);
+      router.push(data.onboardingCompleted ? "/dashboard" : "/onboarding");
+    },
+    onError: () => {
+      setBanner({
+        type: "error",
+        msg: "Login failed due to an internal server error.",
+      });
+    },
+  });
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    setBanner(null);
+    try {
+      if (mode === "signup") {
+        if (!canSubmitSignup) {
+          setBanner({
+            type: "error",
+            msg: "Please enter the email OTP and accept the Terms & Conditions.",
+          });
+          return;
+        }
+        signupMutation.mutate();
+      } else {
+        if (!canSubmitLogin) {
+          setBanner({ type: "error", msg: "Please enter the OTP to login." });
+          return;
+        }
+        loginMutation.mutate();
+      }
+    } catch {
+      setBanner({
+        type: "error",
+        msg:
+          mode === "signup"
+            ? "Signup failed due to an internal server error."
+            : "Login failed due to an internal server error.",
+      });
+    }
+  }
 
   return (
-    <>
-      <ConfirmationDialog
-        title="Are you sure you want to reset your password?"
-        description="An email will be sent with a password reset link."
-        open={open}
-        setOpen={setOpen}
-        onConfirm={resetPassword}
-      />
-      <form action={action} className="flex justify-center items-center h-dvh">
-        <Card className="w-full max-w-sm">
-          <CardHeader>
-            <CardTitle className={cn("text-2xl font-bold")}>
-              {mode === "login" ? "Login" : "Create an account"}
-            </CardTitle>
-            <CardDescription>
-              {mode === "login"
-                ? "Enter your email below to login to your account"
-                : "Enter your email below to create an account"}
-            </CardDescription>
-            <CardAction>
-              <Link href={mode === "login" ? "/auth/signup" : "/auth/login"}>
-                {mode === "login" ? "Sign Up" : "Login"}
-              </Link>
-            </CardAction>
-          </CardHeader>
-          <CardContent>
-            <div>
-              <div className="flex flex-col gap-6">
-                <div
-                  className={cn(
-                    successMessage && "alert-success",
-                    errorMessage && "alert-danger",
-                    !successMessage &&
-                      !errorMessage &&
-                      "-translate-y-full opacity-0 h-0 pointer-events-none"
-                  )}
-                >
-                  {successMessage && successMessage}
-                  {errorMessage && errorMessage}
+    <form onSubmit={onSubmit} className="flex justify-center items-center h-dvh">
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle className={cn("text-2xl font-bold")}>
+            {mode === "login" ? "Login" : "Create an account"}
+          </CardTitle>
+          <CardDescription>
+            {mode === "login"
+              ? "Login with email + OTP"
+              : "Verify email with OTP to sign up"}
+          </CardDescription>
+          <CardAction>
+            <Link href={mode === "login" ? "/auth/signup" : "/auth/login"}>
+              {mode === "login" ? "Sign Up" : "Login"}
+            </Link>
+          </CardAction>
+        </CardHeader>
+
+        <CardContent>
+          <div className="flex flex-col gap-6">
+            <div
+              className={cn(
+                banner?.type === "success" && "alert-success",
+                banner?.type === "error" && "alert-danger",
+                !banner && "-translate-y-full opacity-0 h-0 pointer-events-none"
+              )}
+            >
+              {banner?.msg}
+            </div>
+
+            {mode === "signup" ? (
+              <>
+                <div className="grid gap-2">
+                  <Label htmlFor="fullname">Full Name</Label>
+                  <Input
+                    id="fullname"
+                    type="text"
+                    placeholder="Akash Kumar"
+                    required
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                  />
                 </div>
-                {mode === "signup" && (
-                  <>
-                    <div className="grid gap-2">
-                      <Label htmlFor="fullname">Full Name</Label>
-                      <Input
-                        id="fullname"
-                        name="fullname"
-                        type="text"
-                        placeholder="Akash Kumar"
-                        required
-                      />
-                      {typeof state?.error === "object" &&
-                        state.error?.fullname && (
-                          <small className="text-sm text-destructive">
-                            {state.error.fullname[0]}
-                          </small>
-                        )}
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="phone">Phone Number</Label>
-                      <Input
-                        id="phone"
-                        name="phone"
-                        type="tel"
-                        placeholder="+91 9876543210"
-                      />
-                      {typeof state?.error === "object" &&
-                        state.error?.phone && (
-                          <small className="text-sm text-destructive">
-                            {state.error.phone[0]}
-                          </small>
-                        )}
-                    </div>
-                  </>
-                )}
+
                 <div className="grid gap-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="m@example.com"
-                    required
-                  />
-                  {typeof state?.error === "object" && state.error?.email && (
-                    <small className="text-sm text-destructive">
-                      {state.error.email[0]}
-                    </small>
+                  <div className="flex gap-2">
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="m@example.com"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleSendSignupEmailOtp}
+                      disabled={
+                        sendSignupEmailOtp.isPending ||
+                        emailOtpCooldown > 0 ||
+                        signupMutation.isPending ||
+                        loginMutation.isPending
+                      }
+                    >
+                      {emailOtpCooldown > 0
+                        ? `Resend in ${emailOtpCooldown}s`
+                        : "Send OTP"}
+                      {sendSignupEmailOtp.isPending && <Spinner />}
+                    </Button>
+                  </div>
+                  {emailOtpRequested && (
+                    <Input
+                      id="email-otp"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="Enter email OTP"
+                      required
+                      value={emailOtpCode}
+                      onChange={(e) => setEmailOtpCode(e.target.value)}
+                    />
                   )}
                 </div>
-                <div className="grid gap-2">
-                  <div className="flex items-center">
-                    <Label htmlFor="password">Password</Label>
-                    {mode === "login" && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="link"
-                        onClick={() => setOpen(true)}
-                        className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
-                      >
-                        Forgot your password?
-                      </Button>
-                    )}
-                  </div>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    required
-                  />
-                  {typeof state?.error === "object" &&
-                    state.error?.password && (
-                      <small className="text-sm text-destructive">
-                        {state.error.password[0]}
-                      </small>
-                    )}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-          <CardFooter className="flex-col gap-2">
-            <Button type="submit" disabled={isPending} className="w-full">
-              {mode === "login" ? "Login" : "Sign up"}
-              {isPending && <Spinner />}
-            </Button>
-            <Button
-              disabled={isPending}
-              type="button"
-              variant="outline"
-              className="w-full"
-            >
-              {mode === "login" ? "Login with Google" : "Sign up with Google"}
-            </Button>
-          </CardFooter>
-        </Card>
-      </form>
-    </>
-  );
-};
 
-export default AuthForm;
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="tnc"
+                    checked={acceptTnc}
+                    onCheckedChange={(v) => setAcceptTnc(Boolean(v))}
+                  />
+                  <Label htmlFor="tnc" className="text-sm">
+                    I accept the Terms & Conditions
+                  </Label>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid gap-2">
+                  <Label htmlFor="login-email">Email</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="login-email"
+                      type="email"
+                      placeholder="m@example.com"
+                      required
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleSendLoginOtp}
+                      disabled={
+                        sendLoginOtp.isPending ||
+                        loginOtpCooldown > 0 ||
+                        signupMutation.isPending ||
+                        loginMutation.isPending
+                      }
+                    >
+                      {loginOtpCooldown > 0
+                        ? `Resend in ${loginOtpCooldown}s`
+                        : "Send OTP"}
+                      {sendLoginOtp.isPending && <Spinner />}
+                    </Button>
+                  </div>
+                </div>
+
+                {loginOtpRequested && (
+                  <div className="grid gap-2">
+                    <div className="flex items-center">
+                      <Label htmlFor="login-otp">OTP</Label>
+                    </div>
+                    <Input
+                      id="login-otp"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="Enter OTP"
+                      required
+                      value={loginOtpCode}
+                      onChange={(e) => setLoginOtpCode(e.target.value)}
+                    />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </CardContent>
+
+        <CardFooter className="flex-col gap-2">
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={
+              signupMutation.isPending ||
+              loginMutation.isPending ||
+              (mode === "signup" ? !canSubmitSignup : !canSubmitLogin)
+            }
+          >
+            {mode === "login" ? "Login" : "Sign up"}
+            {(signupMutation.isPending || loginMutation.isPending) && <Spinner />}
+          </Button>
+
+          <Button
+            disabled={signupMutation.isPending || loginMutation.isPending}
+            type="button"
+            variant="outline"
+            className="w-full"
+          >
+            {mode === "login" ? "Login with Google" : "Sign up with Google"}
+          </Button>
+        </CardFooter>
+      </Card>
+    </form>
+  );
+}

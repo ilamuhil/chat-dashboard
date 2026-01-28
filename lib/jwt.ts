@@ -22,7 +22,7 @@ export function getSecretKey(): string | null {
 export function signToken(
   payload: {
     organization_id: string
-    bot_id: string | number
+    bot_id: string
     conversation_id?: string
     type: 'user' | 'agent'
     [key: string]: unknown

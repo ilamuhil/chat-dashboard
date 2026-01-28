@@ -22,11 +22,13 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import type { User } from "@supabase/supabase-js";
 
-type Profile = {
-  full_name: string | null;
-} | null;
+type AppUser = {
+  id: string;
+  email?: string | null;
+  fullName?: string | null;
+  avatarUrl?: string | null;
+};
 
 const data = {
   navMain: [
@@ -85,12 +87,10 @@ const data = {
 
 export function AppSidebar({
   user,
-  profile,
   organizations,
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
-  user: User
-  profile?: Profile
+  user: AppUser
   organizations: { id: string; name: string; role: string }[]
 }) {
   const orgsForSwitcher = organizations.map(org => ({
@@ -110,7 +110,7 @@ export function AppSidebar({
         {/* <NavProjects projects={data.projects} /> */}
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={user} profile={profile} />
+        <NavUser user={user} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

@@ -15,7 +15,8 @@ This repository contains the **dashboard application** for users who integrate o
 ## Tech Stack
 
 - **Framework**: [Next.js 16](https://nextjs.org/) with App Router
-- **Database & Auth**: [Supabase](https://supabase.com/) - PostgreSQL database with built-in authentication
+- **Database**: PostgreSQL via Prisma
+- **Auth**: Custom OTP auth via AWS SES
 - **Styling**: Tailwind CSS with shadcn/ui components
 - **Form Management**: React Hook Form with Zod validation
 - **Language**: TypeScript
@@ -66,9 +67,8 @@ chat_dashboard/
 │       └── AnalyticsChart.tsx     # Analytics visualization
 │
 ├── lib/                          # Utility functions and configurations
-│   ├── supabase.ts               # Supabase client initialization
-│   ├── utils.ts                  # General utilities (cn function, etc.)
-│   └── supabase-auth-example.ts  # Authentication examples
+│   ├── prisma.ts                 # Prisma client initialization
+│   └── utils.ts                  # General utilities (cn function, etc.)
 │
 ├── public/                       # Static assets
 │   └── ...                       # Images, icons, etc.
@@ -121,7 +121,7 @@ The dashboard will be organized into the following main sections:
 ### Prerequisites
 
 - Node.js 18+ and pnpm (or npm/yarn)
-- Supabase account and project
+- PostgreSQL database
 
 ### Installation
 
@@ -139,8 +139,10 @@ pnpm install
 3. Set up environment variables:
 Create a `.env.local` file in the root directory:
 ```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+DATABASE_URL=your_postgres_connection_string
+AUTH_JWT_SECRET=your_random_secret
+AWS_REGION=ap-south-1
+AWS_SES_FROM_EMAIL=verified-sender@example.com
 ```
 
 4. Run the development server:
@@ -152,22 +154,11 @@ pnpm dev
 
 ## Authentication
 
-The application uses Supabase Auth for user authentication. Users can:
-- Sign up with email/password
-- Sign in to access the dashboard
-- Reset passwords via email
+Email OTP authentication via AWS SES. Authentication pages live in `app/auth/` and use `AuthForm`.
 
-Authentication pages are located in `app/auth/` and use the `AuthForm` component.
+## Database Schema
 
-## Database Schema (Supabase)
-
-The application uses Supabase's PostgreSQL database. Key tables include:
-
-- `auth.users` - Managed automatically by Supabase Auth
-- `profiles` - User profile information (to be created)
-- `bots` - Chatbot configurations (to be created)
-- `conversations` - Chat conversations (to be created)
-- `messages` - Individual messages in conversations (to be created)
+The application uses PostgreSQL with Prisma. See `prisma/schema.prisma` for tables.
 
 ## Development
 
@@ -197,7 +188,7 @@ The application can be deployed on [Vercel](https://vercel.com) (recommended for
 ## Learn More
 
 - [Next.js Documentation](https://nextjs.org/docs)
-- [Supabase Documentation](https://supabase.com/docs)
+- [Prisma Documentation](https://www.prisma.io/docs)
 - [shadcn/ui Components](https://ui.shadcn.com/)
 
 ## License

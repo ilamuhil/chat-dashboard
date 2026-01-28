@@ -1,41 +1,49 @@
-import { createClient } from '@/lib/supabase-server'
 import { resolveCurrentOrganizationId } from '@/lib/current-organization'
 import { NextResponse } from 'next/server'
-import type { User } from '@supabase/supabase-js'
+import { prisma } from '@/lib/prisma'
+import { verifyAuthToken } from '@/lib/auth-token'
+import type { NextRequest } from 'next/server'
 
 type GuardFail = { ok: false; response: NextResponse }
 type GuardOk<T extends object> = { ok: true } & T
 
 export type UserOrgContext = {
-  supabase: Awaited<ReturnType<typeof createClient>>
-  user: User
+  userId: string
   organizationId: string
 }
 
 export type BotContext = {
-  bot: { id: string; organization_id: string }
+  bot: { id: string; organizationId: string }
 }
 
-export async function requireUserOrg(): Promise<
-  GuardOk<UserOrgContext> | GuardFail
-> {
-  const supabase = await createClient()
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser()
+function getTokenFromRequest(request: NextRequest) {
+  const auth = request.headers.get('authorization')
+  if (auth?.startsWith('Bearer ')) return auth.slice('Bearer '.length)
+  return request.cookies.get('auth_token')?.value
+}
 
-  if (userError || !user) {
+export async function requireUserOrg(
+  request: NextRequest
+): Promise<GuardOk<UserOrgContext> | GuardFail> {
+  const token = getTokenFromRequest(request)
+  if (!token) {
     return {
       ok: false,
       response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
     }
   }
 
-  const organizationId = await resolveCurrentOrganizationId({
-    supabase,
-    userId: user.id,
-  })
+  let userId: string
+  try {
+    userId = verifyAuthToken(token).sub
+  } catch {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    }
+  }
+
+  const organizationId = await resolveCurrentOrganizationId({ userId })
 
   if (!organizationId) {
     return {
@@ -47,30 +55,34 @@ export async function requireUserOrg(): Promise<
     }
   }
 
-  return { ok: true, supabase, user, organizationId }
+  return { ok: true, userId, organizationId }
 }
 
-export async function requireUserOrgAndBot(botId: string): Promise<
-  GuardOk<UserOrgContext & BotContext> | GuardFail
-> {
-  const base = await requireUserOrg()
+export async function requireUserOrgAndBot(
+  request: NextRequest,
+  botId: string
+): Promise<GuardOk<UserOrgContext & BotContext> | GuardFail> {
+  const base = await requireUserOrg(request)
   if (!base.ok) return base
 
-  const { supabase, organizationId } = base
-  const { data: bot, error: botError } = await supabase
-    .from('bots')
-    .select('id, organization_id')
-    .eq('id', botId)
-    .eq('organization_id', organizationId)
-    .single()
+  const { organizationId } = base
+  const bot = await prisma.bots.findFirst({
+    where: { id: botId, organizationId },
+    select: { id: true, organizationId: true },
+  })
 
-  if (botError || !bot) {
+  if (!bot || !bot.organizationId) {
     return {
       ok: false,
       response: NextResponse.json({ error: 'Bot not found' }, { status: 404 }),
     }
   }
 
-  return { ok: true, supabase: base.supabase, user: base.user, organizationId, bot }
+  return {
+    ok: true,
+    userId: base.userId,
+    organizationId,
+    bot: { id: bot.id, organizationId: bot.organizationId },
+  }
 }
 

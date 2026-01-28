@@ -1,31 +1,38 @@
-import { createClient } from '@/lib/supabase-server'
-import { redirect } from 'next/navigation'
 import ProfileForm from './ProfileForm'
 import { resolveCurrentOrganizationId } from '@/lib/current-organization'
+import { requireAuthUserId } from '@/lib/auth-server'
+import { prisma } from '@/lib/prisma'
 
 export default async function ProfilePage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    redirect('/auth/login')
-  }
+  const userId = await requireAuthUserId()
 
-  const organizationId = await resolveCurrentOrganizationId({
-    supabase,
-    userId: user.id,
-  })
+  const organizationId = await resolveCurrentOrganizationId({ userId })
 
   // Get organization data if user belongs to one
   let organization = null
   if (organizationId) {
-    const { data } = await supabase
-      .from('organizations')
-      .select('*')
-      .eq('id', organizationId)
-      .maybeSingle()
-    organization = data
+    const org = await prisma.organizations.findUnique({
+      where: { id: organizationId },
+      select: { id: true, name: true, email: true, phone: true, logoUrl: true, address: true },
+    })
+    if (org) {
+      organization = {
+        id: org.id,
+        name: org.name ?? '',
+        email: org.email ?? null,
+        phone: org.phone ?? null,
+        logo_url: org.logoUrl ?? null,
+        address:
+          (org.address as any) ?? {
+            address_line1: null,
+            address_line2: null,
+            city: null,
+            state: null,
+            zip: null,
+            country: null,
+          },
+      }
+    }
   }
 
   return (

@@ -11,7 +11,6 @@ import ChatWindow from './ChatWindow'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { ExpandIcon, Minimize2Icon } from 'lucide-react'
-import { createClient } from '@/lib/supabase-client'
 import { useParams } from 'next/navigation'
 import axios from 'axios'
 
@@ -77,23 +76,6 @@ export default function ConversationPage() {
     if (!id) return
 
     ;(async () => {
-      const supabase = createClient()
-      const { data: conversation, error } = await supabase
-        .from('conversations_meta')
-        .select('*')
-        .eq('id', id)
-        .single()
-
-      if (error) {
-        console.error('Error getting conversation:', error)
-        return
-      }
-
-      if (!conversation) {
-        console.error('Conversation not found')
-        return
-      }
-
       let token = localStorage.getItem('agent_jwt')
       if (!token) {
         const minted = await getAgentJwt(id)

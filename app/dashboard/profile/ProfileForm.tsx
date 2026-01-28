@@ -11,7 +11,7 @@ import { getOrganizationLogoUrl } from './action'
 import { Activity, useState, useActionState, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { Spinner } from '@/components/ui/spinner'
-import { updatePassword, type ProfileResult } from './action'
+import { type ProfileResult } from './action'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import React from 'react'
 
@@ -34,12 +34,6 @@ type Organization = {
 type Props = {
   organization: Organization;
 };
-
-type PasswordResult = {
-  error?: string | Record<string, string[]>
-  success?: string
-  nonce?: string | null
-}
 
 const ProfileForm = ({ organization: initialOrganization }: Props) => {
   const [open, setOpen] = useState(false)
@@ -69,11 +63,6 @@ const ProfileForm = ({ organization: initialOrganization }: Props) => {
   });
 
 
-  const [passwordState, passwordSubmitAction, isPendingPassword] = useActionState<
-    PasswordResult | null,
-    FormData
-  >(updatePassword,null)
-
   const organization = organizationState?.organization || initialOrganization
 
   useEffect(() => {
@@ -91,22 +80,6 @@ const ProfileForm = ({ organization: initialOrganization }: Props) => {
     }
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [organizationState?.nonce])
-
-  useEffect(() => {
-    if (!passwordState?.nonce) return
-    if (passwordState.success) {
-      toast.success(passwordState.success, { position: 'top-center' })
-      return
-    }
-    if (passwordState.error) {
-      const msg =
-        typeof passwordState.error === 'string'
-          ? passwordState.error
-          : Object.values(passwordState.error).flat()[0]
-      toast.error(msg, { position: 'top-center' })
-    }
-    /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [passwordState?.nonce])
 
 
   // once user types in the form, set the submitDisabled to false
@@ -288,48 +261,6 @@ const ProfileForm = ({ organization: initialOrganization }: Props) => {
               )}
           </section>
           <Separator className="col-span-2" />
-          <h2 className="text-lg font-medium text-muted-foreground col-span-2">
-            Update Password
-          </h2>
-          <section>
-            <Label
-              htmlFor="new-password"
-              className="text-xs font-medium text-muted-foreground mb-2"
-            >
-              New Password
-            </Label>
-            <Input
-              id="new-password"
-              name="new-password"
-              type="password"
-              autoComplete="off"
-            />
-          </section>
-          <section>
-            <Label
-              htmlFor="confirm-password"
-              className="text-xs font-medium text-muted-foreground mb-2"
-            >
-              Confirm Password
-            </Label>
-            <Input
-              id="confirm-password"
-              name="confirm-password"
-              type="password"
-              autoComplete="off"
-            />
-          </section>
-          <section className='col-span-2'>
-            <Button variant='default' className='text-xs px-2 mb-1' type='submit' formAction={passwordSubmitAction}>
-              {isPendingPassword ? (
-                <>
-                  Updating Password... <Spinner />
-                </>
-              ) : (
-                'Update Password'
-              )}
-            </Button>
-          </section>
           <Separator className="col-span-2" />
           <h2 className="text-lg font-medium text-muted-foreground col-span-2">
             Business Address Information

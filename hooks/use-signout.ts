@@ -1,16 +1,19 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase-client'
 
 const useSignout = () => {
   const router = useRouter()
   const signOut = async () => {
-    const supabase = createClient()
-    const { error } = await supabase.auth.signOut()
-    if (error) {
-      console.error('Sign out error:', error)
-      // Still navigate even if there's an error
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+    } catch {
+      // ignore
+    }
+    try {
+      window.localStorage.removeItem('auth_token')
+    } catch {
+      // ignore
     }
     router.push('/auth/login')
   }

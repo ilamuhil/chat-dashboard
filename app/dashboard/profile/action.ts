@@ -1,11 +1,12 @@
 "use server";
 
 import { nanoid } from "nanoid";
-import { createClient } from "@/lib/supabase-server";
-import { redirect } from "next/navigation";
 import { z } from "zod";
-import { uploadFile, deleteFile, getPresignedUrl, getPublicUrl, getPresignedGetUrl } from "@/lib/filemanagement";
-import axios from "axios";
+import { uploadFile, deleteFile, getPresignedGetUrl } from "@/lib/filemanagement";
+import { S3Client, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { prisma } from "@/lib/prisma";
+import { getAuthUserIdFromCookies, requireAuthUserId } from "@/lib/auth-server";
+import type { Prisma } from "@/generated/prisma/client";
 
 const businessProfileSchema = z.object({
   id: z.string().optional(),
@@ -44,168 +45,92 @@ export type ProfileResult = {
   id?: string;
 };
 
-export async function updatePassword(state: unknown, formData: FormData) {
-  const nonce = Date.now().toString()
-  const supabaseUserClient = await createClient()
-  const new_password = formData.get('new-password')?.toString()
-  const confirm_password = formData.get('confirm-password')?.toString()
-  if (new_password !== confirm_password) {
-    return { error: 'Passwords do not match', nonce }
-  }
-  const { error } = await supabaseUserClient.auth.updateUser({
-    password: new_password,
-  })
-  if (error) {
-    return { error: error.message, nonce }
-  }
-  return { success: 'Password updated successfully', nonce }
-}
-
 export async function updateProfile(
   prevState: ProfileResult | null,
   formData: FormData
 ): Promise<ProfileResult> {
   const nonce = Date.now().toString()
-  const supabaseUserClient = await createClient();
-  const {
-    data: { user },
-    error: userError,
-  } = await supabaseUserClient.auth.getUser();
-  const supabase = await createClient(true);
-  if (userError || !user) {
-    redirect("/auth/login");
-  } else {
-    // Helper to convert null/empty to undefined for optional fields
-    const getValue = (key: string) => {
-      const value = formData.get(key);
-      return value === null || value === "" ? undefined : value.toString();
-    };
+  const userId = await requireAuthUserId()
 
-    const validatedFields = businessProfileSchema.safeParse({
-      name: formData.get("name")?.toString() || "",
-      email: formData.get("email")?.toString() || "",
-      phone: getValue("phone"),
-      logo_url: getValue("logo_url"),
-      address_line1: formData.get("address_line1")?.toString() || "",
-      address_line2: getValue("address_line2"),
-      city: formData.get("city")?.toString() || "",
-      state: formData.get("state")?.toString() || "",
-      zip: formData.get("zip")?.toString() || "",
-      country: formData.get("country")?.toString() || "",
-      id: getValue("id"),
-    });
-    if (!validatedFields.success) {
-      console.error(validatedFields.error.flatten().fieldErrors);
-      return { error: validatedFields.error.flatten().fieldErrors, nonce };
-    }
-    const response = await createOrUpdateOrganization(
-      validatedFields.data.name,
-      validatedFields.data.email,
-      validatedFields.data.phone ?? "",
-      validatedFields.data.logo_url ?? "",
-      validatedFields.data.address_line1,
-      validatedFields.data.address_line2 ?? "",
-      validatedFields.data.city,
-      validatedFields.data.state,
-      validatedFields.data.zip,
-      validatedFields.data.country,
-      validatedFields.data.id
-    );
+  // Helper to convert null/empty to undefined for optional fields
+  const getValue = (key: string) => {
+    const value = formData.get(key);
+    return value === null || value === "" ? undefined : value.toString();
+  };
 
-    if (response.error) {
-      console.error("Error creating or updating organization:", response.error);
-      return { error: response.error, nonce };
-    }
-    if (!response.id) {
-      console.error("Organization ID not found");
-      return { error: "Organization ID not found", nonce };
-    }
-    //Associate user with organization if not already associated
+  const validatedFields = businessProfileSchema.safeParse({
+    name: formData.get("name")?.toString() || "",
+    email: formData.get("email")?.toString() || "",
+    phone: getValue("phone"),
+    logo_url: getValue("logo_url"),
+    address_line1: formData.get("address_line1")?.toString() || "",
+    address_line2: getValue("address_line2"),
+    city: formData.get("city")?.toString() || "",
+    state: formData.get("state")?.toString() || "",
+    zip: formData.get("zip")?.toString() || "",
+    country: formData.get("country")?.toString() || "",
+    id: getValue("id"),
+  });
+  if (!validatedFields.success) {
+    console.error(validatedFields.error.flatten().fieldErrors);
+    return { error: validatedFields.error.flatten().fieldErrors, nonce };
+  }
 
-    const { data: existingAssociation } = await supabase
-      .from("organization_members")
-      .select("id")
-      .eq("organization_id", response.id)
-      .eq("user_id", user.id)
-      .maybeSingle();
-    if (existingAssociation) {
-      // Use organization from response if available, otherwise fetch it
-      if (response.organization) {
-        console.log("Organization updated successfully");
-        console.log("Organization:", response.organization);
-        console.log("creating user association if not already exists");
-        // Supabase returns address as nested JSONB, so use it directly
-        const transformedOrg = {
-          id: response.organization.id,
-          name: response.organization.name,
-          email: response.organization.email,
-          phone: response.organization.phone,
-          logo_url: response.organization.logo_url,
-          address: response.organization.address || {
-            address_line1: null,
-            address_line2: null,
-            city: null,
-            state: null,
-            zip: null,
-            country: null,
-          },
-        };
-        return {
-          success: "Organization updated successfully",
-          organization: transformedOrg,
-          nonce,
-        };
-      }
-      return {
-        success: "Organization updated successfully",
-        nonce,
-      };
-    }
-    const { error: associationError } = await supabase
-      .from("organization_members")
-      .insert({
-        organization_id: response.id,
-        user_id: user.id,
+  const response = await createOrUpdateOrganization(
+    validatedFields.data.name,
+    validatedFields.data.email,
+    validatedFields.data.phone ?? "",
+    validatedFields.data.logo_url ?? "",
+    validatedFields.data.address_line1,
+    validatedFields.data.address_line2 ?? "",
+    validatedFields.data.city,
+    validatedFields.data.state,
+    validatedFields.data.zip,
+    validatedFields.data.country,
+    validatedFields.data.id
+  );
+
+  if (response.error) {
+    console.error("Error creating or updating organization:", response.error);
+    return { error: response.error, nonce };
+  }
+  if (!response.id) {
+    console.error("Organization ID not found");
+    return { error: "Organization ID not found", nonce };
+  }
+
+  const existingAssociation = await prisma.organizationMembers.findFirst({
+    where: { organizationId: response.id, userId },
+    select: { id: true },
+  })
+  if (!existingAssociation) {
+    await prisma.organizationMembers.create({
+      data: {
+        organizationId: response.id,
+        userId,
         role: "admin",
-      });
-    if (associationError) {
-      console.error(
-        "Error associating user with organization:",
-        associationError
-      );
-      return { error: associationError.message, nonce };
-    } else {
-      console.log("User associated with organization successfully");
-      // Supabase returns address as nested JSONB, so use it directly
-      if (response.organization) {
-        const transformedOrg = {
-          id: response.organization.id,
-          name: response.organization.name,
-          email: response.organization.email,
-          phone: response.organization.phone,
-          logo_url: response.organization.logo_url,
-          address: response.organization.address || {
-            address_line1: null,
-            address_line2: null,
-            city: null,
-            state: null,
-            zip: null,
-            country: null,
-          },
-        };
-        return {
-          success: response.success,
-          id: response.id,
-          organization: transformedOrg,
-          nonce,
-        };
-      }
-      return {
-        success: response.success,
-        id: response.id,
-        nonce,
-      };
-    }
+      },
+    })
+  }
+
+  return {
+    success: response.success ?? "Organization updated successfully",
+    id: response.id,
+    organization: response.organization
+      ? {
+          ...response.organization,
+          address:
+            response.organization.address ?? {
+              address_line1: null,
+              address_line2: null,
+              city: null,
+              state: null,
+              zip: null,
+              country: null,
+            },
+        }
+      : undefined,
+    nonce,
   }
 }
 
@@ -244,85 +169,66 @@ async function createOrUpdateOrganization(
   id?: string;
   organization?: Organization;
 }> {
-  const supabase = await createClient(true);
-  const organizationData = {
-    id: id || nanoid(),
-    name: name,
-    email: email || null,
-    phone: phone || null,
-    logo_url: logo_url || null,
-    address: {
+  try {
+    const orgId = id || nanoid()
+    const address: {
+      address_line1: string
+      address_line2: string | null
+      city: string
+      state: string
+      zip: string
+      country: string
+    } = {
       address_line1: address_line1,
       address_line2: address_line2 || null,
       city: city,
       state: state,
       zip: zip,
       country: country,
-    },
-  };
-  if (id) {
-    const { data: updatedOrg, error: updateError } = await supabase
-      .from("organizations")
-      .update(organizationData)
-      .eq("id", id)
-      .select()
-      .single();
-    if (updateError) {
-      console.error("Error updating organization:", updateError);
-      return { error: updateError?.message || "Failed to update organization" };
     }
-    // Transform to match expected structure
-    const transformedOrg = {
-      id: updatedOrg.id,
-      name: updatedOrg.name,
-      email: updatedOrg.email,
-      phone: updatedOrg.phone,
-      logo_url: updatedOrg.logo_url,
-      address: updatedOrg.address || {
-        address_line1: null,
-        address_line2: null,
-        city: null,
-        state: null,
-        zip: null,
-        country: null,
-      },
-    };
+
+    const upserted = id
+      ? await prisma.organizations.update({
+          where: { id: orgId },
+          data: {
+            name,
+            email: email || null,
+            phone: phone || null,
+            logoUrl: logo_url || null,
+            address: address as unknown as Prisma.InputJsonValue,
+          },
+          select: { id: true, name: true, email: true, phone: true, logoUrl: true, address: true },
+        })
+      : await prisma.organizations.create({
+          data: {
+            id: orgId,
+            name,
+            email: email || null,
+            phone: phone || null,
+            logoUrl: logo_url || null,
+            address: address as unknown as Prisma.InputJsonValue,
+          },
+          select: { id: true, name: true, email: true, phone: true, logoUrl: true, address: true },
+        })
+
+    const transformedOrg: Organization = {
+      id: upserted.id,
+      name: upserted.name ?? '',
+      email: upserted.email ?? null,
+      phone: upserted.phone ?? null,
+      logo_url: upserted.logoUrl ?? null,
+      address: (upserted.address ?? null) as unknown as Organization['address'],
+    }
+
     return {
-      success: "Organization updated successfully",
-      id: id,
+      success: id ? 'Organization updated successfully' : 'Organization created successfully',
+      id: upserted.id,
       organization: transformedOrg,
-    };
+    }
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Failed to create/update organization'
+    return { error: msg }
   }
-  const { data: orgData, error } = await supabase
-    .from("organizations")
-    .insert(organizationData)
-    .select()
-    .single();
-  if (error) {
-    console.error("Error creating organization:", error);
-    return { error: error?.message || "Failed to create organization" };
-  }
-  // Transform to match expected structure
-  const transformedOrg = {
-    id: orgData.id,
-    name: orgData.name,
-    email: orgData.email,
-    phone: orgData.phone,
-    logo_url: orgData.logo_url,
-    address: orgData.address || {
-      address_line1: null,
-      address_line2: null,
-      city: null,
-      state: null,
-      zip: null,
-      country: null,
-    },
-  };
-  return {
-    success: "Organization created successfully",
-    id: orgData.id,
-    organization: transformedOrg,
-  };
 }
 
 // R2 Storage functions for organization logos
@@ -344,13 +250,7 @@ export async function uploadOrganizationLogo(formData: FormData): Promise<{ erro
       return { error: `R2 storage not configured. Missing: ${missing.join(', ')}` }
     }
 
-    const supabase = await createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-      return { error: 'Unauthorized' }
-    }
+    const userId = await requireAuthUserId()
 
     const organizationId = formData.get('organizationId')?.toString()
     const file = formData.get('file') as File | null
@@ -362,14 +262,10 @@ export async function uploadOrganizationLogo(formData: FormData): Promise<{ erro
       return { error: 'File is required' }
     }
 
-    // Verify user belongs to organization
-    const { data: membership } = await supabase
-      .from('organization_members')
-      .select('organization_id')
-      .eq('user_id', user.id)
-      .eq('organization_id', organizationId)
-      .maybeSingle()
-
+    const membership = await prisma.organizationMembers.findFirst({
+      where: { userId, organizationId },
+      select: { id: true },
+    })
     if (!membership) {
       return { error: 'Unauthorized: User does not belong to this organization' }
     }
@@ -403,7 +299,7 @@ export async function uploadOrganizationLogo(formData: FormData): Promise<{ erro
 
     // Return presigned GET URL for immediate access (works for both public and private buckets)
     // Presigned URL expires in 24 hours - long enough for the image to be displayed
-    const presignedUrl = getPresignedGetUrl(BUCKET, filePath, 60 * 60 * 24)
+    const presignedUrl = await getPresignedGetUrl(BUCKET, filePath, 60 * 60 * 24)
     return { success: 'Image uploaded successfully', url: presignedUrl }
   } catch (err) {
     console.error('Error uploading logo:', err)
@@ -426,22 +322,11 @@ export async function deleteOrganizationLogo(organizationId: string): Promise<{ 
       return { error: `R2 storage not configured. Missing: ${missing.join(', ')}` }
     }
 
-    const supabase = await createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-      return { error: 'Unauthorized' }
-    }
-
-    // Verify user belongs to organization
-    const { data: membership } = await supabase
-      .from('organization_members')
-      .select('organization_id')
-      .eq('user_id', user.id)
-      .eq('organization_id', organizationId)
-      .maybeSingle()
-
+    const userId = await requireAuthUserId()
+    const membership = await prisma.organizationMembers.findFirst({
+      where: { userId, organizationId },
+      select: { id: true },
+    })
     if (!membership) {
       return { error: 'Unauthorized: User does not belong to this organization' }
     }
@@ -483,27 +368,13 @@ export async function getOrganizationLogoUrl(organizationId: string): Promise<st
       return null
     }
 
-    const supabase = await createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-      console.warn('getOrganizationLogoUrl: User not authenticated')
-      return null
-    }
-
-    // Verify user belongs to organization
-    const { data: membership } = await supabase
-      .from('organization_members')
-      .select('organization_id')
-      .eq('user_id', user.id)
-      .eq('organization_id', organizationId)
-      .maybeSingle()
-
-    if (!membership) {
-      console.warn(`getOrganizationLogoUrl: User ${user.id} does not belong to organization ${organizationId}`)
-      return null
-    }
+    const userId = await getAuthUserIdFromCookies()
+    if (!userId) return null
+    const membership = await prisma.organizationMembers.findFirst({
+      where: { userId, organizationId },
+      select: { id: true },
+    })
+    if (!membership) return null
 
     // Check if R2 environment variables are configured
     if (!process.env.CLOUDFLARE_R2_BASE_URL || !process.env.ACCESS_KEY_ID || !process.env.SECRET_ACCESS_KEY) {
@@ -515,31 +386,43 @@ export async function getOrganizationLogoUrl(organizationId: string): Promise<st
       return null
     }
 
-    // Try common image extensions - use HEAD request to check existence
+    // Try common image extensions - use AWS SDK HeadObjectCommand to check existence
+    const baseUrl = process.env.CLOUDFLARE_R2_BASE_URL
+    const accessKeyId = process.env.ACCESS_KEY_ID
+    const secretAccessKey = process.env.SECRET_ACCESS_KEY
+
+    if (!baseUrl || !accessKeyId || !secretAccessKey) {
+      return null
+    }
+
+    const client = new S3Client({
+      region: 'auto',
+      endpoint: baseUrl,
+      credentials: {
+        accessKeyId,
+        secretAccessKey,
+      },
+      forcePathStyle: true,
+    })
+
     const extensions = ['jpg', 'jpeg', 'png', 'webp']
     for (const ext of extensions) {
       const fileName = `logo.${ext}`
       const filePath = getFilePath(organizationId, fileName)
       try {
-        // Use HEAD request to check if file exists
-        const headUrl = getPresignedUrl({
-          method: 'HEAD',
-          bucket: BUCKET,
-          key: filePath,
-          expiresInSeconds: 60,
+        // Use AWS SDK HeadObjectCommand to check if file exists
+        const command = new HeadObjectCommand({
+          Bucket: BUCKET,
+          Key: filePath,
         })
-        const response = await axios.head(headUrl, {
-          validateStatus: (status) => status >= 200 && status < 300,
-        })
-        // File exists (status 200-299), return presigned GET URL for immediate access
-        if (response.status >= 200 && response.status < 300) {
-          return getPresignedGetUrl(BUCKET, filePath, 60 * 60 * 24) // 24 hour expiry
-        }
-      } catch (err) {
+        await client.send(command)
+        // File exists, return presigned GET URL for immediate access
+        return await getPresignedGetUrl(BUCKET, filePath, 60 * 60 * 24) // 24 hour expiry
+      } catch (err: unknown) {
         // File doesn't exist (404) or other error, try next extension
         // Only log non-404 errors for debugging
-        if (axios.isAxiosError(err) && err.response?.status !== 404) {
-          console.warn(`Error checking for logo file ${fileName}:`, err.response?.status, err.message)
+        if (err instanceof Error && !err.message.includes('NotFound') && !err.message.includes('404')) {
+          console.warn(`Error checking for logo file ${fileName}:`, err.message)
         }
         continue
       }
@@ -549,8 +432,6 @@ export async function getOrganizationLogoUrl(organizationId: string): Promise<st
     // Log full error details for debugging
     if (err instanceof Error) {
       console.error('Error getting logo URL:', err.message, err.stack)
-    } else if (axios.isAxiosError(err)) {
-      console.error('Error getting logo URL (axios):', err.response?.status, err.response?.statusText, err.message)
     } else {
       console.error('Error getting logo URL (unknown):', err)
     }

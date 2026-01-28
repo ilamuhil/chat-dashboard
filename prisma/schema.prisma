@@ -1,0 +1,328 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["public"]
+  // Note: In Prisma 7, the 'url' field is deprecated in the schema file.
+  // Database URL is now configured in prisma.config.ts instead.
+  // Note: The 'auth' schema is managed by Supabase and not included here.
+  // Foreign keys to auth.users are handled through Supabase client.
+}
+
+// ============================================================================
+// Auth Schema (Supabase Auth Tables)
+// ============================================================================
+
+// Note: The auth.users table is managed by Supabase Auth.
+// We reference it for foreign keys but don't define it here.
+// If you need to query auth.users, you may need to use raw SQL or Supabase client.
+
+// ============================================================================
+// Public Schema Enums
+// ============================================================================
+
+enum OtpType {
+  EMAIL
+  MOBILE
+
+  @@schema("public")
+}
+
+enum OtpPurpose {
+  LOGIN
+  VERIFY_EMAIL
+  VERIFY_PHONE
+  RESET_PASSWORD
+
+  @@schema("public")
+}
+
+// ============================================================================
+// Public Schema Models
+// ============================================================================
+
+model Organizations {
+  id                String   @id
+  createdAt         DateTime @default(now()) @map("created_at")
+  isEmailVerified   Boolean  @default(false) @map("is_email_verified")
+  name              String?  @db.Text
+  logoUrl           String?  @map("logo_url") @db.Text
+  address           Json?    @db.JsonB
+  email             String?  @db.Text
+  phone             String?  @db.Text
+  emailToken        String?  @map("email_token") @db.Text
+
+  // Relations
+  bots              Bots[]
+  organizationMembers OrganizationMembers[]
+  invites           OrganizationInvites[]
+  apiKeys           ApiKeys[]
+  files             Files[]
+  trainingSources   TrainingSources[]
+  conversationsMeta ConversationsMeta[]
+  leads             Leads[]
+
+  @@map("organizations")
+  @@schema("public")
+}
+
+model Bots {
+  id                    String   @id @default(uuid()) @db.Uuid
+  createdAt             DateTime @default(now()) @map("created_at")
+  name                  String   @db.Text
+  captureLeads          Boolean  @default(false) @map("capture_leads")
+  updatedAt             DateTime @default(now()) @map("updated_at")
+  organizationId       String?  @map("organization_id")
+  tone                  String?  @db.Text
+  role                  String?  @db.Text
+  businessDescription   String?  @map("business_description") @db.Text
+  firstMessage          String?  @map("first_message") @db.Text
+  confirmationMessage   String?  @map("confirmation_message") @db.Text
+  leadCaptureMessage    String?  @map("lead_capture_message") @db.Text
+  leadCaptureTiming      String?  @map("lead_capture_timing") @db.Text
+  captureName           Boolean? @default(false) @map("capture_name")
+  captureEmail          Boolean? @default(false) @map("capture_email")
+  capturePhone          Boolean? @default(false) @map("capture_phone")
+
+  // Relations
+  organization          Organizations? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  apiKeys               ApiKeys[]
+  files                 Files[]
+  trainingSources       TrainingSources[]
+  conversationsMeta     ConversationsMeta[]
+  leads                 Leads[]
+
+  @@map("bots")
+  @@schema("public")
+}
+
+model OrganizationMembers {
+  id            String    @id @default(uuid()) @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at")
+  organizationId String?  @default("") @map("organization_id")
+  role          String?   @db.Text
+  userId        String?   @map("user_id") @db.Uuid
+
+  // Relations
+  organization  Organizations? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user          Users?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([organizationId])
+  @@map("organization_members")
+  @@schema("public")
+}
+
+model Users {
+  id                String    @id @default(uuid()) @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  
+  // Authentication fields
+  email             String?   @unique
+  emailVerified     Boolean   @default(false) @map("email_verified")
+  emailVerifiedAt   DateTime? @map("email_verified_at")
+  passwordHash      String?   @map("password_hash") @db.Text
+  phone             String?
+  phoneVerified     Boolean   @default(false) @map("phone_verified")
+  phoneVerifiedAt   DateTime? @map("phone_verified_at")
+  
+  // Profile fields
+  fullName          String?   @map("full_name")
+  avatarUrl         String?   @map("avatar_url") @db.Text
+  
+  // OAuth provider IDs
+  googleId          String?   @unique @map("google_id") @db.Text
+  githubId          String?   @unique @map("github_id") @db.Text
+  microsoftId       String?   @unique @map("microsoft_id") @db.Text
+  
+  // OAuth provider emails (may differ from primary email)
+  googleEmail       String?   @map("google_email")
+  githubEmail       String?   @map("github_email")
+  microsoftEmail    String?   @map("microsoft_email")
+  
+  // Session tracking
+  lastLoggedIn      DateTime? @map("last_logged_in")
+  lastLoggedInIp    String?   @map("last_logged_in_ip")
+  
+  // Account status
+  isActive          Boolean   @default(true) @map("is_active")
+  isBanned          Boolean   @default(false) @map("is_banned")
+  bannedUntil       DateTime? @map("banned_until")
+  onboardingCompleted Boolean @default(false) @map("onboarding_completed")
+  
+  // Relations
+  organizationMembers OrganizationMembers[]
+  otps              Otps[]
+
+  @@index([email])
+  @@index([googleId])
+  @@index([githubId])
+  @@index([microsoftId])
+  @@map("users")
+  @@schema("public")
+}
+
+model OrganizationInvites {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizationId  String   @map("organization_id")
+  email           String   @db.Text
+  role            String   @default("editor") @db.Text
+  createdAt       DateTime @default(now()) @map("created_at")
+  acceptedAt      DateTime? @map("accepted_at")
+
+  // Relations
+  organization    Organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([organizationId])
+  @@map("organization_invites")
+  @@schema("public")
+}
+
+model Otps {
+  id            String    @id @default(uuid()) @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at")
+  
+  // OTP details
+  userId        String?   @map("user_id") @db.Uuid
+  code          String    @db.Text // Hashed OTP code
+  type          OtpType   // EMAIL or MOBILE
+  purpose       OtpPurpose // LOGIN, VERIFY_EMAIL, VERIFY_PHONE, RESET_PASSWORD
+  
+  // Contact info (email or phone)
+  email         String?
+  phone         String?
+  
+  // Expiry and usage
+  expiresAt     DateTime  @map("expires_at")
+  usedAt       DateTime? @map("used_at")
+  isUsed        Boolean   @default(false) @map("is_used")
+  
+  // Security
+  attempts      Int       @default(0) // Number of verification attempts
+  maxAttempts   Int       @default(5) @map("max_attempts")
+  ipAddress     String?   @map("ip_address")
+  userAgent     String?   @map("user_agent") @db.Text
+  
+  // Relations
+  user          Users?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([email])
+  @@index([phone])
+  @@index([code])
+  @@index([expiresAt])
+  @@map("otps")
+  @@schema("public")
+}
+
+model ApiKeys {
+  id            String    @id @default(uuid()) @db.Uuid
+  name          String    @db.Text
+  keyHash       String    @map("key_hash") @db.Text
+  createdAt     DateTime  @default(now()) @map("created_at")
+  organizationId String?  @map("organization_id")
+  botId         String?   @map("bot_id") @db.Uuid
+  isActive      Boolean?  @default(true) @map("is_active")
+  lastUsedAt    DateTime? @default(now()) @map("last_used_at")
+
+  // Relations
+  bot           Bots?     @relation(fields: [botId], references: [id], onDelete: Cascade)
+  organization  Organizations? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversationsMeta ConversationsMeta[]
+
+  @@map("api_keys")
+  @@schema("public")
+}
+
+model Files {
+  id              String    @id @default(uuid()) @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at")
+  organizationId String?   @map("organization_id")
+  botId           String?   @map("bot_id") @db.Uuid
+  provider        String?   @default("r2") @db.Text
+  bucket          String?   @db.Text
+  path            String?   @db.Text
+  originalFilename String?  @map("original_filename") @db.Text
+  mimeType        String?   @map("mime_type") @db.Text
+  sizeBytes       BigInt?   @map("size_bytes")
+  purpose         String?   @db.Text
+  status          String?   @db.Text
+
+  // Relations
+  bot             Bots?     @relation(fields: [botId], references: [id], onDelete: Cascade)
+  organization    Organizations? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("files")
+  @@schema("public")
+}
+
+model TrainingSources {
+  id              String    @id @default(uuid()) @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at")
+  organizationId String?   @map("organization_id")
+  botId           String?   @map("bot_id") @db.Uuid
+  type            String?   @db.Text
+  status          String?   @db.Text
+  errorMessage    String?   @map("error_message") @db.Text
+  sourceValue     String    @map("source_value") @db.Text
+
+  // Relations
+  bot             Bots?     @relation(fields: [botId], references: [id], onDelete: Cascade)
+  organization    Organizations? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("training_sources")
+  @@schema("public")
+}
+
+model ConversationsMeta {
+  id                String    @id @default(uuid()) @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at")
+  mode              String    @default("ai") @db.Text
+  organizationId    String?   @map("organization_id")
+  botId             String?   @map("bot_id") @db.Uuid
+  apiKeyId          String?   @map("api_key_id") @db.Uuid
+  userName          String?   @map("user_name") @db.Text
+  userEmail         String?   @map("user_email") @db.Text
+  status            String?   @db.Text
+  lastMessageSnippet String? @map("last_message_snippet") @db.Text
+  lastMessageAt     DateTime? @map("last_message_at")
+
+  // Relations
+  apiKey            ApiKeys?  @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+  bot               Bots?     @relation(fields: [botId], references: [id], onDelete: SetNull)
+  organization      Organizations? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  leads             Leads[]
+
+  @@map("conversations_meta")
+  @@schema("public")
+}
+
+model Leads {
+  id              String    @id @default(uuid()) @db.Uuid
+  capturedAt      DateTime  @default(now()) @map("captured_at")
+  name            String?   @db.Text
+  email           String?   @db.Text
+  phone           String?   @db.Text
+  organizationId String?   @map("organization_id")
+  botId           String?   @map("bot_id") @db.Uuid
+  conversationId  String?   @map("conversation_id") @db.Uuid
+
+  // Relations
+  bot             Bots?     @relation(fields: [botId], references: [id], onDelete: SetNull)
+  conversation    ConversationsMeta? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  organization    Organizations? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("leads")
+  @@schema("public")
+}

@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { prisma } from '@/lib/prisma'
 
 export const CURRENT_ORG_COOKIE = 'current_organization_id'
 
@@ -11,28 +11,22 @@ export async function getSelectedOrganizationIdFromCookie(): Promise<
 }
 
 export async function resolveCurrentOrganizationId(opts: {
-  supabase: SupabaseClient
   userId: string
 }): Promise<string | null> {
   const selected = await getSelectedOrganizationIdFromCookie()
 
-  const { data: memberships, error } = await opts.supabase
-    .from('organization_members')
-    .select('organization_id')
-    .eq('user_id', opts.userId)
-
-  if (error) {
-    console.error('Error fetching organization memberships:', error)
-    return null
-  }
+  const memberships = await prisma.organizationMembers.findMany({
+    where: { userId: opts.userId },
+    select: { organizationId: true },
+  })
 
   if (!memberships?.length) return null
 
-  if (selected && memberships.some(m => m.organization_id === selected)) {
+  if (selected && memberships.some((m) => m.organizationId === selected)) {
     return selected
   }
 
-  return memberships[0].organization_id
+  return memberships[0].organizationId ?? null
 }
 
 

@@ -1,5 +1,5 @@
-import crypto from 'node:crypto'
-import axios from 'axios'
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3'
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
 function mustGetEnv(name: string): string {
   const v = process.env[name]
@@ -7,224 +7,153 @@ function mustGetEnv(name: string): string {
   return v
 }
 
-// AWS SigV4 wants RFC3986 encoding (encodeURIComponent is close, but not exact).
-function encodeRFC3986(input: string) {
-  return encodeURIComponent(input).replace(/[!'()*]/g, c =>
-    `%${c.charCodeAt(0).toString(16).toUpperCase()}`
-  )
-}
+/**
+ * Creates an S3Client configured for Cloudflare R2.
+ * R2 is S3-compatible, so we can use the AWS SDK with R2's endpoint.
+ */
+function createR2Client(): S3Client {
+  const baseUrl = mustGetEnv('CLOUDFLARE_R2_BASE_URL')
+  const accessKeyId = mustGetEnv('ACCESS_KEY_ID')
+  const secretAccessKey = mustGetEnv('SECRET_ACCESS_KEY')
 
-function encodePathSegments(path: string) {
-  return path
-    .split('/')
-    .filter(Boolean)
-    .map(seg => encodeRFC3986(seg))
-    .join('/')
-}
-
-function hmac(key: Buffer | string, msg: string) {
-  return crypto.createHmac('sha256', key).update(msg).digest()
-}
-
-function sha256Hex(msg: string) {
-  return crypto.createHash('sha256').update(msg).digest('hex')
-}
-
-function amzNow() {
-  // 20260120T123456Z (no dashes/colons/ms)
-  const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '')
-  return { amzDate, dateStamp: amzDate.slice(0, 8) }
+  return new S3Client({
+    region: 'auto',
+    endpoint: baseUrl,
+    credentials: {
+      accessKeyId,
+      secretAccessKey,
+    },
+    forcePathStyle: true, // Use path-style URLs: /bucket/key instead of bucket.s3.amazonaws.com/key
+  })
 }
 
 /**
- * Creates a SigV4 presigned URL for Cloudflare R2 (S3-compatible).
+ * Creates a presigned URL for Cloudflare R2 (S3-compatible) using AWS SDK.
  *
  * Requires:
  * - CLOUDFLARE_R2_BASE_URL (e.g. https://<accountid>.r2.cloudflarestorage.com)
  * - ACCESS_KEY_ID
  * - SECRET_ACCESS_KEY
  */
-export function getPresignedUrl(params: {
+export async function getPresignedUrl(params: {
   method: 'GET' | 'PUT' | 'HEAD' | 'DELETE'
   bucket: string
   key: string
   expiresInSeconds?: number
-}) {
+}): Promise<string> {
   const { method, bucket, key, expiresInSeconds = 60 * 15 } = params
 
-  const baseUrl = mustGetEnv('CLOUDFLARE_R2_BASE_URL')
-  const accessKeyId = mustGetEnv('ACCESS_KEY_ID')
-  const secretAccessKey = mustGetEnv('SECRET_ACCESS_KEY')
+  const client = createR2Client()
 
-  const base = new URL(baseUrl)
-  const host = base.host
-
-  const region = 'auto'
-  const service = 's3'
-
-  const { amzDate, dateStamp } = amzNow()
-  const scope = `${dateStamp}/${region}/${service}/aws4_request`
-
-  // Path-style request: /<bucket>/<key>
-  // Preserve baseUrl pathname (for custom domains that mount R2 behind a path).
-  const basePath = base.pathname && base.pathname !== '/' ? `/${encodePathSegments(base.pathname)}` : ''
-  const canonicalUri = `${basePath}/${encodePathSegments(bucket)}/${encodePathSegments(key)}`
-
-  const queryParams: Record<string, string> = {
-    'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
-    'X-Amz-Credential': `${accessKeyId}/${scope}`,
-    'X-Amz-Date': amzDate,
-    'X-Amz-Expires': `${expiresInSeconds}`,
-    'X-Amz-SignedHeaders': 'host',
+  let command
+  switch (method) {
+    case 'GET':
+      command = new GetObjectCommand({ Bucket: bucket, Key: key })
+      break
+    case 'PUT':
+      command = new PutObjectCommand({ Bucket: bucket, Key: key })
+      break
+    case 'HEAD':
+      command = new HeadObjectCommand({ Bucket: bucket, Key: key })
+      break
+    case 'DELETE':
+      command = new DeleteObjectCommand({ Bucket: bucket, Key: key })
+      break
+    default:
+      throw new Error(`Unsupported method: ${method}`)
   }
 
-  const canonicalQueryString = Object.keys(queryParams)
-    .sort()
-    .map(k => `${encodeRFC3986(k)}=${encodeRFC3986(queryParams[k])}`)
-    .join('&')
-
-  const canonicalHeaders = `host:${host}\n`
-  const signedHeaders = 'host'
-  const payloadHash = 'UNSIGNED-PAYLOAD'
-
-  const canonicalRequest = [
-    method,
-    canonicalUri,
-    canonicalQueryString,
-    canonicalHeaders,
-    signedHeaders,
-    payloadHash,
-  ].join('\n')
-
-  const stringToSign = [
-    'AWS4-HMAC-SHA256',
-    amzDate,
-    scope,
-    sha256Hex(canonicalRequest),
-  ].join('\n')
-
-  const kDate = hmac(`AWS4${secretAccessKey}`, dateStamp)
-  const kRegion = hmac(kDate, region)
-  const kService = hmac(kRegion, service)
-  const kSigning = hmac(kService, 'aws4_request')
-
-  const signature = crypto
-    .createHmac('sha256', kSigning)
-    .update(stringToSign)
-    .digest('hex')
-
-  // base.origin preserves http/https and custom host.
-  return `${base.origin}${canonicalUri}?${canonicalQueryString}&X-Amz-Signature=${signature}`
+  return getSignedUrl(client, command, { expiresIn: expiresInSeconds })
 }
 
 /**
- * Uploads a `File` to Cloudflare R2 using a SigV4 presigned PUT URL.
+ * Uploads a `File` to Cloudflare R2 using AWS SDK PutObjectCommand.
  */
 export async function uploadFile(file: File, key: string, bucket: string) {
-  const putUrl = getPresignedUrl({
-    method: 'PUT',
-    bucket,
-    key,
-    expiresInSeconds: 60 * 15,
+  const client = createR2Client()
+  const buffer = Buffer.from(await file.arrayBuffer())
+
+  const command = new PutObjectCommand({
+    Bucket: bucket,
+    Key: key,
+    Body: buffer,
+    ContentType: file.type || 'application/octet-stream',
+    ContentLength: buffer.byteLength,
   })
 
-  // Axios in Node is happier with a Buffer than a web `File` object.
-  const buf = Buffer.from(await file.arrayBuffer())
   try {
-    await axios.put(putUrl, buf, {
-      headers: {
-        // R2 accepts missing content-type, but sending it is better.
-        'Content-Type': file.type || 'application/octet-stream',
-        'Content-Length': buf.byteLength,
-      },
-      // Presigned URLs already encode auth; don't transform.
-      maxBodyLength: Infinity,
-      maxContentLength: Infinity,
-      validateStatus: s => s >= 200 && s < 300,
-    })
+    await client.send(command)
+    const baseUrl = mustGetEnv('CLOUDFLARE_R2_BASE_URL')
+    const base = new URL(baseUrl)
+    const url = `${base.origin}/${bucket}/${key}`
+    return { success: true as const, key, url }
   } catch (err: unknown) {
-    const status = axios.isAxiosError(err) ? err.response?.status : undefined
-    const body =
-      axios.isAxiosError(err) && err.response?.data != null
-        ? typeof err.response.data === 'string'
-          ? err.response.data
-          : JSON.stringify(err.response.data)
-        : ''
-    throw new Error(
-      `R2 upload failed (${status ?? 'unknown'}): ${body || (err instanceof Error ? err.message : 'unknown error')}`
-    )
+    const errorMessage = err instanceof Error ? err.message : 'unknown error'
+    throw new Error(`R2 upload failed: ${errorMessage}`)
   }
-
-  return { success: true as const, key, url: putUrl.split('?')[0] }
 }
 
 /**
- * Downloads an object from R2 using a SigV4 presigned GET URL.
- * Returns the fetch `Response` so callers can stream, `.arrayBuffer()`, etc.
+ * Downloads an object from R2 using AWS SDK GetObjectCommand.
+ * Returns the file data and metadata.
  */
 export async function getFile(bucket: string, key: string) {
-  const getUrl = getPresignedUrl({
-    method: 'GET',
-    bucket,
-    key,
-    expiresInSeconds: 60 * 5,
+  const client = createR2Client()
+  const command = new GetObjectCommand({
+    Bucket: bucket,
+    Key: key,
   })
 
   try {
-    const res = await axios.get<ArrayBuffer>(getUrl, {
-      responseType: 'arraybuffer',
-      validateStatus: s => s >= 200 && s < 300,
+    const response = await client.send(command)
+    
+    if (!response.Body) {
+      throw new Error('No body in response')
+    }
+
+    // Convert stream to buffer
+    const chunks: Uint8Array[] = []
+    for await (const chunk of response.Body as any) {
+      chunks.push(chunk)
+    }
+    const buffer = Buffer.concat(chunks)
+
+    // Get presigned URL for reference
+    const getUrl = await getPresignedUrl({
+      method: 'GET',
+      bucket,
+      key,
+      expiresInSeconds: 60 * 5,
     })
+
     return {
-      data: Buffer.from(res.data),
-      contentType: (res.headers?.['content-type'] as string | undefined) ?? undefined,
-      contentLength:
-        typeof res.headers?.['content-length'] === 'string'
-          ? Number(res.headers['content-length'])
-          : undefined,
+      data: buffer,
+      contentType: response.ContentType,
+      contentLength: response.ContentLength,
       url: getUrl,
     }
   } catch (err: unknown) {
-    const status = axios.isAxiosError(err) ? err.response?.status : undefined
-    const body =
-      axios.isAxiosError(err) && err.response?.data != null
-        ? typeof err.response.data === 'string'
-          ? err.response.data
-          : JSON.stringify(err.response.data)
-        : ''
-    throw new Error(
-      `R2 get failed (${status ?? 'unknown'}): ${body || (err instanceof Error ? err.message : 'unknown error')}`
-    )
+    const errorMessage = err instanceof Error ? err.message : 'unknown error'
+    throw new Error(`R2 get failed: ${errorMessage}`)
   }
 }
 
 /**
- * Deletes an object from R2 using a SigV4 presigned DELETE URL.
+ * Deletes an object from R2 using AWS SDK DeleteObjectCommand.
  */
 export async function deleteFile(bucket: string, key: string) {
-  const deleteUrl = getPresignedUrl({
-    method: 'DELETE',
-    bucket,
-    key,
-    expiresInSeconds: 60 * 5,
+  const client = createR2Client()
+  const command = new DeleteObjectCommand({
+    Bucket: bucket,
+    Key: key,
   })
 
   try {
-    await axios.delete(deleteUrl, {
-      validateStatus: s => s >= 200 && s < 300,
-    })
+    await client.send(command)
     return { success: true as const }
   } catch (err: unknown) {
-    const status = axios.isAxiosError(err) ? err.response?.status : undefined
-    const body =
-      axios.isAxiosError(err) && err.response?.data != null
-        ? typeof err.response.data === 'string'
-          ? err.response.data
-          : JSON.stringify(err.response.data)
-        : ''
-    throw new Error(
-      `R2 delete failed (${status ?? 'unknown'}): ${body || (err instanceof Error ? err.message : 'unknown error')}`
-    )
+    const errorMessage = err instanceof Error ? err.message : 'unknown error'
+    throw new Error(`R2 delete failed: ${errorMessage}`)
   }
 }
 
@@ -237,19 +166,21 @@ export function getPublicUrl(bucket: string, key: string): string {
   const baseUrl = mustGetEnv('CLOUDFLARE_R2_BASE_URL')
   const base = new URL(baseUrl)
   const basePath = base.pathname && base.pathname !== '/' ? base.pathname : ''
+  // Encode each path segment separately
   const encodedKey = key
     .split('/')
     .filter(Boolean)
-    .map(seg => encodePathSegments(seg))
+    .map(seg => encodeURIComponent(seg))
     .join('/')
-  return `${base.origin}${basePath}/${encodePathSegments(bucket)}/${encodedKey}`
+  const encodedBucket = encodeURIComponent(bucket)
+  return `${base.origin}${basePath}/${encodedBucket}/${encodedKey}`
 }
 
 /**
  * Gets a presigned GET URL for displaying images/files in the browser.
  * Use this for private buckets or when you need time-limited access.
  */
-export function getPresignedGetUrl(bucket: string, key: string, expiresInSeconds: number = 60 * 60 * 24): string {
+export async function getPresignedGetUrl(bucket: string, key: string, expiresInSeconds: number = 60 * 60 * 24): Promise<string> {
   return getPresignedUrl({
     method: 'GET',
     bucket,

@@ -1,16 +1,16 @@
 'use server'
 
-import { createClient } from '@/lib/supabase-server'
 import { ApiKeyResult } from './types'
 import { revalidatePath } from 'next/cache'
 import { createApiKey, hashApiKey } from '@/lib/utils'
 import { resolveCurrentOrganizationId } from '@/lib/current-organization'
+import { requireAuthUserId } from '@/lib/auth-server'
+import { prisma } from '@/lib/prisma'
 
 export async function saveApiKey(
   prevState: ApiKeyResult | null,
   formData: FormData
 ): Promise<ApiKeyResult> {
-  const supabase = await createClient()
   const api_key_label = formData.get('api_key_label')
   if (!api_key_label) {
     return {
@@ -30,23 +30,9 @@ export async function saveApiKey(
       nonce: Date.now().toString(),
     }
   }
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser()
-  if (userError || !user) {
-    return {
-      error: 'You must be logged in to generate an API key',
-      success: null,
-      apiKey: null,
-      nonce: Date.now().toString(),
-    }
-  }
+  const userId = await requireAuthUserId()
 
-  const organizationId = await resolveCurrentOrganizationId({
-    supabase,
-    userId: user.id,
-  })
+  const organizationId = await resolveCurrentOrganizationId({ userId })
   if (!organizationId) {
     return {
       error: 'You must belong to an organization to generate an API key',
@@ -57,13 +43,11 @@ export async function saveApiKey(
   }
 
   // Verify the bot belongs to the organization
-  const { data: bot, error: botError } = await supabase
-    .from('bots')
-    .select('id')
-    .eq('id', bot_id)
-    .eq('organization_id', organizationId)
-    .single()
-  if (botError || !bot) {
+  const bot = await prisma.bots.findFirst({
+    where: { id: bot_id, organizationId },
+    select: { id: true },
+  })
+  if (!bot) {
     return {
       error:
         'Please select a valid bot or create a bot first to generate an API key',
@@ -76,15 +60,18 @@ export async function saveApiKey(
   const apiKey = createApiKey()
   const hashedApiKey = hashApiKey(apiKey)
 
-  const { error: apiKeyError } = await supabase.from('api_keys').insert({
-    organization_id: organizationId,
-    bot_id: bot.id,
-    name: api_key_label.toString(),
-    key_hash: hashedApiKey,
-    is_active: true,
-  })
-  if (apiKeyError) {
-    console.error('Error generating API key:', apiKeyError)
+  try {
+    await prisma.apiKeys.create({
+      data: {
+        organizationId,
+        botId: bot.id,
+        name: api_key_label.toString(),
+        keyHash: hashedApiKey,
+        isActive: true,
+      },
+    })
+  } catch (e) {
+    console.error('Error generating API key:', e)
     return {
       error: 'Failed to generate API key',
       success: null,
@@ -102,22 +89,28 @@ export async function saveApiKey(
 }
 
 export async function revokeApiKey(formData: FormData): Promise<void> {
-  const supabase = await createClient()
+  const userId = await requireAuthUserId()
   const id = formData.get('api_key_id')
   if (!id) {
     console.error('No API key ID provided')
     return
   }
-  const { error: apiKeyError } = await supabase
-    .from('api_keys')
-    .update({
-      is_active: false,
-    })
-    .eq('id', id)
-  if (apiKeyError) {
-    console.error('Error revoking API key:', apiKeyError)
-    return
-  }
+  const apiKey = await prisma.apiKeys.findUnique({
+    where: { id: id.toString() },
+    select: { id: true, organizationId: true },
+  })
+  if (!apiKey?.organizationId) return
+
+  const membership = await prisma.organizationMembers.findFirst({
+    where: { userId, organizationId: apiKey.organizationId },
+    select: { id: true },
+  })
+  if (!membership) return
+
+  await prisma.apiKeys.update({
+    where: { id: apiKey.id },
+    data: { isActive: false },
+  })
   revalidatePath('/dashboard/bot/api')
   return
 }

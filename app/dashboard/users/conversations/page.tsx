@@ -1,20 +1,23 @@
-import { createClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
+import { prisma } from '@/lib/prisma'
+import { requireAuthUserId } from '@/lib/auth-server'
+import { resolveCurrentOrganizationId } from '@/lib/current-organization'
 export default async function ConversationsPage() {
-  const supabase = await createClient()
-
-  const { data: conversations, error } = await supabase
-    .from('conversations_meta')
-    .select('id')
-    .order('last_message_at', { ascending: false })
-  if (error) {
-    console.error('Error getting conversations:', error)
+  const userId = await requireAuthUserId()
+  const organizationId = await resolveCurrentOrganizationId({ userId })
+  if (!organizationId) {
     return (
       <div className='alert-danger w-1/2'>
-        Error getting conversations. Please contact support.
+        Organization not found. Please contact support.
       </div>
     )
   }
+
+  const conversations = await prisma.conversationsMeta.findMany({
+    where: { organizationId },
+    select: { id: true },
+    orderBy: { lastMessageAt: 'desc' },
+  })
   if (!conversations || conversations.length === 0) {
     console.error('No conversations found')
     return (

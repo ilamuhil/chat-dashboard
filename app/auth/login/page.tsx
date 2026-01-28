@@ -1,6 +1,12 @@
 import AuthForm from '@/components/auth/AuthForm'
-import { login } from '@/app/auth/actions'
+import { redirect } from 'next/navigation'
+import { getAuthUserIdFromCookies, getOnboardingStatus } from '@/lib/auth-server'
 
-export default function LoginPage() {
-  return <AuthForm mode='login' formAction={login} />
+export default async function LoginPage() {
+  const userId = await getAuthUserIdFromCookies()
+  if (userId) {
+    const onboarding = await getOnboardingStatus(userId)
+    redirect(onboarding.isComplete ? '/dashboard' : '/onboarding')
+  }
+  return <AuthForm mode='login' />
 }

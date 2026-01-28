@@ -8,7 +8,6 @@ import ConfigureBotForm from './ConfigureBotForm'
 import type { Bot } from './action'
 import { PlusIcon, TrashIcon, CalendarIcon, MessageSquareIcon, SparklesIcon } from 'lucide-react'
 import ConfirmationDialog from '@/components/ui/ConfirmationDialog'
-import { createClient } from '@/lib/supabase-client'
 import { toast } from 'sonner'
 type BotInteractionsClientProps = {
   bots: Bot[]
@@ -32,10 +31,9 @@ export default function BotInteractionsClient({
   }
   const handleDelete = async(botId: string) => {
     //open alert dialog to confirm deletion
-    const supabase = createClient()
-    const { error } = await supabase.from('bots').delete().eq('id', botId)
-    if (error) {
-      console.error('Error deleting bot:', error)
+    const res = await fetch(`/api/bots/${botId}`, { method: 'DELETE' })
+    if (!res.ok) {
+      console.error('Error deleting bot:', await res.text())
       toast.error('Error deleting bot')
     } else {
       toast.success('Bot deleted successfully')

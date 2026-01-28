@@ -28,13 +28,15 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import type { User } from "@supabase/supabase-js"
 
 import useSignout from '../hooks/use-signout';
 
-type Profile = {
-  full_name: string | null
-} | null
+type AppUser = {
+  id: string
+  email?: string | null
+  fullName?: string | null
+  avatarUrl?: string | null
+}
 
 function getInitials(name: string | null | undefined): string {
   if (!name || name.trim() === '') return 'U'
@@ -60,15 +62,13 @@ function capitalizeName(name: string): string {
 
 export function NavUser({
   user,
-  profile,
 }: {
-  user: User
-  profile?: Profile
+  user: AppUser
 }) {
   const { isMobile } = useSidebar()
   const { signOut } = useSignout()
   
-  const fullName = profile?.full_name || user.user_metadata?.fullname || ''
+  const fullName = user.fullName || ''
   const rawDisplayName = fullName || user.email?.split('@')[0] || 'User'
   const displayName = capitalizeName(rawDisplayName)
   // Use displayName for initials to ensure we always have something to work with
@@ -85,7 +85,7 @@ export function NavUser({
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-lg">
-                <AvatarImage src={user.user_metadata?.avatar_url} alt={displayName} />
+                <AvatarImage src={user.avatarUrl ?? undefined} alt={displayName} />
                 <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
@@ -104,7 +104,7 @@ export function NavUser({
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={user.user_metadata?.avatar_url} alt={displayName} />
+                  <AvatarImage src={user.avatarUrl ?? undefined} alt={displayName} />
                   <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">

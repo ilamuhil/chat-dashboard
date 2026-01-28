@@ -7,61 +7,64 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar'
 import React from 'react'
-import { createClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
+import { verifyAuthToken } from '@/lib/auth-token'
+import { prisma } from '@/lib/prisma'
+import { getOnboardingStatus } from '@/lib/auth-server'
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
   }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const cookieStore = await cookies()
+  const token = cookieStore.get('auth_token')?.value
+  if (!token) redirect('/auth/login')
+
+  let userId: string
+  try {
+    userId = verifyAuthToken(token).sub
+  } catch {
     redirect('/auth/login')
   }
-  
-  // Fetch user profile to get full_name
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('full_name')
-    .eq('id', user.id)
-    .single()
 
-  const { data: orgMemberships, error: orgMembershipsError } = await supabase
-    .from('organization_members')
-    .select('organization_id, role')
-    .eq('user_id', user.id)
+  const user = await prisma.users.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true, fullName: true, avatarUrl: true },
+  })
+  if (!user) redirect('/auth/login')
 
-  if (orgMembershipsError) {
-    console.error(
-      'Error fetching organization memberships:',
-      orgMembershipsError
-    )
+  const onboarding = await getOnboardingStatus(userId)
+  if (!onboarding.isComplete) {
+    redirect('/onboarding')
   }
 
-  const orgIds = orgMemberships?.map(m => m.organization_id) ?? []
-  const { data: orgs, error: orgsError } = await supabase
-    .from('organizations')
-    .select('id, name')
-    .in('id', orgIds)
+  const orgMemberships = await prisma.organizationMembers.findMany({
+    where: { userId: user.id },
+    select: { organizationId: true, role: true },
+  })
 
-  if (orgsError) {
-    console.error('Error fetching organizations:', orgsError)
-  }
+  const orgIds = orgMemberships.map((m) => m.organizationId).filter(Boolean) as string[]
+  const orgs = orgIds.length
+    ? await prisma.organizations.findMany({
+        where: { id: { in: orgIds } },
+        select: { id: true, name: true },
+      })
+    : []
 
-  const orgNameById = new Map((orgs ?? []).map(o => [o.id, o.name]))
-
-  const organizations =
-    orgMemberships?.map(m => ({
-      id: m.organization_id,
-      name: orgNameById.get(m.organization_id) ?? 'Organization',
+  const orgNameById = new Map(orgs.map((o) => [o.id, o.name]))
+  const organizations = orgMemberships
+    .filter((m) => m.organizationId)
+    .map((m) => ({
+      id: m.organizationId as string,
+      name: orgNameById.get(m.organizationId as string) ?? 'Organization',
       role: m.role ?? 'member',
-    })) ?? []
+    }))
   
   return (
     <SidebarProvider className='h-svh overflow-hidden'>
-      <AppSidebar user={user} profile={profile} organizations={organizations} />
+      <AppSidebar user={user} organizations={organizations} />
       <SidebarInset className='min-h-0 overflow-hidden'>
         <header className='flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12'>
           <div className='flex items-center gap-2 px-4'>

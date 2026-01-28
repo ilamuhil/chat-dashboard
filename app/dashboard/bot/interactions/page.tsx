@@ -1,34 +1,41 @@
-import { createClient } from "@/lib/supabase-server"
 import { redirect } from "next/navigation"
 import { resolveCurrentOrganizationId } from "@/lib/current-organization"
 import BotInteractionsClient from "./BotInteractionsClient"
+import { requireAuthUserId } from "@/lib/auth-server"
+import { prisma } from "@/lib/prisma"
+import type { Bot } from "./action"
 
 export default async function BotInteractionsPage() {
-  
-  const supabase = await createClient()
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
-  if (userError || !user) {
-    redirect('/auth/login')
-  }
-
-  const organizationId = await resolveCurrentOrganizationId({
-    supabase,
-    userId: user.id,
-  })
+  const userId = await requireAuthUserId()
+  const organizationId = await resolveCurrentOrganizationId({ userId })
 
   if (!organizationId) {
     redirect('/auth/login')
   }
-  const { data: bots, error: botError } = await supabase
-    .from('bots')
-    .select('*')
-    .eq('organization_id', organizationId)
-    .order('created_at', { ascending: false })
-  
-  if (botError){
-    console.error('Error getting bots:', botError)
-    return <div className='alert-danger'>Error getting bots: {botError.message}</div>
-  }
+
+  const botsRaw = await prisma.bots.findMany({
+    where: { organizationId },
+    orderBy: { createdAt: "desc" },
+  })
+
+  const bots: Bot[] = botsRaw.map((b) => ({
+    id: b.id,
+    organization_id: b.organizationId ?? organizationId,
+    name: b.name,
+    tone: b.tone ?? null,
+    role: b.role ?? null,
+    business_description: b.businessDescription ?? null,
+    first_message: b.firstMessage ?? null,
+    confirmation_message: b.confirmationMessage ?? null,
+    lead_capture_message: b.leadCaptureMessage ?? null,
+    capture_leads: b.captureLeads,
+    lead_capture_timing: (b.leadCaptureTiming ?? null) as Bot["lead_capture_timing"],
+    capture_name: Boolean(b.captureName),
+    capture_email: Boolean(b.captureEmail),
+    capture_phone: Boolean(b.capturePhone),
+    created_at: b.createdAt.toISOString(),
+    updated_at: b.updatedAt.toISOString(),
+  }))
   
   return (
     <main className='max-h-dvh overflow-y-auto no-scrollbar space-y-4'>

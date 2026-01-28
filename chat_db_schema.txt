@@ -129,7 +129,7 @@ id                   uuid PRIMARY KEY
 organization_id      uuid REFERENCES organizations(id)
 bot_id               uuid REFERENCES bots(id)
 
-provider             text DEFAULT 'supabase'
+provider             text DEFAULT 'r2'
 bucket               text
 path                 text
 

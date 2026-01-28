@@ -1,9 +1,14 @@
 "use client"
 
+import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 
 export default function BotPage() {
   const router = useRouter()
-  router.push("/dashboard/bot/interactions")
+
+  useEffect(() => {
+    router.replace("/dashboard/bot/interactions")
+  }, [router])
+
   return null
 }

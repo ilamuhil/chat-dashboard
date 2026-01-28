@@ -16,26 +16,17 @@ import {
 } from '@/components/ui/tooltip'
 import ApiKeyLauncher from './ApiKeyLauncher'
 import CodeBlock from './CodeBlock'
-import { createClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
 import { revokeApiKey } from './action'
 import { format } from 'date-fns'
 import { resolveCurrentOrganizationId } from '@/lib/current-organization'
+import { requireAuthUserId } from '@/lib/auth-server'
+import { prisma } from '@/lib/prisma'
 
 export default async function BotApiPage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser()
-  if (userError || !user) {
-    redirect('/auth/login')
-  }
+  const userId = await requireAuthUserId()
 
-  const organizationId = await resolveCurrentOrganizationId({
-    supabase,
-    userId: user.id,
-  })
+  const organizationId = await resolveCurrentOrganizationId({ userId })
 
   if (!organizationId) {
     console.error('Organization member not found!')
@@ -47,18 +38,10 @@ export default async function BotApiPage() {
     )
   }
 
-  const { data: bots, error: botsError } = await supabase
-    .from('bots')
-    .select('id, name')
-    .eq('organization_id', organizationId)
-  if (botsError && !bots) {
-    console.error('Error getting bots:', botsError)
-    return (
-      <div className='alert-danger'>
-        Error getting bots: {botsError.message}
-      </div>
-    )
-  }
+  const bots = await prisma.bots.findMany({
+    where: { organizationId },
+    select: { id: true, name: true },
+  })
   if (!bots.length) {
     return (
       <main className='space-y-3'>
@@ -85,22 +68,18 @@ export default async function BotApiPage() {
       </main>
     )
   }
-  const { data: apiKeys, error: apiKeysError } = await supabase
-    .from('api_keys')
-    .select('*')
-    .eq('organization_id', organizationId)
-    .eq('is_active', true)
-
-  if (apiKeysError && !apiKeys) {
-    console.error('Error getting API keys:', apiKeysError)
-    return <div className='alert-danger'>Error getting API keys</div>
-  }
+  const apiKeys = await prisma.apiKeys.findMany({
+    where: { organizationId, isActive: true },
+    select: { id: true, name: true, botId: true, createdAt: true },
+  })
 
   const keys = apiKeys?.map(key => {
-    const bot = bots?.find(bot => bot.id === key.bot_id)
+    const bot = bots?.find(bot => bot.id === key.botId)
     return {
-      ...key,
+      id: key.id,
+      name: key.name,
       bot: bot?.name,
+      created_at: key.createdAt,
     }
   })
 
