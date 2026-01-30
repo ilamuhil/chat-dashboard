@@ -35,12 +35,12 @@ function createR2Client(): S3Client {
  * - ACCESS_KEY_ID
  * - SECRET_ACCESS_KEY
  */
-export async function getPresignedUrl(params: {
+export function getPresignedUrl(params: {
   method: 'GET' | 'PUT' | 'HEAD' | 'DELETE'
   bucket: string
   key: string
   expiresInSeconds?: number
-}): Promise<string> {
+}): string {
   const { method, bucket, key, expiresInSeconds = 60 * 15 } = params
 
   const client = createR2Client()

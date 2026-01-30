@@ -12,21 +12,14 @@ import { Progress } from '@/components/ui/progress'
 import { Bot } from '../interactions/action'
 import BotSelectionGrid from './BotSelectionGrid'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { nanoid } from 'nanoid'
 import { toast } from 'sonner'
-import axios from 'axios'
+import { clientApiAxios as axios } from "@/lib/axios-client"
+import { AxiosError } from 'axios'
 
 type TrainingSourceStatus = 'pending' | 'processing' | 'completed' | 'failed'
 type TrainingSourceType = 'url' | 'file'
 
 
-
-type DraftSource = {
-  draft_id: string
-  type: TrainingSourceType
-  value: string | File
-  onDelete: (id:string) => Promise<void>
-}
 
 type ApiTrainingSource = {
   id: string
@@ -42,6 +35,41 @@ type ApiTrainingSource = {
 type Props = {
   bots: Bot[]
 }
+
+const fileLimitAndSizeCheck = (files: File[] | FileList | null) => {
+  if (!files) return 'No files selected'
+  const list = Array.isArray(files) ? files : Array.from(files)
+  if (list.length > 10) return 'You can only upload up to 10 files'
+  for (const file of list) {
+    if (file.size > 10 * 1024 * 1024)
+      return 'File size must be less than 10MB'
+  }
+  return null
+}
+
+const invalidFileTypes = (files: File[]) => {
+  const allowed = new Set([
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'text/plain',
+  ])
+  const invalid = files.filter(f => !allowed.has(f.type))
+  if (invalid.length === 0) return null
+  return `Invalid file type(s): ${invalid.map(f => f.name).join(', ')}`
+}
+
+const handleUrlAddition = async (url: string,selectedBot: Bot) => {
+  
+  //verify url is valid
+  const urlregex = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/;
+  if (!urlregex.test(url)) {
+    throw new Error('Invalid URL')
+  }
+  const response = await axios.post<{ message:string,id:string }>('/api/training-source/url', { url: url, bot_id: selectedBot?.id })
+  return response
+}
+
 export default function TrainingDataClient({ bots }: Props) {
   const [progress] = useState(45) // Dummy value
   // Dummy values for training stats
@@ -50,7 +78,6 @@ export default function TrainingDataClient({ bots }: Props) {
   const [failedFiles] = useState(0)
   const [lastTrainedAt] = useState('')
   const [selectedBot, setSelectedBot] = useState<Bot | null>(null)
-  const [draftSources, setDraftSources] = useState<DraftSource[]>([])
   const [url, setUrl] = useState('')
 
   const {
@@ -88,41 +115,11 @@ export default function TrainingDataClient({ bots }: Props) {
   const { isPending: isPendingTraining, mutate: train_bot } = useMutation({
     mutationFn: async () => {
       if (!selectedBot?.id) throw new Error('Please select a bot to train')
-      const formData = new FormData()
-      formData.append(
-        'sources',
-        JSON.stringify(
-          draftSources.map(s => ({
-            type: s.type,
-            value: s.value instanceof File ? s.value.name : s.value,
-          }))
-        )
-      )
-      const fileDrafts = draftSources.filter(
-        (s): s is DraftSource & { value: File } =>
-          s.type === 'file' && s.value instanceof File
-      )
-
-      for (const draft of fileDrafts) {
-        formData.append('files', draft.value)
-      }
-      formData.append(
-        'files_meta',
-        JSON.stringify(
-          fileDrafts.map(f => ({
-            original_filename: f.value.name,
-            size_bytes: f.value.size,
-            mime_type: f.value.type,
-          }))
-        )
-      )
+      const source_ids = trainingSources.filter(source => source.status === 'CREATED').map(source => source.id)
       const response = await axios.post<{ message: string }>(
         `/api/training/${selectedBot.id}`,
-        formData,
         {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
+          source_ids
         }
       )
       return response.data.message
@@ -131,8 +128,6 @@ export default function TrainingDataClient({ bots }: Props) {
       toast.success(message)
       //replace all draft sources with the new training sources
       refetchTrainingSources()
-      setDraftSources([])
-      setUrl('')
       toast.success('Training started successfully')
     },
     onError: (error: Error) => {
@@ -182,47 +177,21 @@ export default function TrainingDataClient({ bots }: Props) {
       },
     })
 
-  const fileLimitAndSizeCheck = (files: File[] | FileList | null) => {
-    if (!files) return 'No files selected'
-    const list = Array.isArray(files) ? files : Array.from(files)
-    if (list.length > 10) return 'You can only upload up to 10 files'
-    for (const file of list) {
-      if (file.size > 10 * 1024 * 1024)
-        return 'File size must be less than 10MB'
-    }
-    return null
-  }
+  
 
-  const invalidFileTypes = (files: File[]) => {
-    const allowed = new Set([
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'text/plain',
-    ])
-    const invalid = files.filter(f => !allowed.has(f.type))
-    if (invalid.length === 0) return null
-    return `Invalid file type(s): ${invalid.map(f => f.name).join(', ')}`
-  }
-
-  const handleUrlAddition = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
-    const id = nanoid(24)
-    if (url.trim()) {
-      setDraftSources(prev => [
-        ...prev,
-        {
-          draft_id: id,
-          type: 'url',
-          value: url,
-          onDelete: async () => setDraftSources(prev => prev.filter(s => s.draft_id !== id)),
-        },
-      ])
-      setUrl('')
-      toast.success('Url added successfully')
+  const { isPending: isUrlAdditionPending, mutate: addUrl } = useMutation({
+    mutationFn: async () => {
+      try {
+        const response = await handleUrlAddition(url,selectedBot)
+        toast.success(response.data.message)
+        refetchTrainingSources()
+        setUrl('')
+      } catch (error: AxiosError | Error) {
+        console.error('Error adding URL:', error)
+        toast.error(error instanceof AxiosError ? error.response?.data.error : error instanceof Error ? error.message : 'Failed to add URL. Please try again.')
+      }
     }
-  }
+  })
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = [...(e.target.files || [])]
@@ -273,12 +242,18 @@ export default function TrainingDataClient({ bots }: Props) {
               }}
             />
             <Button
-              disabled={!url.trim()}
+              disabled={!url.trim() || isUrlAdditionPending}
               variant='outline'
               size='default'
               className='h-8 px-3 text-xl flex items-center rounded-l-none border-l-0'
-              onClick={handleUrlAddition}>
-              +
+              onClick={addUrl}>
+              {isUrlAdditionPending ? (
+                <span className="flex items-center justify-center">
+                  <span className="inline-block h-4 w-4 border-2 border-t-transparent border-current rounded-full animate-spin"></span>
+                </span>
+              ) : (
+                '+'
+              )}
             </Button>
           </div>
         </section>
@@ -309,9 +284,15 @@ export default function TrainingDataClient({ bots }: Props) {
             No files uploaded yet
           </p>
         </div>
-        {[].length > 0 && (
+        {trainingSources.length > 0 && (
           <ResourceContainer
-            resources={[]}
+            resources={trainingSources.map(source => ({
+              id: source.id,
+              type: source.type,
+              value: source.source_value,
+              status: source.status as StatusChipStatus,
+              onDelete: () => deleteTrainingSource(source.id)
+            }))}
             isDisabled={
               isLoadingTrainingSources ||
               isPendingTraining ||

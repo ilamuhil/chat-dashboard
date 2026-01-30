@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import { verifyAuthToken } from '@/lib/auth-token'
 import { prisma } from '@/lib/prisma'
 import { CURRENT_ORG_COOKIE } from '@/lib/current-organization'
+import { resolveCurrentOrganizationId } from '@/lib/current-organization'
+import type { NextRequest } from 'next/server'
 
 export async function getAuthUserIdFromCookies(): Promise<string | null> {
   const cookieStore = await cookies()
@@ -29,6 +31,19 @@ export async function requireAuthUser() {
   })
   if (!user) redirect('/auth/login')
   return user
+}
+
+export async function requireUserOrgAndBot(request: NextRequest, botId: string): Promise<{ userId: string, organizationId: string, botId: string } | null>  { 
+  const user = await requireAuthUser()
+  if (!user) return null
+  const organizationId = await resolveCurrentOrganizationId({ userId: user.id })
+  if (!organizationId) return null
+  const bot = await prisma.bots.findFirst({
+    where: { id: botId, organizationId },
+    select: { id: true }
+  })
+  if (!bot) return null
+  return { userId: user.id, organizationId, botId: bot.id }
 }
 
 export async function getOnboardingStatus(userId: string) {

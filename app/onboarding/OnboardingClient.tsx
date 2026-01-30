@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
 type Invite = {
   id: string;
@@ -20,73 +21,66 @@ type Invite = {
 export default function OnboardingClient() {
   const router = useRouter();
   const [showInvites, setShowInvites] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [invites, setInvites] = useState<Invite[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const [orgName, setOrgName] = useState("");
   const [orgEmail, setOrgEmail] = useState("");
   const [orgPhone, setOrgPhone] = useState("");
 
-  useEffect(() => {
-    if (!showInvites) return;
-    let active = true;
-    setLoading(true);
-    setError(null);
-    fetch("/api/onboarding/invites", { method: "GET" })
-      .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok || data?.ok === false) throw new Error(data?.error || "Failed to load invites");
-        if (active) setInvites(data.invites ?? []);
-      })
-      .catch((e) => {
-        if (active) setError(e?.message || "Failed to load invites");
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [showInvites]);
+  const invitesQuery = useQuery({
+    queryKey: ["onboarding", "invites"],
+    enabled: showInvites,
+    queryFn: async (): Promise<Invite[]> => {
+      const res = await fetch("/api/onboarding/invites", { method: "GET" });
+      const data = await res.json();
+      if (!res.ok || data?.ok === false) throw new Error("Could not load invites.");
+      return data.invites ?? [];
+    },
+  });
 
-  async function createOrganization() {
-    setError(null);
-    setLoading(true);
-    try {
+  const invites = invitesQuery.data ?? [];
+
+  const createOrgMutation = useMutation({
+    mutationFn: async () => {
       const res = await fetch("/api/onboarding/organization", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: orgName, email: orgEmail, phone: orgPhone }),
       });
       const data = await res.json();
-      if (!res.ok || data?.ok === false) throw new Error(data?.error || "Failed to create organization");
+      if (!res.ok || data?.ok === false) {
+        throw new Error("Failed to create organization.");
+      }
+      return data;
+    },
+    onSuccess: () => {
       router.push("/dashboard");
-    } catch (e: any) {
-      setError(e?.message || "Failed to create organization");
-    } finally {
-      setLoading(false);
-    }
-  }
+    },
+    onError: () => {
+      setError("Failed to create organization. Please try again.");
+    },
+  });
 
-  async function acceptInvite(inviteId: string) {
-    setError(null);
-    setLoading(true);
-    try {
+  const acceptInviteMutation = useMutation({
+    mutationFn: async (inviteId: string) => {
       const res = await fetch("/api/onboarding/invites", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ inviteId }),
       });
       const data = await res.json();
-      if (!res.ok || data?.ok === false) throw new Error(data?.error || "Failed to accept invite");
+      if (!res.ok || data?.ok === false) {
+        throw new Error("Failed to accept invite.");
+      }
+      return data;
+    },
+    onSuccess: () => {
       router.push("/dashboard");
-    } catch (e: any) {
-      setError(e?.message || "Failed to accept invite");
-    } finally {
-      setLoading(false);
-    }
-  }
+    },
+    onError: () => {
+      setError("Could not accept invite. Please try again.");
+    },
+  });
 
   async function logout() {
     try {
@@ -119,7 +113,11 @@ export default function OnboardingClient() {
           </div>
         </CardHeader>
         <CardContent>
-          {error && <div className="alert-danger mb-4">{error}</div>}
+          {(error || invitesQuery.error) && (
+            <div className="alert-danger mb-4">
+              {error || "Could not load invites. Please try again."}
+            </div>
+          )}
 
           {!showInvites ? (
             <div className="space-y-4">
@@ -153,15 +151,18 @@ export default function OnboardingClient() {
               </div>
               <Button
                 className="w-full"
-                disabled={loading || !orgName.trim()}
-                onClick={createOrganization}
+                disabled={createOrgMutation.isPending || !orgName.trim()}
+                onClick={() => {
+                  setError(null);
+                  createOrgMutation.mutate();
+                }}
               >
-                Create Organization {loading && <Spinner />}
+                Create Organization {createOrgMutation.isPending && <Spinner />}
               </Button>
             </div>
           ) : (
             <div className="space-y-4">
-              {loading ? (
+              {invitesQuery.isLoading ? (
                 <div className="flex items-center justify-center py-6">
                   <Spinner />
                 </div>
@@ -188,10 +189,14 @@ export default function OnboardingClient() {
                         <TableCell className="text-right">
                           <Button
                             size="sm"
-                            onClick={() => acceptInvite(invite.id)}
-                            disabled={loading}
+                            onClick={() => {
+                              setError(null);
+                              acceptInviteMutation.mutate(invite.id);
+                            }}
+                            disabled={acceptInviteMutation.isPending}
                           >
                             Accept Invite
+                            {acceptInviteMutation.isPending && <Spinner />}
                           </Button>
                         </TableCell>
                       </TableRow>
