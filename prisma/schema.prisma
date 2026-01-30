@@ -275,7 +275,8 @@ model TrainingSources {
   type            String?   @db.Text
   status          String?   @db.Text
   errorMessage    String?   @map("error_message") @db.Text
-  sourceValue     String    @map("source_value") @db.Text
+  sourceValue     String?    @map("source_value") @db.Text
+  contentHash     String?   @map("content_hash") @db.Text
 
   // Relations
   bot             Bots?     @relation(fields: [botId], references: [id], onDelete: Cascade)

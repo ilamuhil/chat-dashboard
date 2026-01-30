@@ -115,7 +115,7 @@ export default function TrainingDataClient({ bots }: Props) {
   const { isPending: isPendingTraining, mutate: train_bot } = useMutation({
     mutationFn: async () => {
       if (!selectedBot?.id) throw new Error('Please select a bot to train')
-      const source_ids = trainingSources.filter(source => source.status === 'CREATED').map(source => source.id)
+      const source_ids = trainingSources.filter(source => source.status === 'created').map(source => source.id)
       const response = await axios.post<{ message: string }>(
         `/api/training/${selectedBot.id}`,
         {

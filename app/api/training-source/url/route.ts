@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
         botId: auth.botId,
         type: 'url',
         sourceValue: url,
-        status: 'CREATED',
+        status: 'created',
       },
       select: { id: true },
     })

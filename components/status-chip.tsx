@@ -3,32 +3,32 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 
-export type StatusChipStatus = "PENDING" | "CREATED" | "PROCESSING" | "COMPLETED" | "FAILED";
+export type StatusChipStatus = "pending" | "created" | "processing" | "completed" | "failed";
 
 const STATUS_STYLES: Record<
   StatusChipStatus,
   { label: string; className: string; dotClassName?: string }
 > = {
-  PENDING: {
-    label: "PENDING",
+  pending: {
+    label: "pending",
     className: "bg-slate-100 text-slate-700 ring-slate-200",
   },
-  CREATED: {
-    label: "CREATED",
+  created: {
+    label: "created",
     className: "bg-sky-50 text-sky-700 ring-sky-200",
     dotClassName: "bg-sky-400",
   },
-  PROCESSING: {
-    label: "PROCESSING",
+  processing: {
+    label: "processing",
     className: "bg-amber-50 text-amber-700 ring-amber-200",
     dotClassName: "bg-amber-400",
   },
-  COMPLETED: {
-    label: "COMPLETED",
+  completed: {
+    label: "completed",
     className: "bg-emerald-50 text-emerald-700 ring-emerald-200",
   },
   FAILED: {
-    label: "FAILED",
+    label: "failed",
     className: "bg-rose-50 text-rose-700 ring-rose-200",
   },
 };
