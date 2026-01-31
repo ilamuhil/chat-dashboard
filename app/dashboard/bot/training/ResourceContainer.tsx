@@ -18,7 +18,7 @@ type Props = {
     type: 'url' | 'file'
     value: string
     status: StatusChipStatus
-    onDelete: () => Promise<void>
+    onDelete: () => void
   }>
   isDisabled: boolean
 }
@@ -33,11 +33,11 @@ const ResourceContainer = (props: Props) => {
       </h2>
       <Separator />
       <div
-        className='grid gap-4 bg-slate-50 rounded p-2'
-        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
+        className='grid gap-2 bg-slate-50 rounded p-2 w-full justify-start'
+        style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 240px))' }}>
         {props.resources.map(resource => (
           <React.Fragment key={resource.id}>
-            <div className='bg-sky-800/10 p-2 flex flex-col gap-1 w-[clamp(100px,100%,600px)] rounded'>
+            <div className='bg-sky-800/10 p-2 flex flex-col gap-1 rounded w-full min-w-0 max-w-sm'>
               <div className='flex items-center justify-between'>
                 <StatusChip status={resource.status} className='rounded p-1' />
                 {resource.status === 'failed' && (
@@ -78,7 +78,7 @@ const ResourceContainer = (props: Props) => {
                   </DialogHeader>
                 </DialogContent>
               </Dialog>
-              <div className='flex items-center gap-1.5 border border-slate-300 rounded px-1.5 py-1'>
+              <div className='flex items-center gap-1.5 border border-slate-300 rounded px-1.5 py-1 min-w-0'>
                 <div>
                   {resource.type === 'url' ? (
                     <LinkIcon className='size-2.5' />
@@ -87,7 +87,7 @@ const ResourceContainer = (props: Props) => {
                   )}
                 </div>
                 <div className='flex-1 min-w-0'>
-                  <small className='text-[0.6rem] text-muted-foreground line-clamp-1 break-all'>
+                  <small className='text-[0.6rem] text-muted-foreground truncate block'>
                     {resource.value}
                   </small>
                 </div>

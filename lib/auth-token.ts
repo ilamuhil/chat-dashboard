@@ -32,11 +32,12 @@ export function verifyAuthToken(token: string): AuthTokenPayload {
     issuer: 'chat-dashboard',
     audience: 'chat-dashboard-web',
   })
-  if (typeof decoded !== 'object' || decoded === null) {
+  if (typeof decoded !== 'object' || decoded === null || Array.isArray(decoded)) {
     throw new Error('Invalid token payload')
   }
-  const sub = (decoded as any).sub
-  const type = (decoded as any).type
+  const payload = decoded as jwt.JwtPayload & { type?: unknown }
+  const sub = payload.sub
+  const type = payload.type
   if (typeof sub !== 'string' || type !== 'access') {
     throw new Error('Invalid token payload')
   }

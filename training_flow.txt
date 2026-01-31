@@ -6,8 +6,6 @@ File upload flow
       - Status "pending" with computed content hash
   b. Upload files
 
-   
-
 ---------
 
 Retry mechanism: use the same init API

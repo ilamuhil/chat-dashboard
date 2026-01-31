@@ -1,18 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireUserOrgAndBot } from '@/lib/auth-server'
-import { uploadFile, getPresignedUrl } from '@/lib/filemanagement'
+import { uploadFile } from '@/lib/filemanagement'
 import { prisma } from '@/lib/prisma'
 import { createHash } from 'crypto'
+import { Readable } from 'stream'
 
 export const runtime = 'nodejs'
 
 const BUCKET = 'bot-files'
 const MAX_UPLOAD_SIZE = 5 * 1024 * 1024 // 5MB
 
-async function createContentHash(file: File): Promise<string> {
-  const buffer = await file.arrayBuffer()
+
+
+export async function createContentHashFromStream(
+  stream: Readable
+): Promise<string> {
+  const hash = createHash('sha256')
+
+  for await (const chunk of stream) {
+    hash.update(chunk)
+  }
+  return hash.digest('hex')
+}
+
+export async function createContentHash(file: File): Promise<string> {
+  const buffer = Buffer.from(await file.arrayBuffer())
   return createHash('sha256').update(buffer).digest('hex')
 }
+
 
 export async function POST(request: NextRequest) {
   const formData = await request.formData()
@@ -47,7 +62,7 @@ export async function POST(request: NextRequest) {
       file,
       hash: hashes[i],
     }))
-  } catch (err) {
+  } catch (err: unknown) {
     console.error('Hashing failed', err)
     return NextResponse.json({ error: 'Hashing failed' }, { status: 500 })
   }
@@ -85,13 +100,16 @@ export async function POST(request: NextRequest) {
         organizationId: auth.organizationId,
         botId: auth.botId,
         type: 'file',
+        originalFilename: item.file.name,
         status: 'pending',
+        sizeBytes: item.file.size,
+        mimeType: item.file.type,
         contentHash: item.hash,
         sourceValue: `organizations/${auth.organizationId}/bots/${auth.botId}/${item.hash}`,
       })),
       select: { id: true, contentHash: true },
     })
-  } catch (err) {
+  } catch {
     // handle race via unique constraint
     const fallback = await prisma.trainingSources.findMany({
       where: {
@@ -109,21 +127,10 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // generate presigned URLs
-  const presignedUrls = await Promise.all(
-    newUploadItems.map(item =>
-      getPresignedUrl({
-        method: 'PUT',
-        bucket: BUCKET,
-        key: `organizations/${auth.organizationId}/bots/${auth.botId}/${item.hash}`,
-        expiresInSeconds: 900,
-      })
-    )
-  )
-
-  // fire-and-forget uploads
-  presignedUrls.forEach((url, i) => {
-    uploadFile(newUploadItems[i].file, url, BUCKET)
+  // fire-and-forget uploads using the expected R2 key
+  newUploadItems.forEach((item) => {
+    const key = `organizations/${auth.organizationId}/bots/${auth.botId}/${item.hash}`
+    uploadFile(item.file, key, BUCKET)
   })
 
   return NextResponse.json(

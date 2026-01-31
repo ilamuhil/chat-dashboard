@@ -9,7 +9,6 @@ interface EmailVerificationEmailProps {
 
 export function renderEmailVerificationEmail({ verificationLink, expiresInMinutes }: EmailVerificationEmailProps) {
   const appName = process.env.NEXT_PUBLIC_APP_NAME || 'Chat Dashboard'
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
   const hours = Math.floor(expiresInMinutes / 60)
   const minutes = expiresInMinutes % 60
   const expiryText = hours > 0 

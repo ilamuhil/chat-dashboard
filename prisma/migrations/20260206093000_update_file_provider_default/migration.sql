@@ -1,3 +1,0 @@
-ALTER TABLE "files"
-ALTER COLUMN "provider" SET DEFAULT 'r2';
-

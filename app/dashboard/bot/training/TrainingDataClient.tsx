@@ -13,10 +13,11 @@ import { Bot } from '../interactions/action'
 import BotSelectionGrid from './BotSelectionGrid'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { clientApiAxios as axios } from "@/lib/axios-client"
-import { AxiosError } from 'axios'
+import { clientApiAxios } from "@/lib/axios-client"
+import { isAxiosError } from 'axios'
+import { type StatusChipStatus } from '@/components/status-chip'
 
-type TrainingSourceStatus = 'pending' | 'processing' | 'completed' | 'failed'
+type TrainingSourceStatus = 'pending' | 'created' | 'processing' | 'completed' | 'failed'
 type TrainingSourceType = 'url' | 'file'
 
 
@@ -25,6 +26,7 @@ type ApiTrainingSource = {
   id: string
   type: TrainingSourceType
   source_value: string | null
+  original_filename?: string | null
   status: TrainingSourceStatus
   file?: {
     original_filename?: string | null
@@ -59,14 +61,17 @@ const invalidFileTypes = (files: File[]) => {
   return `Invalid file type(s): ${invalid.map(f => f.name).join(', ')}`
 }
 
-const handleUrlAddition = async (url: string,selectedBot: Bot) => {
-  
+const handleUrlAddition = async (url: string, botId: string) => {
+
   //verify url is valid
   const urlregex = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/;
   if (!urlregex.test(url)) {
     throw new Error('Invalid URL')
   }
-  const response = await axios.post<{ message:string,id:string }>('/api/training-source/url', { url: url, bot_id: selectedBot?.id })
+  const response = await clientApiAxios.post<{ message: string, id: string }>(
+    '/api/training-source/url',
+    { url: url, bot_id: botId }
+  )
   return response
 }
 
@@ -79,7 +84,8 @@ export default function TrainingDataClient({ bots }: Props) {
   const [lastTrainedAt] = useState('')
   const [selectedBot, setSelectedBot] = useState<Bot | null>(null)
   const [url, setUrl] = useState('')
-
+  const [isFileUploading, setIsFileUploading] = useState(false)
+  const [termsAccepted, setTermsAccepted] = useState(false)
   const {
     data: trainingSources,
     isLoading: isLoadingTrainingSources,
@@ -100,23 +106,23 @@ export default function TrainingDataClient({ bots }: Props) {
       // },
       queryFn: async () => {
         if (!selectedBot?.id) return []
-        const response = await axios.get<{ sources: ApiTrainingSource[] }>(
+        const response = await clientApiAxios.get<{ sources: ApiTrainingSource[] }>(
           `/api/training/${selectedBot.id}`
         )
         return response.data.sources
-      }, 
+      },
       initialData: [] as ApiTrainingSource[],
       enabled: !!selectedBot?.id,
     })
 
-  
+
 
   // query to queue training for the selected bot with the uploaded training sources and urls
   const { isPending: isPendingTraining, mutate: train_bot } = useMutation({
     mutationFn: async () => {
       if (!selectedBot?.id) throw new Error('Please select a bot to train')
       const source_ids = trainingSources.filter(source => source.status === 'created').map(source => source.id)
-      const response = await axios.post<{ message: string }>(
+      const response = await clientApiAxios.post<{ message: string }>(
         `/api/training/${selectedBot.id}`,
         {
           source_ids
@@ -133,7 +139,7 @@ export default function TrainingDataClient({ bots }: Props) {
     onError: (error: Error) => {
       toast.error(error.message || 'Failed to train bot. Please try again.')
     },
-    
+
   })
 
   //!NOTE: All deletion should be done in server side.
@@ -156,7 +162,7 @@ export default function TrainingDataClient({ bots }: Props) {
           return ''
         }
         if (!selectedBot?.id) throw new Error('No bot selected')
-        await axios.delete<{ message?: string; error?: string }>(
+        await clientApiAxios.delete<{ message?: string; error?: string }>(
           `/api/training/${selectedBot.id}`,
           {
             headers: { 'Content-Type': 'application/json' },
@@ -177,38 +183,121 @@ export default function TrainingDataClient({ bots }: Props) {
       },
     })
 
-  
+
 
   const { isPending: isUrlAdditionPending, mutate: addUrl } = useMutation({
     mutationFn: async () => {
       try {
-        const response = await handleUrlAddition(url,selectedBot)
+        if (!selectedBot?.id) throw new Error('Please select a bot to train')
+        const response = await handleUrlAddition(url, selectedBot.id)
         toast.success(response.data.message)
         refetchTrainingSources()
         setUrl('')
-      } catch (error: AxiosError | Error) {
+      } catch (error: unknown) {
         console.error('Error adding URL:', error)
-        toast.error(error instanceof AxiosError ? error.response?.data.error : error instanceof Error ? error.message : 'Failed to add URL. Please try again.')
+        toast.error(
+          isAxiosError(error)
+            ? error.response?.data?.error ?? 'Failed to add URL. Please try again.'
+            : error instanceof Error
+              ? error.message
+              : 'Failed to add URL. Please try again.'
+        )
       }
     }
   })
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = [...(e.target.files || [])]
-    const message = fileLimitAndSizeCheck(files)
-    const isInvalidFileTypeMessage = invalidFileTypes(files)
-    if (message) {
-      toast.error(message)
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const toastId = toast.loading('Uploading files...')
+    setIsFileUploading(true)
+    const files = Array.from(e.target.files ?? [])
+    e.target.value = '' // allow re-selecting the same files
+
+    if (files.length === 0) {
+      toast.error('No files selected', { id: toastId })
       return
-    } else if (isInvalidFileTypeMessage) {
-      toast.error(isInvalidFileTypeMessage)
+    }
+
+    const sizeError = fileLimitAndSizeCheck(files)
+    if (sizeError) {
+      toast.error(sizeError, { id: toastId })
       return
-    } else {
-      // Upload files here itself -> call upload training files api
+    }
+
+    const typeError = invalidFileTypes(files)
+    if (typeError) {
+      toast.error(typeError, { id: toastId })
+      return
+    }
+
+    try {
+      const formData = new FormData()
+      formData.append('bot_id', selectedBot?.id ?? '')
+      files.forEach(file => formData.append('files', file))
+
+      const initRes = await clientApiAxios.post<{ trainingSourceIds: string[] }>(
+        '/api/training-source/file/upload',
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      )
+
+      const sourceIds = initRes.data.trainingSourceIds
+
+      if (!sourceIds || sourceIds.length === 0) {
+        toast.error('No files were accepted for upload.', { id: toastId })
+        return
+      }
+
+      const finalizeRes = await clientApiAxios.post<{
+        message: string
+        allSourcesVerified: boolean
+        verifiedSourceIds: string[]
+        unverifiedSourceIds: string[]
+      }>('/api/training-source/file/finalize', {
+        bot_id: selectedBot?.id,
+        source_ids: sourceIds,
+      })
+
+      toast.dismiss(toastId)
+
+      if (finalizeRes.data.verifiedSourceIds.length > 0) {
+        toast.success(
+          `${finalizeRes.data.verifiedSourceIds.length} file(s) ready for training`
+        )
+      }
+
+      if (finalizeRes.data.unverifiedSourceIds.length > 0) {
+        toast.warning(
+          `${finalizeRes.data.unverifiedSourceIds.length} file(s) not uploaded yet. Please retry.`,
+          { duration: Infinity, dismissible: true }
+        )
+      }
+    } catch (err: unknown) {
+      toast.dismiss(toastId)
+      if (isAxiosError(err)) {
+        const status = err.response?.status
+
+        if (status === 400) {
+          toast.error('Invalid file upload request. Please check your files.')
+        } else if (status === 401 || status === 403) {
+          toast.error('You are not authorized to upload files for this bot.')
+        } else {
+          toast.error('Upload failed. Please try again.')
+        }
+      } else {
+        toast.error('Upload failed. Please try again.')
+      }
+
+      console.error('Upload error:', err)
+
+    }
+    finally {
+      setIsFileUploading(false)
+      refetchTrainingSources()
     }
   }
 
-  
+
+
 
   if (!selectedBot) {
     return <BotSelectionGrid bots={bots} onSelectBot={setSelectedBot} />
@@ -246,7 +335,7 @@ export default function TrainingDataClient({ bots }: Props) {
               variant='outline'
               size='default'
               className='h-8 px-3 text-xl flex items-center rounded-l-none border-l-0'
-              onClick={addUrl}>
+              onClick={() => addUrl()}>
               {isUrlAdditionPending ? (
                 <span className="flex items-center justify-center">
                   <span className="inline-block h-4 w-4 border-2 border-t-transparent border-current rounded-full animate-spin"></span>
@@ -271,7 +360,8 @@ export default function TrainingDataClient({ bots }: Props) {
         />
         <div
           className={cn('alert-muted cursor-pointer', 'py-6')}
-          onClick={() => document.getElementById('file-input')?.click()}>
+          onClick={() => document.getElementById('file-input')?.click()}
+          disabled={isFileUploading}>
           <CloudUpload className='size-6 my-3 mx-auto ' />
           <p className='mb-1'>
             Click to upload files or drag and drop files here
@@ -289,9 +379,17 @@ export default function TrainingDataClient({ bots }: Props) {
             resources={trainingSources.map(source => ({
               id: source.id,
               type: source.type,
-              value: source.source_value,
+              value:
+                (source.type === 'file'
+                  ? source.original_filename
+                  : source.source_value) ??
+                source.file?.path ??
+                source.file?.original_filename ??
+                '',
               status: source.status as StatusChipStatus,
-              onDelete: () => deleteTrainingSource(source.id)
+              onDelete: () => {
+                deleteTrainingSource(source.id)
+              }
             }))}
             isDisabled={
               isLoadingTrainingSources ||
@@ -302,7 +400,11 @@ export default function TrainingDataClient({ bots }: Props) {
         )}
         <Separator />
         <div className='flex items-center gap-2'>
-          <Checkbox id='terms-and-conditions' />
+          <Checkbox
+            id='terms-and-conditions'
+            checked={termsAccepted}
+            onCheckedChange={(value) => setTermsAccepted(value === true)}
+          />
           <Label
             htmlFor='terms-and-conditions'
             className='text-xs font-medium text-muted-foreground'>
@@ -366,7 +468,15 @@ export default function TrainingDataClient({ bots }: Props) {
         </div>
         <Button
           type='button'
-          disabled={isPendingTraining || !selectedBot?.id}
+          disabled={
+            isPendingTraining ||
+            !selectedBot?.id ||
+            isSourceDeletionLoading ||
+            isUrlAdditionPending ||
+            isLoadingTrainingSources ||
+            isFileUploading ||
+            !termsAccepted
+          }
           onClick={() => train_bot()}>
           {isPendingTraining ? 'Starting…' : 'Confirm and Start Training'}
         </Button>

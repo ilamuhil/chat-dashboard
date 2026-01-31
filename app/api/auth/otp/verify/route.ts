@@ -28,8 +28,8 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ ok: true })
-  } catch (err: any) {
-    const message = err?.message ?? 'Failed to verify OTP'
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Failed to verify OTP'
     return NextResponse.json({ ok: false, error: message }, { status: 400 })
   }
 }

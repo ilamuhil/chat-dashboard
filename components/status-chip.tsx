@@ -27,7 +27,7 @@ const STATUS_STYLES: Record<
     label: "completed",
     className: "bg-emerald-50 text-emerald-700 ring-emerald-200",
   },
-  FAILED: {
+  failed: {
     label: "failed",
     className: "bg-rose-50 text-rose-700 ring-rose-200",
   },

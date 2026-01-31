@@ -26,17 +26,25 @@ export async function GET(
     id: string
     type: 'file' | 'url'
     source_value: string
+    original_filename?: string | null
     status: string | null
   }
 
   const trainingSourcesRaw = await prisma.trainingSources.findMany({
     where: { botId: bot_id },
-    select: { id: true, type: true, sourceValue: true, status: true },
+    select: {
+      id: true,
+      type: true,
+      sourceValue: true,
+      originalFilename: true,
+      status: true,
+    },
   })
   const trainingSources = trainingSourcesRaw.map((source) => ({
     id: source.id,
     type: source.type as 'file' | 'url',
     source_value: source.sourceValue ?? '',
+    original_filename: source.originalFilename ?? null,
     status: source.status,
   })) as TrainingSource[]
 

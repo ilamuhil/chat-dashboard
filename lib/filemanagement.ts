@@ -1,4 +1,10 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3'
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+} from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
 function mustGetEnv(name: string): string {
@@ -27,6 +33,20 @@ function createR2Client(): S3Client {
   })
 }
 
+function getHttpStatus(err: unknown): number | undefined {
+  if (!err || typeof err !== 'object') return undefined
+  const maybeMeta = (err as { $metadata?: { httpStatusCode?: number } }).$metadata
+  return maybeMeta?.httpStatusCode
+}
+
+function isAsyncIterable(value: unknown): value is AsyncIterable<Uint8Array> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    Symbol.asyncIterator in value
+  )
+}
+
 /**
  * Creates a presigned URL for Cloudflare R2 (S3-compatible) using AWS SDK.
  *
@@ -35,12 +55,12 @@ function createR2Client(): S3Client {
  * - ACCESS_KEY_ID
  * - SECRET_ACCESS_KEY
  */
-export function getPresignedUrl(params: {
+export async function getPresignedUrl(params: {
   method: 'GET' | 'PUT' | 'HEAD' | 'DELETE'
   bucket: string
   key: string
   expiresInSeconds?: number
-}): string {
+}): Promise<string> {
   const { method, bucket, key, expiresInSeconds = 60 * 15 } = params
 
   const client = createR2Client()
@@ -93,6 +113,23 @@ export async function uploadFile(file: File, key: string, bucket: string) {
   }
 }
 
+export async function fileExists(
+  bucket: string,
+  key: string
+): Promise<boolean> {
+  const client = createR2Client()
+
+  try {
+    await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }))
+    return true
+  } catch (err: unknown) {
+    if (getHttpStatus(err) === 404) {
+      return false
+    }
+    throw err
+  }
+}
+
 /**
  * Downloads an object from R2 using AWS SDK GetObjectCommand.
  * Returns the file data and metadata.
@@ -106,14 +143,17 @@ export async function getFile(bucket: string, key: string) {
 
   try {
     const response = await client.send(command)
-    
+
     if (!response.Body) {
       throw new Error('No body in response')
     }
 
     // Convert stream to buffer
     const chunks: Uint8Array[] = []
-    for await (const chunk of response.Body as any) {
+    if (!isAsyncIterable(response.Body)) {
+      throw new Error('Response body is not a readable stream')
+    }
+    for await (const chunk of response.Body) {
       chunks.push(chunk)
     }
     const buffer = Buffer.concat(chunks)
@@ -180,7 +220,11 @@ export function getPublicUrl(bucket: string, key: string): string {
  * Gets a presigned GET URL for displaying images/files in the browser.
  * Use this for private buckets or when you need time-limited access.
  */
-export async function getPresignedGetUrl(bucket: string, key: string, expiresInSeconds: number = 60 * 60 * 24): Promise<string> {
+export async function getPresignedGetUrl(
+  bucket: string,
+  key: string,
+  expiresInSeconds: number = 60 * 60 * 24
+): Promise<string> {
   return getPresignedUrl({
     method: 'GET',
     bucket,

@@ -21,7 +21,7 @@ CREATE TABLE "organizations" (
 
 -- CreateTable
 CREATE TABLE "bots" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "id" UUID NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "name" TEXT NOT NULL,
     "capture_leads" BOOLEAN NOT NULL DEFAULT false,
@@ -43,7 +43,7 @@ CREATE TABLE "bots" (
 
 -- CreateTable
 CREATE TABLE "organization_members" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "id" UUID NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "organization_id" TEXT DEFAULT '',
     "role" TEXT,
@@ -54,7 +54,7 @@ CREATE TABLE "organization_members" (
 
 -- CreateTable
 CREATE TABLE "users" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "id" UUID NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
     "email" TEXT,
@@ -77,13 +77,26 @@ CREATE TABLE "users" (
     "is_active" BOOLEAN NOT NULL DEFAULT true,
     "is_banned" BOOLEAN NOT NULL DEFAULT false,
     "banned_until" TIMESTAMP(3),
+    "onboarding_completed" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
+CREATE TABLE "organization_invites" (
+    "id" UUID NOT NULL,
+    "organization_id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "role" TEXT NOT NULL DEFAULT 'editor',
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "accepted_at" TIMESTAMP(3),
+
+    CONSTRAINT "organization_invites_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "otps" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "id" UUID NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "user_id" UUID,
     "code" TEXT NOT NULL,
@@ -104,7 +117,7 @@ CREATE TABLE "otps" (
 
 -- CreateTable
 CREATE TABLE "api_keys" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "id" UUID NOT NULL,
     "name" TEXT NOT NULL,
     "key_hash" TEXT NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -118,7 +131,7 @@ CREATE TABLE "api_keys" (
 
 -- CreateTable
 CREATE TABLE "files" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "id" UUID NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "organization_id" TEXT,
     "bot_id" UUID,
@@ -136,21 +149,23 @@ CREATE TABLE "files" (
 
 -- CreateTable
 CREATE TABLE "training_sources" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "id" UUID NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "organization_id" TEXT,
     "bot_id" UUID,
     "type" TEXT,
     "status" TEXT,
     "error_message" TEXT,
-    "source_value" TEXT NOT NULL,
+    "source_value" TEXT,
+    "content_hash" TEXT,
+    "original_filename" TEXT,
 
     CONSTRAINT "training_sources_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "conversations_meta" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "id" UUID NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "mode" TEXT NOT NULL DEFAULT 'ai',
     "organization_id" TEXT,
@@ -167,7 +182,7 @@ CREATE TABLE "conversations_meta" (
 
 -- CreateTable
 CREATE TABLE "leads" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "id" UUID NOT NULL,
     "captured_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "name" TEXT,
     "email" TEXT,
@@ -210,6 +225,12 @@ CREATE INDEX "users_github_id_idx" ON "users"("github_id");
 CREATE INDEX "users_microsoft_id_idx" ON "users"("microsoft_id");
 
 -- CreateIndex
+CREATE INDEX "organization_invites_email_idx" ON "organization_invites"("email");
+
+-- CreateIndex
+CREATE INDEX "organization_invites_organization_id_idx" ON "organization_invites"("organization_id");
+
+-- CreateIndex
 CREATE INDEX "otps_user_id_idx" ON "otps"("user_id");
 
 -- CreateIndex
@@ -232,6 +253,9 @@ ALTER TABLE "organization_members" ADD CONSTRAINT "organization_members_organiza
 
 -- AddForeignKey
 ALTER TABLE "organization_members" ADD CONSTRAINT "organization_members_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "organization_invites" ADD CONSTRAINT "organization_invites_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "otps" ADD CONSTRAINT "otps_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;

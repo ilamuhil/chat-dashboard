@@ -72,8 +72,8 @@ export async function POST(request: NextRequest) {
       maxAge: 60 * 60 * 24 * 7,
     })
     return res
-  } catch (err: any) {
-    const message = err?.message ?? 'Signup failed'
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Signup failed'
     return NextResponse.json({ ok: false, error: message }, { status: 400 })
   }
 }

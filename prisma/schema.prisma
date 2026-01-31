@@ -262,7 +262,7 @@ model Files {
   // Relations
   bot             Bots?     @relation(fields: [botId], references: [id], onDelete: Cascade)
   organization    Organizations? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
+  @@index([organizationId, botId, path], name: "files_org_bot_path_idx")
   @@map("files")
   @@schema("public")
 }
@@ -277,7 +277,9 @@ model TrainingSources {
   errorMessage    String?   @map("error_message") @db.Text
   sourceValue     String?    @map("source_value") @db.Text
   contentHash     String?   @map("content_hash") @db.Text
-
+  originalFilename String?   @map("original_filename") @db.Text
+  sizeBytes       BigInt?   @map("size_bytes")
+  mimeType        String?   @map("mime_type") @db.Text
   // Relations
   bot             Bots?     @relation(fields: [botId], references: [id], onDelete: Cascade)
   organization    Organizations? @relation(fields: [organizationId], references: [id], onDelete: Cascade)

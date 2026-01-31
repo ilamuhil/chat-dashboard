@@ -9,7 +9,6 @@ interface LoginOTPEmailProps {
 
 export function renderLoginOTPEmail({ otp, expiresInMinutes }: LoginOTPEmailProps) {
   const appName = process.env.NEXT_PUBLIC_APP_NAME || 'Chat Dashboard'
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
   const minutes = expiresInMinutes
   const expiryText = `${minutes} minute${minutes > 1 ? 's' : ''}`
 

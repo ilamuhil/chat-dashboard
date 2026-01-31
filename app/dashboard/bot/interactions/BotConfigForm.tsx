@@ -19,29 +19,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
-type BotConfig = {
-  id: string
-  name: string
-  tone: string
-  role: string
-  first_message: string
-  lead_capture_message: string
-  confirmation_message: string
-  business_description: string
-  capture_leads: boolean
-  lead_capture_timing?: string
-  capture_name?: boolean
-  capture_email?: boolean
-  capture_phone?: boolean
-  created_at?: string
-  updated_at?: string
-}
-
-type Props = {
-  botConfig: BotConfig | null
-}
-
-const BotConfigForm = ({ botConfig }: Props) => {
+const BotConfigForm = () => {
   const [botConfigFormState, botConfigSubmitAction, isPending] = useActionState<
     BotResult | null,
     FormData

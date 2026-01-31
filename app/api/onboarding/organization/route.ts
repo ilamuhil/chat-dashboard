@@ -52,8 +52,8 @@ export async function POST(request: NextRequest) {
       maxAge: 60 * 60 * 24 * 30,
     })
     return res
-  } catch (err: any) {
-    const msg = err?.message ?? 'Failed to create organization'
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Failed to create organization'
     return NextResponse.json({ ok: false, error: msg }, { status: 400 })
   }
 }
