@@ -246,6 +246,7 @@ export default function TrainingDataClient({ bots }: Props) {
         toast.error('No files were accepted for upload.', { id: toastId })
         return
       }
+      refetchTrainingSources()
 
       const finalizeRes = await clientApiAxios.post<{
         message: string
