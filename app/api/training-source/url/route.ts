@@ -25,7 +25,13 @@ export async function POST(request: NextRequest) {
     },
   })
   if (existingSource) {
-    return NextResponse.json({ message: 'URL already exists. Delete and add url again if you want to retrain the bot.' }, { status: 100 })
+    return NextResponse.json(
+      {
+        error:
+          'URL already exists. Delete and add url again if you want to retrain the bot.',
+      },
+      { status: 409 }
+    )
   }
   try {
     const source = await prisma.trainingSources.create({

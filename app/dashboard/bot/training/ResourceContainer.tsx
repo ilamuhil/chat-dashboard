@@ -128,7 +128,7 @@ const ResourceLoader = () => {
     <div
       className='grid gap-2 bg-slate-50 rounded p-2 w-full justify-start'
       style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 240px))' }}>
-      {Array.from({ length: 4 }).map((_, index) => (
+      {Array.from({ length: 1 }).map((_, index) => (
         <div
           key={index}
           className='w-full max-w-sm rounded-md border bg-gray-200 h-20 animate-pulse'

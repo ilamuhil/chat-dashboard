@@ -336,6 +336,7 @@ export default function TrainingDataClient({ bots }: Props) {
               onChange={e => {
                 setUrl(e.target.value)
               }}
+              onKeyDown={e => e.key === 'Enter' && addUrl()}
             />
             <Button
               disabled={!url.trim() || isUrlAdditionPending}
@@ -489,7 +490,7 @@ export default function TrainingDataClient({ bots }: Props) {
             isUrlAdditionPending ||
             isLoadingTrainingSources ||
             isFileUploading ||
-            !termsAccepted
+            !termsAccepted || trainingSources?.length === 0
           }
           onClick={() => train_bot()}>
           {isPendingTraining ? 'Starting…' : 'Confirm and Start Training'}
