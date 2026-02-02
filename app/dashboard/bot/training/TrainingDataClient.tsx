@@ -89,6 +89,7 @@ export default function TrainingDataClient({ bots }: Props) {
   const {
     data: trainingSources,
     isLoading: isLoadingTrainingSources,
+    isFetching: isFetchingTrainingSources,
     refetch: refetchTrainingSources,
   } =
     useQuery({
@@ -153,33 +154,38 @@ export default function TrainingDataClient({ bots }: Props) {
     useMutation({
       mutationFn: async (training_source_id: string) => {
         if (!training_source_id) {
-          toast.error('Invalid training source selected for deletion')
-          return ''
+          throw new Error('Invalid training source selected for deletion')
         }
         const source = trainingSources.find(source => source.id === training_source_id)
         if (!source) {
-          toast.error('Invalid training source selected for deletion')
-          return ''
+          throw new Error('Invalid training source selected for deletion')
         }
         if (!selectedBot?.id) throw new Error('No bot selected')
-        await clientApiAxios.delete<{ message?: string; error?: string }>(
-          `/api/training/${selectedBot.id}`,
+        const response =await clientApiAxios.delete<{ message?: string; error?: string }>(
+          `/api/training-source/`,
           {
             headers: { 'Content-Type': 'application/json' },
-            data: { source_id: training_source_id },
+            data: { source_id: training_source_id,bot_id: selectedBot.id },
           }
         )
-        return 'Deleted successfully'
+        return response.data?.message ?? 'Deleted successfully'
       },
-      onSuccess: (message: string) => {
-        if (message) toast.success(message)
+      onMutate: () => {
+        const toastId = toast.loading('Deleting resource. Please wait...')
+        return { toastId }
+      },
+      onSuccess: (message: string, _vars, ctx) => {
+        toast.success(message || 'Deleted successfully', { id: ctx?.toastId })
         refetchTrainingSources()
       },
-      onError: (error: Error) => {
+      onError: (error: unknown, _vars, ctx) => {
         console.error('Error deleting training source:', error)
-        toast.error(
-          error.message || 'Failed to delete training source. Please try again.'
-        )
+        const message = isAxiosError(error)
+          ? error.response?.data?.error ?? 'Failed to delete training source. Please try again.'
+          : error instanceof Error
+          ? error.message
+          : 'Failed to delete training source. Please try again.'
+        toast.error(message, { id: ctx?.toastId })
       },
     })
 
@@ -209,27 +215,27 @@ export default function TrainingDataClient({ bots }: Props) {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const toastId = toast.loading('Uploading files...')
     setIsFileUploading(true)
-    const files = Array.from(e.target.files ?? [])
-    e.target.value = '' // allow re-selecting the same files
-
-    if (files.length === 0) {
-      toast.error('No files selected', { id: toastId })
-      return
-    }
-
-    const sizeError = fileLimitAndSizeCheck(files)
-    if (sizeError) {
-      toast.error(sizeError, { id: toastId })
-      return
-    }
-
-    const typeError = invalidFileTypes(files)
-    if (typeError) {
-      toast.error(typeError, { id: toastId })
-      return
-    }
-
     try {
+      const files = Array.from(e.target.files ?? [])
+      e.target.value = '' // allow re-selecting the same files
+
+      if (files.length === 0) {
+        toast.error('No files selected', { id: toastId })
+        return
+      }
+
+      const sizeError = fileLimitAndSizeCheck(files)
+      if (sizeError) {
+        toast.error(sizeError, { id: toastId })
+        return
+      }
+
+      const typeError = invalidFileTypes(files)
+      if (typeError) {
+        toast.error(typeError, { id: toastId })
+        return
+      }
+
       const formData = new FormData()
       formData.append('bot_id', selectedBot?.id ?? '')
       files.forEach(file => formData.append('files', file))
@@ -258,12 +264,13 @@ export default function TrainingDataClient({ bots }: Props) {
         source_ids: sourceIds,
       })
 
-      toast.dismiss(toastId)
-
       if (finalizeRes.data.verifiedSourceIds.length > 0) {
         toast.success(
-          `${finalizeRes.data.verifiedSourceIds.length} file(s) ready for training`
+          `${finalizeRes.data.verifiedSourceIds.length} file(s) ready for training`,
+          { id: toastId }
         )
+      } else {
+        toast.success(finalizeRes.data.message ?? 'Upload complete', { id: toastId })
       }
 
       if (finalizeRes.data.unverifiedSourceIds.length > 0) {
@@ -273,19 +280,18 @@ export default function TrainingDataClient({ bots }: Props) {
         )
       }
     } catch (err: unknown) {
-      toast.dismiss(toastId)
       if (isAxiosError(err)) {
         const status = err.response?.status
 
         if (status === 400) {
-          toast.error('Invalid file upload request. Please check your files.')
+          toast.error('Invalid file upload request. Please check your files.', { id: toastId })
         } else if (status === 401 || status === 403) {
-          toast.error('You are not authorized to upload files for this bot.')
+          toast.error('You are not authorized to upload files for this bot.', { id: toastId })
         } else {
-          toast.error('Upload failed. Please try again.')
+          toast.error('Upload failed. Please try again.', { id: toastId })
         }
       } else {
-        toast.error('Upload failed. Please try again.')
+        toast.error('Upload failed. Please try again.', { id: toastId })
       }
 
       console.error('Upload error:', err)
@@ -360,9 +366,15 @@ export default function TrainingDataClient({ bots }: Props) {
           className='text-xs placeholder:text-xs hidden'
         />
         <div
-          className={cn('alert-muted cursor-pointer', 'py-6')}
-          onClick={() => document.getElementById('file-input')?.click()}
-          disabled={isFileUploading}>
+          className={cn(
+            'alert-muted',
+            'py-6',
+            isFileUploading ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+          )}
+          onClick={() => {
+            if (isFileUploading) return
+            document.getElementById('file-input')?.click()
+          }}>
           <CloudUpload className='size-6 my-3 mx-auto ' />
           <p className='mb-1'>
             Click to upload files or drag and drop files here
@@ -375,8 +387,9 @@ export default function TrainingDataClient({ bots }: Props) {
             No files uploaded yet
           </p>
         </div>
-        {trainingSources.length > 0 && (
+        
           <ResourceContainer
+            loading={isLoadingTrainingSources || isFetchingTrainingSources}
             resources={trainingSources.map(source => ({
               id: source.id,
               type: source.type,
@@ -398,7 +411,7 @@ export default function TrainingDataClient({ bots }: Props) {
               isSourceDeletionLoading
             }
           />
-        )}
+        
         <Separator />
         <div className='flex items-center gap-2'>
           <Checkbox

@@ -15,8 +15,10 @@ This repository contains the **dashboard application** for users who integrate o
 ## Tech Stack
 
 - **Framework**: [Next.js 16](https://nextjs.org/) with App Router
-- **Database**: PostgreSQL via Prisma
+- **ORM**: Prisma
+- **Database**: PostgreSQL
 - **Auth**: Custom OTP auth via AWS SES
+- **Storage**: Cloudflare R2 (S3-compatible)
 - **Styling**: Tailwind CSS with shadcn/ui components
 - **Form Management**: React Hook Form with Zod validation
 - **Language**: TypeScript
@@ -143,6 +145,9 @@ DATABASE_URL=your_postgres_connection_string
 AUTH_JWT_SECRET=your_random_secret
 AWS_REGION=ap-south-1
 AWS_SES_FROM_EMAIL=verified-sender@example.com
+CLOUDFLARE_R2_BASE_URL=https://<accountid>.r2.cloudflarestorage.com
+ACCESS_KEY_ID=your_r2_access_key
+SECRET_ACCESS_KEY=your_r2_secret_key
 ```
 
 4. Run the development server:

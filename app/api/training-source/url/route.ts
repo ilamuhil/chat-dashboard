@@ -14,7 +14,19 @@ export async function POST(request: NextRequest) {
   if (!auth?.userId || !auth?.organizationId || !auth?.botId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
-  
+
+  //check if url is already in training sources
+  const existingSource = await prisma.trainingSources.findFirst({
+    where: {
+      organizationId: auth.organizationId,
+      botId: auth.botId,
+      type: 'url',
+      sourceValue: url,
+    },
+  })
+  if (existingSource) {
+    return NextResponse.json({ message: 'URL already exists. Delete and add url again if you want to retrain the bot.' }, { status: 100 })
+  }
   try {
     const source = await prisma.trainingSources.create({
       data: {
