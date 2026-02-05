@@ -3,11 +3,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireUserOrgAndBot } from '@/lib/route-guards'
 import { pythonApiRequest } from '@/lib/axios-server-config'
 import { prisma } from '@/lib/prisma'
-import { uploadFile, deleteFile } from '@/lib/filemanagement'
+import { isAxiosError } from 'axios'
 
 
 export const runtime = 'nodejs'
-const BUCKET = 'bot-files'
 
 export async function GET(
   request: NextRequest,
@@ -92,25 +91,6 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid bot' }, { status: 400 })
   }
 
-  const formData = await request.formData()
-  const sourcesRaw = formData.get('sources')
-  const filesMetaRaw = formData.get('files_meta')
-
-  if (typeof sourcesRaw !== 'string') {
-    return NextResponse.json({ error: 'Invalid sources' }, { status: 400 })
-  }
-
-  const sources = JSON.parse(sourcesRaw) as Array<{
-    type: 'url' | 'file'
-    value?: string
-  }>
-  if (!sources.length) {
-    return NextResponse.json({ error: 'No sources provided' }, { status: 400 })
-  }
-
-  const files = formData.getAll('files') as File[]
-  const filesMeta =
-    typeof filesMetaRaw === 'string' ? JSON.parse(filesMetaRaw) : []
 
   const guard = await requireUserOrgAndBot(request, bot_id)
   if (!guard.ok) return guard.response
@@ -118,118 +98,29 @@ export async function POST(
 
   // Prevent concurrent training
   const active = await prisma.trainingSources.findMany({
-    where: { botId: bot_id, status: { in: ['pending', 'processing'] } },
+    where: { botId: bot_id, status: { in: ['training', 'queued_for_training'] }, deletedAt: null },
     select: { id: true },
   })
 
   if (active && active.length > 0) {
     return NextResponse.json(
-      { error: 'Training already in progress' },
+      { error: 'Training already in progress please wait for it to complete before you can retrain the bot.' },
       { status: 409 }
     )
   }
 
-  const trainingSourceIds: string[] = []
-  const uploadedPaths: string[] = []
-
-  /* ---------- FILE SOURCES ---------- */
-  if (files.length > 0) {
-    if (files.length !== filesMeta.length) {
-      return NextResponse.json(
-        { error: 'File metadata mismatch' },
-        { status: 400 }
-      )
-    }
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]
-      const meta = filesMeta[i]
-      const path = `organizations/${organizationId}/bots/${bot_id}/${crypto.randomUUID()}-${
-        meta.original_filename
-      }`
-
-      try {
-        await uploadFile(file, path, BUCKET)
-      } catch {
-        await Promise.all(uploadedPaths.map((p) => deleteFile(BUCKET, p).catch(() => null)))
-        return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
-      }
-
-      uploadedPaths.push(path)
-
-      let fileRowId: string
-      try {
-        const fileRow = await prisma.files.create({
-          data: {
-            organizationId,
-            botId: bot_id,
-            bucket: BUCKET,
-            path,
-            originalFilename: meta.original_filename,
-            mimeType: meta.mime_type,
-            sizeBytes: BigInt(meta.size_bytes ?? file.size),
-            purpose: 'training',
-            status: 'uploaded',
-            provider: 'r2',
-          },
-          select: { id: true },
-        })
-        fileRowId = fileRow.id
-      } catch {
-        await Promise.all(uploadedPaths.map((p) => deleteFile(BUCKET, p).catch(() => null)))
-        return NextResponse.json(
-          { error: 'Failed to create file record' },
-          { status: 500 }
-        )
-      }
-
-      try {
-        const source = await prisma.trainingSources.create({
-          data: {
-            organizationId,
-            botId: bot_id,
-            type: 'file',
-            sourceValue: fileRowId,
-            status: 'pending',
-          },
-          select: { id: true },
-        })
-        trainingSourceIds.push(source.id)
-      } catch {
-        await Promise.all(uploadedPaths.map((p) => deleteFile(BUCKET, p).catch(() => null)))
-        return NextResponse.json(
-          { error: 'Failed to create training source for file' },
-          { status: 500 }
-        )
-      }
-    }
-  }
-
-  /* ---------- URL SOURCES ---------- */
-  const uniqueUrls = [
-    ...new Set(sources.filter(s => s.type === 'url').map(s => s.value!)),
-  ]
-
-  for (const url of uniqueUrls) {
-    try {
-      const source = await prisma.trainingSources.create({
-        data: {
-          organizationId,
-          botId: bot_id,
-          type: 'url',
-          sourceValue: url,
-          status: 'pending',
-        },
-        select: { id: true },
-      })
-      trainingSourceIds.push(source.id)
-    } catch {
-      return NextResponse.json(
-        { error: 'Failed to create training source for URL' },
-        { status: 500 }
-      )
-    }
-  }
+  const trainingSourceIds = await prisma.trainingSources.findMany({
+    where: {
+      botId: bot_id,
+      organizationId: organizationId,
+      deletedAt: null,
+      status: "created"
+    },
+    select: {
+      id: true,
+    },
+  })
+ 
 
   /* ---------- CALL PYTHON ---------- */
   const privateKey = getSecretKey()
@@ -256,13 +147,15 @@ export async function POST(
         source_ids: trainingSourceIds,
       }
     )
-  } catch {
-    await prisma.trainingSources.updateMany({
-      where: { id: { in: trainingSourceIds } },
-      data: { status: 'failed', errorMessage: 'Queueing failed' },
-    })
-
-    return NextResponse.json({ error: 'Queueing failed' }, { status: 500 })
+  } catch (error: unknown) {
+    const fallbackErrorMessage = 'Error occurred while training the bot. Please try again.'
+    if (isAxiosError(error)) {
+      console.error('Queueing failed', error.response?.data)
+      return NextResponse.json({ error: error.response.data.error || fallbackErrorMessage}, { status: error.response?.status ?? 500 })
+    } else {
+      console.error('Queueing failed', error)
+      return NextResponse.json({ error: fallbackErrorMessage}, { status: 500 })
+    }
   }
 
   return NextResponse.json(

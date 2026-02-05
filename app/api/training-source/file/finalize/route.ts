@@ -6,7 +6,10 @@ import { fileExists } from '@/lib/filemanagement'
 const BUCKET = 'bot-files'
 
 export async function POST(request: NextRequest) {
-  const { bot_id, source_ids } = await request.json()
+  const { bot_id, source_ids } = (await request.json()) as {
+    bot_id: string
+    source_ids: string[]
+  }
   if (
     !bot_id ||
     !source_ids ||
@@ -32,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     if (trainingSources.length === 0) {
       return NextResponse.json(
-        { message: 'No files to verify/upload' },
+        { message: 'No new files to verify/upload',verifiedSourceIds: [], unverifiedSourceIds: [] },
         { status: 200 }
       )
     }

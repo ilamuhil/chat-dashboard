@@ -6,6 +6,9 @@ import { pythonApiRequest } from '@/lib/axios-server-config'
 import { deleteFile, fileExists } from '@/lib/filemanagement'
 
 const BUCKET = 'bot-files'
+// source status is created or pending (No training performed on resource) -> file type -> remove file from storage and delete transaction records, file records from db. url type -> delete transaction record from db.
+
+//TODO: trained resource deletion flow yet to be implemented.
 
 export async function DELETE(request: NextRequest) {
   // Authorization complete

@@ -92,6 +92,9 @@ model Bots {
   captureName           Boolean? @default(false) @map("capture_name")
   captureEmail          Boolean? @default(false) @map("capture_email")
   capturePhone          Boolean? @default(false) @map("capture_phone")
+  deletedAt             DateTime? @map("deleted_at")
+  deletedBy             String? @map("deleted_by") @db.Text
+  // deletedBy can be a user_id or "system"
 
   // Relations
   organization          Organizations? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -258,6 +261,9 @@ model Files {
   sizeBytes       BigInt?   @map("size_bytes")
   purpose         String?   @db.Text
   status          String?   @db.Text
+  deletedAt       DateTime? @map("deleted_at")
+  deletedBy       String? @map("deleted_by") @db.Text
+  // deletedBy can be a user_id or "system"
 
   // Relations
   bot             Bots?     @relation(fields: [botId], references: [id], onDelete: Cascade)
@@ -280,6 +286,10 @@ model TrainingSources {
   originalFilename String?   @map("original_filename") @db.Text
   sizeBytes       BigInt?   @map("size_bytes")
   mimeType        String?   @map("mime_type") @db.Text
+  deletedAt       DateTime? @map("deleted_at")
+  deletedBy       String? @map("deleted_by") @db.Text
+  // deletedBy can be a user_id or "system"
+  
   // Relations
   bot             Bots?     @relation(fields: [botId], references: [id], onDelete: Cascade)
   organization    Organizations? @relation(fields: [organizationId], references: [id], onDelete: Cascade)

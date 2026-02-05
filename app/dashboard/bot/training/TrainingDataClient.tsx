@@ -144,11 +144,7 @@ export default function TrainingDataClient({ bots }: Props) {
   })
 
   //!NOTE: All deletion should be done in server side.
-  /**  Below is the query to delete training sources for the selected bot
-  2 types of deletions are happening here depending on the status of the training source:
-  1. if training source has been trained on before (i.e it has a state of success or failed) then we need to delete the training source, the embeddings, and the document chunks from the database (either soft or hard delete) and remove files from the storage if source type is file
-  2. if the training source has not been trained on before (either no status or status is pending) then (a) if source is url then remove from sources state and (b) if source is file then remove from sources state and remove file from storage
-  **/
+  
 
   const { isPending: isSourceDeletionLoading, mutate: deleteTrainingSource } =
     useMutation({
@@ -276,7 +272,7 @@ export default function TrainingDataClient({ bots }: Props) {
       if (finalizeRes.data.unverifiedSourceIds.length > 0) {
         toast.warning(
           `${finalizeRes.data.unverifiedSourceIds.length} file(s) not uploaded yet. Please retry.`,
-          { duration: Infinity, dismissible: true }
+          { duration: Infinity, dismissible: true, id: toastId }
         )
       }
     } catch (err: unknown) {

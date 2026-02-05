@@ -86,6 +86,7 @@ export async function POST(request: NextRequest) {
 
   // nothing new to upload
   if (newUploadItems.length === 0) {
+    console.log('No new files to upload')
     return NextResponse.json(
       { trainingSourceIds: existingSources.map(s => s.id) },
       { status: 200 }
