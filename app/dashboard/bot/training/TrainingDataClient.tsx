@@ -397,7 +397,7 @@ export default function TrainingDataClient({ bots }: Props) {
                 source.file?.path ??
                 source.file?.original_filename ??
                 '',
-              status: source.status as StatusChipStatus,
+              status: source.status,
               onDelete: () => {
                 deleteTrainingSource(source.id)
               }

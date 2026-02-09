@@ -17,7 +17,7 @@ type Props = {
     id: string
     type: 'url' | 'file'
     value: string
-    status: StatusChipStatus
+    status: StatusChipStatus | string | null | undefined
     onDelete: () => void
   }>
   isDisabled: boolean
@@ -48,7 +48,10 @@ const ResourceContainer = (props: Props) => {
               <div className='bg-sky-800/10 p-2 flex flex-col gap-1 rounded w-full min-w-0 max-w-sm'>
                 <div className='flex items-center justify-between'>
                   <StatusChip status={resource.status} className='rounded p-1' />
-                  {resource.status === 'failed' && (
+                  {(resource.status === 'failed' ||
+                    resource.status === 'training_failed' ||
+                    resource.status === 'processing_failed' ||
+                    resource.status === 'upload_failed') && (
                     <Button
                       type='button'
                       variant='ghost'
@@ -71,17 +74,19 @@ const ResourceContainer = (props: Props) => {
                   <DialogContent className='sm:max-w-md'>
                     <DialogHeader>
                       <DialogTitle className='text-sm'>Processing Error</DialogTitle>
-                      <DialogDescription className='text-xs space-y-2 pt-2'>
-                        <p>
-                          Something went wrong while processing this resource.
-                          Please try again or contact support if the issue
-                          persists.
-                        </p>
-                        <p>
-                          This may be due to an unsupported file type, network
-                          error, or service interruption. You can also remove
-                          this resource and attempt to upload it again.
-                        </p>
+                      <DialogDescription asChild>
+                        <div className='text-xs space-y-2 pt-2'>
+                          <p>
+                            Something went wrong while processing this resource.
+                            Please try again or contact support if the issue
+                            persists.
+                          </p>
+                          <p>
+                            This may be due to an unsupported file type, network
+                            error, or service interruption. You can also remove
+                            this resource and attempt to upload it again.
+                          </p>
+                        </div>
                       </DialogDescription>
                     </DialogHeader>
                   </DialogContent>
