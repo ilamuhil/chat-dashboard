@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getSecretKey, signToken } from '@/lib/jwt'
 import { pythonApiRequest } from '@/lib/axios-server-config'
 import { deleteFile, fileExists } from '@/lib/filemanagement'
+import { getAuthUserIdFromCookies } from '@/lib/auth-server'
 
 const BUCKET = 'bot-files'
 // source status is created or pending (No training performed on resource) -> file type -> remove file from storage and delete transaction records, file records from db. url type -> delete transaction record from db.
@@ -23,7 +24,7 @@ export async function DELETE(request: NextRequest) {
 
   //Authorization check
   console.log('Authorization completed')
-
+  const userId = await getAuthUserIdFromCookies()
   const guard = await requireUserOrgAndBot(request, bot_id)
   if (!guard.ok) return guard.response
   const { organizationId } = guard
@@ -39,12 +40,14 @@ export async function DELETE(request: NextRequest) {
       { status: 200 }
     )
   }
+
+  const isFile = source.type === 'file'
   
 
 
   // Pre training source deletion logic
 
-  if (source.type === 'url') { 
+  if (!isFile) { 
     if (source.status === 'created' || source.status === 'pending') { 
       try {
       await prisma.trainingSources.delete({
@@ -60,7 +63,7 @@ export async function DELETE(request: NextRequest) {
     }
   }
 
-  if (source.type === 'file') {
+  if (isFile) {
     const deletionPath = source.sourceValue!
     try {
       if (source.status === 'created' || source.status === 'pending') {
@@ -110,9 +113,9 @@ export async function DELETE(request: NextRequest) {
 
   // post training source deletion logic
 
-  if (source.status === 'processing') {
+  if (["processing","queued_for_training","training"].includes(source.status || '')) {
     return NextResponse.json(
-      { error: 'Cannot delete while processing' },
+      { error: 'Cannot delete source. Please wait for the training/processing to complete.' },
       { status: 409 }
     )
   }
@@ -132,17 +135,32 @@ export async function DELETE(request: NextRequest) {
   )
 
   try {
-    await pythonApiRequest('POST', '/api/training/source/delete', token, {
-      source_id,
+    await prisma.$transaction(async tx => {
+      //get user id performing this action
+      await tx.trainingSources.update({
+        where: { id: source_id },
+        data: {
+          deletedAt: new Date(),
+          deletedBy: userId
+        }
+      })
+      if (isFile) {
+        await tx.files.update({
+          where: { id: source_id },
+          data: {
+            deletedAt: new Date(),
+            deletedBy: userId
+          }
+        })
+      }
     })
-    await prisma.trainingSources.deleteMany({
-      where: { id: source_id, botId: bot_id },
-    })
-    await prisma.files.deleteMany({
-      where: { id: source_id, botId: bot_id },
-    })
-    return NextResponse.json({ message: 'Deleted' }, { status: 200 })
-  } catch {
-    return NextResponse.json({ error: 'Delete failed' }, { status: 500 })
+    await pythonApiRequest('DELETE', `/api/training/delete/${source_id}`, token)
+    return NextResponse.json({ message: 'Training source deleted successfully' }, { status: 200 })
+  } catch (error: unknown) {
+    if (isAxiosError(error)) {
+      return NextResponse.json({ error: error.response?.data?.error || 'Delete failed. If this issue persists, please contact support.' }, { status: error.response?.status ?? 500 })
+    }
+    console.error('Deletion failed', error)
+    return NextResponse.json({ error: 'Deletion failed. If this issue persists, please contact support.' }, { status: 500 })
   }
 }
