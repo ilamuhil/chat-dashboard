@@ -5,6 +5,7 @@ import { getSecretKey, signToken } from '@/lib/jwt'
 import { pythonApiRequest } from '@/lib/axios-server-config'
 import { deleteFile, fileExists } from '@/lib/filemanagement'
 import { getAuthUserIdFromCookies } from '@/lib/auth-server'
+import { isAxiosError } from 'axios'
 
 const BUCKET = 'bot-files'
 // source status is created or pending (No training performed on resource) -> file type -> remove file from storage and delete transaction records, file records from db. url type -> delete transaction record from db.

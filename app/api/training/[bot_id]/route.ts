@@ -151,7 +151,11 @@ export async function POST(
     const fallbackErrorMessage = 'Error occurred while training the bot. Please try again.'
     if (isAxiosError(error)) {
       console.error('Queueing failed', error.response?.data)
-      return NextResponse.json({ error: error.response.data.error || fallbackErrorMessage}, { status: error.response?.status ?? 500 })
+      const data = error.response?.data as { error?: string } | undefined
+      return NextResponse.json(
+        { error: data?.error || fallbackErrorMessage },
+        { status: error.response?.status ?? 500 }
+      )
     } else {
       console.error('Queueing failed', error)
       return NextResponse.json({ error: fallbackErrorMessage}, { status: 500 })
