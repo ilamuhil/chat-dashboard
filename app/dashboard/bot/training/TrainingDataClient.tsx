@@ -4,11 +4,10 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { ArrowLeftIcon, CloudUpload } from 'lucide-react'
+import { ArrowLeftIcon, CloudUpload, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import ResourceContainer from './ResourceContainer'
 import { Separator } from '@/components/ui/separator'
-import { Progress } from '@/components/ui/progress'
 import { Bot } from '../interactions/action'
 import BotSelectionGrid from './BotSelectionGrid'
 import { useQuery, useMutation } from '@tanstack/react-query'
@@ -17,17 +16,14 @@ import { clientApiAxios } from "@/lib/axios-client"
 import { isAxiosError } from 'axios'
 import { type StatusChipStatus } from '@/components/status-chip'
 
-type TrainingSourceStatus = 'pending' | 'created' | 'processing' | 'completed' | 'failed'
 type TrainingSourceType = 'url' | 'file'
-
-
 
 type ApiTrainingSource = {
   id: string
   type: TrainingSourceType
   source_value: string | null
   original_filename?: string | null
-  status: TrainingSourceStatus
+  status: string | null // Can be any status from training_flow.md
   file?: {
     original_filename?: string | null
     path?: string | null
@@ -76,45 +72,77 @@ const handleUrlAddition = async (url: string, botId: string) => {
 }
 
 export default function TrainingDataClient({ bots }: Props) {
-  const [progress] = useState(45) // Dummy value
-  // Dummy values for training stats
-  const [totalFilesUploaded] = useState(0)
-  const [totalFilesProcessed] = useState(0)
-  const [failedFiles] = useState(0)
-  const [lastTrainedAt] = useState('')
   const [selectedBot, setSelectedBot] = useState<Bot | null>(null)
   const [url, setUrl] = useState('')
   const [isFileUploading, setIsFileUploading] = useState(false)
   const [termsAccepted, setTermsAccepted] = useState(false)
+  
+  // Statuses that indicate active processing/training
+  const activeStatuses: readonly string[] = [
+    'queued_for_training',
+    'training',
+    'processing',
+    'uploaded', // File uploaded, waiting for processing
+    'pending', // Initial state, might be processing
+  ]
+
+  // Statuses that indicate completion (success)
+  const completedStatuses: readonly string[] = ['trained', 'processed']
+
+  // Statuses that indicate failure
+  const failedStatuses: readonly string[] = [
+    'training_failed',
+    'processing_failed',
+    'upload_failed',
+  ]
+
   const {
-    data: trainingSources,
+    data: trainingSources = [],
     isLoading: isLoadingTrainingSources,
     isFetching: isFetchingTrainingSources,
     refetch: refetchTrainingSources,
-  } =
-    useQuery({
-      queryKey: ['training-sources', selectedBot?.id],
-      // refetchInterval: q => {
-      //   console.log('q', q)
-      //   const statuses = (q.state.data ?? { sources: [] }).sources.map(
-      //     source => source.status
-      //   )
-      //   return statuses.some(status =>
-      //     ['pending', 'processing'].includes(status)
-      //   )
-      //     ? 5000
-      //     : false
-      // },
-      queryFn: async () => {
-        if (!selectedBot?.id) return []
-        const response = await clientApiAxios.get<{ sources: ApiTrainingSource[] }>(
-          `/api/training/${selectedBot.id}`
-        )
-        return response.data.sources
-      },
-      initialData: [] as ApiTrainingSource[],
-      enabled: !!selectedBot?.id,
-    })
+  } = useQuery({
+    queryKey: ['training-sources', selectedBot?.id],
+    queryFn: async () => {
+      if (!selectedBot?.id) return []
+      const response = await clientApiAxios.get<{ sources: ApiTrainingSource[] }>(
+        `/api/training/${selectedBot.id}`
+      )
+      return response.data.sources
+    },
+    enabled: !!selectedBot?.id,
+    refetchInterval: (query) => {
+      // Poll every 5 seconds if any source is in an active status
+      const sources = query.state.data ?? []
+      const hasActiveSources = sources.some((source) =>
+        source.status && activeStatuses.includes(source.status)
+      )
+      return hasActiveSources ? 5000 : false
+    },
+  })
+
+  // Calculate dynamic progress and stats
+  const totalSources = trainingSources.length
+  const completedSources = trainingSources.filter((source) =>
+    source.status && completedStatuses.includes(source.status)
+  ).length
+  const failedSources = trainingSources.filter((source) =>
+    source.status && failedStatuses.includes(source.status)
+  ).length
+  const processedSources = completedSources + failedSources
+  const progress = totalSources > 0 ? Math.round((processedSources / totalSources) * 100) : 0
+
+  // Check if there are any active sources (polling/processing)
+  const hasActiveSources = trainingSources.some((source) =>
+    source.status && activeStatuses.includes(source.status)
+  )
+
+  // Determine progress bar color based on state
+  const progressBarColor = hasActiveSources
+    ? 'bg-orange-500' // Orange when polling/active
+    : progress === 100 && totalSources > 0
+    ? 'bg-emerald-500' // Green when completed
+    : 'bg-blue-500' // Blue when stagnant/not processing
 
 
 
@@ -135,7 +163,6 @@ export default function TrainingDataClient({ bots }: Props) {
       toast.success(message)
       //replace all draft sources with the new training sources
       refetchTrainingSources()
-      toast.success('Training started successfully')
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Failed to train bot. Please try again.')
@@ -157,13 +184,12 @@ export default function TrainingDataClient({ bots }: Props) {
           throw new Error('Invalid training source selected for deletion')
         }
         if (!selectedBot?.id) throw new Error('No bot selected')
-        const response =await clientApiAxios.delete<{ message?: string; error?: string }>(
-          `/api/training-source/`,
-          {
-            headers: { 'Content-Type': 'application/json' },
-            data: { source_id: training_source_id,bot_id: selectedBot.id },
-          }
-        )
+        const response = await clientApiAxios.request<{ message?: string; error?: string }>({
+          method: 'DELETE',
+          url: `/api/training-source/`,
+          headers: { 'Content-Type': 'application/json' },
+          data: { source_id: training_source_id, bot_id: selectedBot.id },
+        })
         return response.data?.message ?? 'Deleted successfully'
       },
       onMutate: () => {
@@ -386,7 +412,7 @@ export default function TrainingDataClient({ bots }: Props) {
         </div>
         
           <ResourceContainer
-            loading={isLoadingTrainingSources || isFetchingTrainingSources}
+            loading={isLoadingTrainingSources}
             resources={trainingSources.map(source => ({
               id: source.id,
               type: source.type,
@@ -424,53 +450,67 @@ export default function TrainingDataClient({ bots }: Props) {
           </Label>
         </div>
         <div className='w-full md:w-1/2 rounded-sm border border-gray-200 bg-white p-2'>
-          <div className='mb-1.5'>
+          <div className='mb-1.5 flex items-center justify-between'>
             <h3 className='text-sm font-medium'>Training Progress</h3>
+            {isFetchingTrainingSources && (
+              <span className='text-[0.65em] text-muted-foreground flex items-center gap-1'>
+                <span className='inline-block h-2 w-2 border-2 border-t-transparent border-current rounded-full animate-spin'></span>
+                Updating...
+              </span>
+            )}
           </div>
           <div className='space-y-2'>
             <div className='space-y-1'>
               <div className='flex items-center justify-between'>
                 <span className='text-[0.65em] text-muted-foreground'>
-                  Completed
+                  Progress
                 </span>
                 <span className='text-[0.65em] font-medium text-foreground'>
                   {progress}%
                 </span>
               </div>
-              <Progress value={progress} className='h-1.5 rounded-sm' />
+              <div className="relative h-1.5 w-full overflow-hidden rounded-sm bg-primary/20">
+                <div
+                  className={cn(
+                    'h-full transition-all',
+                    progressBarColor
+                  )}
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
             </div>
             <div className='pt-1.5 border-t space-y-1.5'>
               <div className='grid grid-cols-2 gap-x-3 gap-y-1.5'>
                 <div className='flex flex-col gap-0.5'>
                   <span className='text-[0.65em] text-muted-foreground leading-tight font-medium'>
-                    Total Files Uploaded
+                    Total Resources
                   </span>
                   <span className='text-[0.65em] font-semibold text-foreground leading-tight'>
-                    {totalFilesUploaded}
+                    {totalSources}
                   </span>
                 </div>
                 <div className='flex flex-col gap-0.5'>
                   <span className='text-[0.65em] text-muted-foreground leading-tight font-medium'>
-                    Total Files Successfully Processed
+                    Successfully Processed
                   </span>
                   <span className='text-[0.65em] font-semibold leading-tight text-emerald-600'>
-                    {totalFilesProcessed}
+                    {completedSources}
                   </span>
                 </div>
                 <div className='flex flex-col gap-0.5'>
                   <span className='text-[0.65em] text-muted-foreground leading-tight font-medium'>
-                    Failed Files
+                    Failed
                   </span>
                   <span className='text-[0.65em] font-semibold text-rose-600 leading-tight'>
-                    {failedFiles}
+                    {failedSources}
                   </span>
                 </div>
                 <div className='flex flex-col gap-0.5'>
                   <span className='text-[0.65em] text-muted-foreground leading-tight font-medium'>
-                    Last Trained At
+                    Processed
                   </span>
                   <span className='text-[0.65em] font-semibold text-foreground leading-tight'>
-                    {lastTrainedAt}
+                    {processedSources} / {totalSources}
                   </span>
                 </div>
               </div>
@@ -481,6 +521,7 @@ export default function TrainingDataClient({ bots }: Props) {
           type='button'
           disabled={
             isPendingTraining ||
+            hasActiveSources ||
             !selectedBot?.id ||
             isSourceDeletionLoading ||
             isUrlAdditionPending ||
@@ -489,7 +530,14 @@ export default function TrainingDataClient({ bots }: Props) {
             !termsAccepted || trainingSources?.length === 0
           }
           onClick={() => train_bot()}>
-          {isPendingTraining ? 'Starting…' : 'Confirm and Start Training'}
+          {isPendingTraining || hasActiveSources ? (
+            <span className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Processing...
+            </span>
+          ) : (
+            'Confirm and Start Training'
+          )}
         </Button>
       </section>
     </main>

@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
       organizationId: auth.organizationId,
       botId: auth.botId,
       type: 'file',
+      deletedAt: null,
       contentHash: { in: uploadItems.map(i => i.hash) },
     },
     select: { id: true, contentHash: true },

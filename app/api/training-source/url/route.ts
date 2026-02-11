@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
       botId: auth.botId,
       type: 'url',
       sourceValue: url,
+      deletedAt: null,
     },
   })
   if (existingSource) {

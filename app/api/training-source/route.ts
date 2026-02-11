@@ -145,14 +145,25 @@ export async function DELETE(request: NextRequest) {
           deletedBy: userId
         }
       })
-      if (isFile) {
-        await tx.files.update({
-          where: { id: source_id },
-          data: {
-            deletedAt: new Date(),
-            deletedBy: userId
-          }
+      if (isFile && source.sourceValue) {
+        // Find the file record by path, not by source_id
+        const fileRecord = await tx.files.findFirst({
+          where: {
+            path: source.sourceValue,
+            botId: bot_id,
+            organizationId: organizationId,
+            deletedAt: null,
+          },
         })
+        if (fileRecord) {
+          await tx.files.update({
+            where: { id: fileRecord.id },
+            data: {
+              deletedAt: new Date(),
+              deletedBy: userId
+            }
+          })
+        }
       }
     })
     await pythonApiRequest('DELETE', `/api/training/delete/${source_id}`, token)

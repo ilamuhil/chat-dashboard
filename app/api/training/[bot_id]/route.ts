@@ -30,7 +30,7 @@ export async function GET(
   }
 
   const trainingSourcesRaw = await prisma.trainingSources.findMany({
-    where: { botId: bot_id },
+    where: { botId: bot_id, deletedAt: null },
     select: {
       id: true,
       type: true,
