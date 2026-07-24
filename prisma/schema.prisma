@@ -14,17 +14,7 @@ datasource db {
   schemas  = ["public"]
   // Note: In Prisma 7, the 'url' field is deprecated in the schema file.
   // Database URL is now configured in prisma.config.ts instead.
-  // Note: The 'auth' schema is managed by Supabase and not included here.
-  // Foreign keys to auth.users are handled through Supabase client.
 }
-
-// ============================================================================
-// Auth Schema (Supabase Auth Tables)
-// ============================================================================
-
-// Note: The auth.users table is managed by Supabase Auth.
-// We reference it for foreign keys but don't define it here.
-// If you need to query auth.users, you may need to use raw SQL or Supabase client.
 
 // ============================================================================
 // Public Schema Enums

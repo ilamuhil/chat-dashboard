@@ -6,6 +6,14 @@ import { prisma } from '@/lib/prisma'
 import { isAxiosError } from 'axios'
 
 
+type TrainingSource = {
+  id: string
+  type: 'file' | 'url'
+  source_value: string
+  original_filename?: string | null
+  status: string | null
+}
+
 export const runtime = 'nodejs'
 
 export async function GET(
@@ -21,13 +29,7 @@ export async function GET(
   }
   const guard = await requireUserOrgAndBot(request, bot_id)
   if (!guard.ok) return guard.response
-  type TrainingSource = {
-    id: string
-    type: 'file' | 'url'
-    source_value: string
-    original_filename?: string | null
-    status: string | null
-  }
+  
 
   const trainingSourcesRaw = await prisma.trainingSources.findMany({
     where: { botId: bot_id, deletedAt: null },
