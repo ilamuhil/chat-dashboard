@@ -13,7 +13,6 @@ import { toast } from 'sonner'
 import { Spinner } from '@/components/ui/spinner'
 import { type ProfileResult } from './action'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
-import Image from 'next/image'
 import React from 'react'
 
 type Organization = {
@@ -151,7 +150,7 @@ const ProfileForm = ({ organization: initialOrganization }: Props) => {
           onDeleteSuccess={handleLogoDeleteSuccess}
         />
       </Activity>
-      <form>
+      <form key={organizationState?.nonce ?? "profile-form"}>
         <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
           <section>
             <Tooltip>

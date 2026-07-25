@@ -73,7 +73,21 @@ export async function updateProfile(
   });
   if (!validatedFields.success) {
     console.error(validatedFields.error.flatten().fieldErrors);
-    return { error: validatedFields.error.flatten().fieldErrors, nonce };
+    return { error: validatedFields.error.flatten().fieldErrors, nonce, organization: {
+      id: getValue("id") ?? "",
+      name: formData.get("name")?.toString() || "",
+      email: formData.get("email")?.toString() || "",
+      phone: getValue("phone") ?? null,
+      logo_url: null,
+      address: {
+        address_line1: formData.get("address_line1")?.toString() || "",
+        address_line2: getValue("address_line2") ?? null,
+        city: formData.get("city")?.toString() || "",
+        state: formData.get("state")?.toString() || "",
+        zip: formData.get("zip")?.toString() || "",
+        country: formData.get("country")?.toString() || "",
+      },
+    }, };
   }
 
   const response = await createOrUpdateOrganization(
