@@ -15,6 +15,7 @@ import { Trash2 } from 'lucide-react'
 import React, { useState, useRef, useEffect } from 'react'
 import { toast } from 'sonner'
 import { uploadOrganizationLogo, deleteOrganizationLogo, getOrganizationLogoUrl } from './action'
+import { cn } from '@/lib/utils'
 
 async function uploadImage(file: File, organizationId: string): Promise<{ error?: string; success?: string; url?: string }> {
   try {
@@ -120,13 +121,14 @@ export function ImageUploadDialog({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      setSelectedFile(file)
       const reader = new FileReader()
       reader.onloadend = () => {
         setPreview(reader.result as string)
       }
       reader.readAsDataURL(file)
+      handleSave(new MouseEvent('click'),file as File)
     }
+    
   }
 
   const handleDelete = async () => {
@@ -175,23 +177,21 @@ export function ImageUploadDialog({
     }
   }
 
-  const handleSave = async (e: React.MouseEvent<HTMLButtonElement>) => {
+  const handleSave = async (e: React.MouseEvent<HTMLButtonElement>,file:File | null) => {
     e.preventDefault()
-    if (!selectedFile || !organizationId) {
+    if (!file || !organizationId) {
       toast.error('Please select a file to upload')
       return
     }
 
     setIsUploading(true)
-    const result = await uploadImage(selectedFile, organizationId)
+    const result = await uploadImage(file, organizationId)
     setIsUploading(false)
 
     if (result.error) {
       toast.error(result.error, { position: 'top-center' })
     } else if (result.success && result.url) {
       toast.success(result.success, { position: 'top-center' })
-      setSelectedFile(null)
-      
       // Use the upload result URL directly (this is the new file)
       // Presigned URLs are already time-limited and unique, so use them directly
       setUploadedUrl(result.url)
@@ -202,27 +202,23 @@ export function ImageUploadDialog({
         onUploadSuccess(result.url)
       }
       
-      // Close dialog after successful upload
-      setTimeout(() => {
-        setOpen(false)
-      }, 1000)
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange} >
-      <DialogContent className='sm:max-w-[425px]'>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className='sm:max-w-[425px] rounded-3xl'>
         <DialogHeader>
-          <DialogTitle className='text-center'>Upload Profile Image</DialogTitle>
+          <DialogTitle className='text-center text-2xl font-bold'>Profile Image</DialogTitle>
         </DialogHeader>
         <div className='grid gap-4'>
           <div className='flex justify-center my-4'>
-            <Avatar className='size-32 shadow-md border-3 border-sky-600'>
+            <Avatar className='size-64 shadow-md border-3 hover:cursor-pointer hover:shadow-2xl hover: transition-all duration-300 hover:scale-105' onClick={() => fileInputRef.current?.click()}>
               <AvatarImage src={preview || undefined} alt='Profile preview' />
-              <AvatarFallback>Logo</AvatarFallback>
+              <AvatarFallback className={cn('text-2xl font-bold')}>Logo</AvatarFallback>
             </Avatar>
           </div>
-          <div className='grid gap-3'>
+          <div className='grid gap-3' style={{display:'none'}}>
             <Label htmlFor='image'>Image</Label>
             <Input 
               ref={fileInputRef}
@@ -239,6 +235,7 @@ export function ImageUploadDialog({
             type='button'
             variant='destructive'
             size='icon'
+            className='shadow-md'
             onClick={handleDelete}
             disabled={(!selectedFile && !uploadedUrl) || isDeleting || isUploading || !organizationId}
             title={
@@ -250,14 +247,7 @@ export function ImageUploadDialog({
             }>
             <Trash2 className='size-4' />
           </Button>
-          <Button 
-            variant='outline' 
-            className='ml-auto' 
-            onClick={handleSave}
-            disabled={!selectedFile || isUploading || isDeleting || !organizationId}
-          >
-            {isUploading ? 'Uploading...' : 'Save changes'}
-          </Button>
+          
         </DialogFooter>
       </DialogContent>
     </Dialog>

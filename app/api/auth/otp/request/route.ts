@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    const { otpId, expiresAt } = await createAndSendOtp({
+    const { otpId, expiresAt, otp } = await createAndSendOtp({
       channel: body.channel,
       purpose: body.purpose,
       email: body.email,
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
       userAgent,
     })
 
-    return NextResponse.json({ ok: true, otpId, expiresAt })
+    return NextResponse.json({ ok: true, otpId, expiresAt , otp})
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to send OTP'
     return NextResponse.json({ ok: false, error: message }, { status: 400 })

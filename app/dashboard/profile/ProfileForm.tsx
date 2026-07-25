@@ -13,6 +13,7 @@ import { toast } from 'sonner'
 import { Spinner } from '@/components/ui/spinner'
 import { type ProfileResult } from './action'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import Image from 'next/image'
 import React from 'react'
 
 type Organization = {
@@ -45,20 +46,20 @@ const ProfileForm = ({ organization: initialOrganization }: Props) => {
     success: undefined,
     organization: initialOrganization
       ? {
-          id: initialOrganization.id,
-          name: initialOrganization.name,
-          email: initialOrganization.email,
-          phone: initialOrganization.phone,
-          logo_url: null,
-          address: initialOrganization.address || {
-            address_line1: null,
-            address_line2: null,
-            city: null,
-            state: null,
-            zip: null,
-            country: null,
-          },
-        }
+        id: initialOrganization.id,
+        name: initialOrganization.name,
+        email: initialOrganization.email,
+        phone: initialOrganization.phone,
+        logo_url: null,
+        address: initialOrganization.address || {
+          address_line1: null,
+          address_line2: null,
+          city: null,
+          state: null,
+          zip: null,
+          country: null,
+        },
+      }
       : undefined,
   });
 
@@ -85,12 +86,10 @@ const ProfileForm = ({ organization: initialOrganization }: Props) => {
   // once user types in the form, set the submitDisabled to false
 
   const [currentLogoUrl, setCurrentLogoUrl] = useState<string | null>(null)
-  
-  // Generate placeholder URL based on organization ID for consistency (human profile images only)
-  const getPlaceholderUrl = () => {
-    return 'https://avatar.iran.liara.run/public'
-  }
 
+  // Generate placeholder URL based on organization ID for consistency (human profile images only)
+  const getPlaceholderUrl = () => '/corporate_placeholder.png'
+  
   // Track the last organization ID we fetched logo for to prevent duplicate calls
   const lastFetchedOrgId = useRef<string | null>(null)
 
@@ -99,29 +98,30 @@ const ProfileForm = ({ organization: initialOrganization }: Props) => {
   useEffect(() => {
     const orgId = organization?.id || initialOrganization?.id
     if (!orgId) {
-      setCurrentLogoUrl(null)
       lastFetchedOrgId.current = null
       return
     }
 
     // Skip if we already fetched for this organization ID
-    if (lastFetchedOrgId.current === orgId) {
-      return
-    }
-
+    if (lastFetchedOrgId.current === orgId) return
     lastFetchedOrgId.current = orgId
-
-    const fetchLogo = async () => {
-      try {
-        const logoUrl = await getOrganizationLogoUrl(orgId)
-        setCurrentLogoUrl(logoUrl)
-      } catch (error) {
-        console.error('Error fetching logo:', error)
-        setCurrentLogoUrl(null)
-      }
+    let cancelled = false;
+      (async () => {
+        try {
+          const logoUrl = await getOrganizationLogoUrl(orgId)
+          if (!cancelled) {
+            setCurrentLogoUrl(logoUrl)
+          }
+        } catch (error) {
+          console.error('Error fetching logo:', error)
+          if (!cancelled) {
+            setCurrentLogoUrl(null)
+          }
+        }
+      })()
+    return () => {
+      cancelled = true
     }
-
-    fetchLogo()
   }, [organization?.id, initialOrganization?.id])
 
   const handleAvatarClick = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -133,23 +133,19 @@ const ProfileForm = ({ organization: initialOrganization }: Props) => {
   };
 
   const handleLogoUploadSuccess = async (url: string) => {
-    // Presigned URLs are already time-limited and unique, so use them directly
-    // Adding cache-busting would break the signature
-    // Use the URL directly from upload - no need to refetch
     setCurrentLogoUrl(url)
   };
 
   const handleLogoDeleteSuccess = async () => {
-    // Clear the logo URL display - deletion was successful, no need to verify
     setCurrentLogoUrl(null)
   };
 
   return (
     <>
       <Activity mode={open ? "visible" : "hidden"}>
-        <ImageUploadDialog 
-          open={open} 
-          setOpen={setOpen} 
+        <ImageUploadDialog
+          open={open}
+          setOpen={setOpen}
           organizationId={organization?.id}
           onUploadSuccess={handleLogoUploadSuccess}
           onDeleteSuccess={handleLogoDeleteSuccess}
@@ -167,18 +163,18 @@ const ProfileForm = ({ organization: initialOrganization }: Props) => {
                   onClick={handleAvatarClick}
                   disabled={!organization?.id}
                 >
-              <Avatar className="size-32 shadow-md border-3 border-sky-600" key={currentLogoUrl}>
-                <AvatarImage
-                  sizes="100%"
-                  src={currentLogoUrl || getPlaceholderUrl()}
-                  alt="Organization logo"
-                />
-                <AvatarFallback>CN</AvatarFallback>
-              </Avatar>
+                  <Avatar className="size-32 shadow-md border-3 border-sky-600" key={currentLogoUrl}>
+                    <AvatarImage
+                      sizes="100%"
+                      src={currentLogoUrl || getPlaceholderUrl()}
+                      alt="Organization logo"
+                    />
+                    <AvatarFallback>CN</AvatarFallback>
+                  </Avatar>
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                {!organization?.id 
+                {!organization?.id
                   ? 'Please save other information first'
                   : 'Profile image'
                 }
@@ -221,7 +217,7 @@ const ProfileForm = ({ organization: initialOrganization }: Props) => {
               hidden
               defaultValue={organization?.id || ""}
             />
-            <small className="text-xs text-muted-foreground">
+            <small className="text-[10px] leading-1  text-muted-foreground">
               This is your organization ID. It is used to identify your
               organization in the system. It is auto-generated and cannot be
               changed.
@@ -260,9 +256,9 @@ const ProfileForm = ({ organization: initialOrganization }: Props) => {
                 </small>
               )}
           </section>
-          <Separator className="col-span-2" />
-          <Separator className="col-span-2" />
-          <h2 className="text-lg font-medium text-muted-foreground col-span-2">
+          <Separator className="col-span-full" />
+          
+          <h2 className="text-lg font-medium text-muted-foreground col-span-full">
             Business Address Information
           </h2>
           <section>
@@ -363,7 +359,7 @@ const ProfileForm = ({ organization: initialOrganization }: Props) => {
               defaultValue={organization?.phone || ""}
             />
           </section>
-          <section className='col-span-2'>
+          <section className='col-span-full'>
             <Button variant='default' type='submit' formAction={businessProfileSubmitAction} className='text-xs' disabled={isPending}>
               {isPending ? (
                 <>
