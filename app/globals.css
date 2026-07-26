@@ -148,7 +148,7 @@
 }
 
 @utility no-scrollbar {
-  @apply [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
+  @apply scrollbar-none [&::-webkit-scrollbar]:hidden;
 }
 
 /* View Transitions API - Page Transition Animations */

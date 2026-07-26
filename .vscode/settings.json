@@ -10,6 +10,7 @@
   "files.watcherExclude": {
     "**/._*": true,
     "**/.DS_Store": true
-  }
+  },
+  "css.lint.unknownAtRules": "ignore"
 }
 
