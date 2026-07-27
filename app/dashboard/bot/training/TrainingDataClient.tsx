@@ -14,7 +14,7 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { clientApiAxios } from "@/lib/axios-client"
 import { isAxiosError } from 'axios'
-import { type StatusChipStatus } from '@/components/status-chip'
+
 
 type TrainingSourceType = 'url' | 'file'
 
@@ -122,25 +122,28 @@ export default function TrainingDataClient({ bots }: Props) {
   })
 
   // Calculate dynamic progress and stats
-  const totalSources = trainingSources.length
-  const completedSources = trainingSources.filter((source) =>
+  const totalSourcesCount = trainingSources.length
+  const trainedSourcesCount = trainingSources.filter((source) =>
     source.status && completedStatuses.includes(source.status)
   ).length
-  const failedSources = trainingSources.filter((source) =>
+  const failedSourcesCount = trainingSources.filter((source) =>
     source.status && failedStatuses.includes(source.status)
   ).length
-  const processedSources = completedSources + failedSources
-  const progress = totalSources > 0 ? Math.round((processedSources / totalSources) * 100) : 0
-
+  const processedSourcesCount = trainedSourcesCount + failedSourcesCount
+  const progress = totalSourcesCount > 0 ? Math.round((processedSourcesCount / totalSourcesCount) * 100) : 0
+  
   // Check if there are any active sources (polling/processing)
   const hasActiveSources = trainingSources.some((source) =>
     source.status && activeStatuses.includes(source.status)
   )
-
+  console.log(trainingSources.length,trainedSourcesCount,failedSourcesCount,processedSourcesCount,totalSourcesCount,hasActiveSources);
+  console.log(trainingSources.map(source => source.status))
   // Determine progress bar color based on state
+  
+  
   const progressBarColor = hasActiveSources
     ? 'bg-orange-500' // Orange when polling/active
-    : progress === 100 && totalSources > 0
+    : progress === 100 && totalSourcesCount > 0
     ? 'bg-emerald-500' // Green when completed
     : 'bg-blue-500' // Blue when stagnant/not processing
 
@@ -352,7 +355,7 @@ export default function TrainingDataClient({ bots }: Props) {
             <Input
               type='text'
               placeholder='https://example.com'
-              className='h-8 placeholder:text-xs w-full min-w-[180px] max-w-[330px] rounded-r-none border-r-0'
+              className='h-8 placeholder:text-xs w-full min-w-45 max-w-82.5 rounded-r-none border-r-0'
               style={{ fontSize: '0.65em' }}
               value={url}
               onChange={e => {
@@ -436,19 +439,7 @@ export default function TrainingDataClient({ bots }: Props) {
           />
         
         <Separator />
-        <div className='flex items-center gap-2'>
-          <Checkbox
-            id='terms-and-conditions'
-            checked={termsAccepted}
-            onCheckedChange={(value) => setTermsAccepted(value === true)}
-          />
-          <Label
-            htmlFor='terms-and-conditions'
-            className='text-xs font-medium text-muted-foreground'>
-            I agree to the terms and conditions and privacy policy of the data
-            submitted.
-          </Label>
-        </div>
+        
         <div className='w-full md:w-1/2 rounded-sm border border-gray-200 bg-white p-2'>
           <div className='mb-1.5 flex items-center justify-between'>
             <h3 className='text-sm font-medium'>Training Progress</h3>
@@ -486,7 +477,7 @@ export default function TrainingDataClient({ bots }: Props) {
                     Total Resources
                   </span>
                   <span className='text-[0.65em] font-semibold text-foreground leading-tight'>
-                    {totalSources}
+                    {totalSourcesCount}
                   </span>
                 </div>
                 <div className='flex flex-col gap-0.5'>
@@ -494,7 +485,7 @@ export default function TrainingDataClient({ bots }: Props) {
                     Successfully Processed
                   </span>
                   <span className='text-[0.65em] font-semibold leading-tight text-emerald-600'>
-                    {completedSources}
+                    {trainedSourcesCount}
                   </span>
                 </div>
                 <div className='flex flex-col gap-0.5'>
@@ -502,7 +493,7 @@ export default function TrainingDataClient({ bots }: Props) {
                     Failed
                   </span>
                   <span className='text-[0.65em] font-semibold text-rose-600 leading-tight'>
-                    {failedSources}
+                    {failedSourcesCount}
                   </span>
                 </div>
                 <div className='flex flex-col gap-0.5'>
@@ -510,12 +501,26 @@ export default function TrainingDataClient({ bots }: Props) {
                     Processed
                   </span>
                   <span className='text-[0.65em] font-semibold text-foreground leading-tight'>
-                    {processedSources} / {totalSources}
+                    {processedSourcesCount} / {totalSourcesCount}
                   </span>
                 </div>
               </div>
             </div>
           </div>
+        </div>
+        <div className='flex items-center gap-2'>
+          <Checkbox
+            id='terms-and-conditions'
+            checked={termsAccepted}
+            className={cn(!termsAccepted && 'border-rose-600', termsAccepted && 'border-emerald-600')}
+            onCheckedChange={(value) => setTermsAccepted(value === true)}
+          />
+          <Label
+            htmlFor='terms-and-conditions'
+            className={cn('text-xs font-medium', !termsAccepted && 'text-rose-600', termsAccepted && 'text-emerald-600')}>
+            I agree to the terms and conditions and privacy policy of the data
+            submitted.
+          </Label>
         </div>
         <Button
           type='button'
@@ -527,6 +532,7 @@ export default function TrainingDataClient({ bots }: Props) {
             isUrlAdditionPending ||
             isLoadingTrainingSources ||
             isFileUploading ||
+            processedSourcesCount === totalSourcesCount || //If all sources are processed dont enable training
             !termsAccepted || trainingSources?.length === 0
           }
           onClick={() => train_bot()}>
@@ -536,7 +542,7 @@ export default function TrainingDataClient({ bots }: Props) {
               Processing...
             </span>
           ) : (
-            'Confirm and Start Training'
+            'Train Bot'
           )}
         </Button>
       </section>
