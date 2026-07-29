@@ -7,8 +7,8 @@ import { verifyOtp } from '@/lib/otp'
 export const runtime = 'nodejs'
 
 const bodySchema = z.object({
-  email: z.string().email(),
-  otpId: z.string().uuid(),
+  email: z.email(),
+  otpId: z.uuid(),
   otpCode: z.string().min(4).max(12),
 })
 
