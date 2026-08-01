@@ -27,11 +27,11 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     console.error(
       'Failed to authenticate user. Invalid request body.',
-      parsed.error.flatten().fieldErrors
+      parsed.error.flatten().fieldErrors,
     )
     return NextResponse.json(
       { error: 'Invalid request body' },
-      { status: 400, headers: corsHeaders }
+      { status: 400, headers: corsHeaders },
     )
   }
 
@@ -39,10 +39,20 @@ export async function POST(request: NextRequest) {
 
   const bot = await prisma.bots.findUnique({
     where: { id: bot_id },
-    select: { id: true, organizationId: true },
+    select: {
+      id: true,
+      organizationId: true,
+      leadCaptureTiming: true,
+      captureName: true,
+      captureEmail: true,
+      capturePhone: true,
+    },
   })
   if (!bot || !bot.organizationId) {
-    return NextResponse.json({ error: 'Bot not found' }, { status: 404, headers: corsHeaders })
+    return NextResponse.json(
+      { error: 'Bot not found' },
+      { status: 404, headers: corsHeaders },
+    )
   }
 
   const apiKey = await prisma.apiKeys.findFirst({
@@ -50,7 +60,10 @@ export async function POST(request: NextRequest) {
     select: { id: true },
   })
   if (!apiKey) {
-    return NextResponse.json({ error: 'Invalid api key' }, { status: 401, headers: corsHeaders })
+    return NextResponse.json(
+      { error: 'Invalid api key' },
+      { status: 401, headers: corsHeaders },
+    )
   }
 
   const conversation = await prisma.conversationsMeta.create({
@@ -67,7 +80,7 @@ export async function POST(request: NextRequest) {
   if (!privateKey) {
     return NextResponse.json(
       { error: 'Failed to create token. Internal server error.' },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: corsHeaders },
     )
   }
 
@@ -78,10 +91,19 @@ export async function POST(request: NextRequest) {
       conversation_id: conversation.id,
       type: 'user',
     },
-    privateKey
+    privateKey,
   )
   return NextResponse.json(
-    { token: token, conversation_id: conversation.id },
-    { headers: corsHeaders }
+    {
+      token: token,
+      conversation_id: conversation.id,
+      bot_config: {
+        leadCaptureTiming: bot.leadCaptureTiming,
+        captureName: bot.captureName,
+        captureEmail: bot.captureEmail,
+        capturePhone: bot.capturePhone,
+      },
+    },
+    { headers: corsHeaders },
   )
 }
