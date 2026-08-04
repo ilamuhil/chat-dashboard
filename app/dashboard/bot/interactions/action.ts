@@ -1,56 +1,59 @@
-"use server";
+'use server'
 
-import { z } from "zod";
-import { resolveCurrentOrganizationId } from "@/lib/current-organization";
-import { requireAuthUserId } from "@/lib/auth-server";
-import { prisma } from "@/lib/prisma";
+import { z } from 'zod'
+import { resolveCurrentOrganizationId } from '@/lib/current-organization'
+import { requireAuthUserId } from '@/lib/auth-server'
+import { prisma } from '@/lib/prisma'
+import { getSecretKey } from '@/lib/utils'
+import { pythonApiRequest } from '@/lib/axios-server-config'
+import { signToken } from '@/lib/jwt'
 
 export type Bot = {
-  id: string;
-  organization_id: string;
-  name: string;
-  tone: string | null;
-  role: string | null;
-  business_description: string | null;
-  first_message: string | null;
-  confirmation_message: string | null;
-  lead_capture_message: string | null;
-  capture_leads: boolean;
-  lead_capture_timing: "start" | "after_first" | null;
-  capture_name: boolean;
-  capture_email: boolean;
-  capture_phone: boolean;
-  created_at: string;
-  updated_at: string;
-};
+  id: string
+  organization_id: string
+  name: string
+  tone: string | null
+  role: string | null
+  business_description: string | null
+  first_message: string | null
+  confirmation_message: string | null
+  lead_capture_message: string | null
+  capture_leads: boolean
+  lead_capture_timing: 'start' | 'after_first' | null
+  capture_name: boolean
+  capture_email: boolean
+  capture_phone: boolean
+  created_at: string
+  updated_at: string
+}
 
 export type BotResult = {
-  error?: string | Record<string, string[]>;
-  success?: string;
-  bot?: Bot | null;
-  nonce?: string | null;
-};
+  error?: string | Record<string, string[]>
+  success?: string
+  bot?: Bot | null
+  nonce?: string | null
+}
 
 const botMetSchema = z.object({
-  name: z.string().min(3, "Bot name must be at least 3 characters").max(50),
+  name: z.string().min(3, 'Bot name must be at least 3 characters').max(50),
   tone: z.enum([
-    "friendly",
-    "professional",
-    "enthusiastic",
-    "casual",
-    "concise",
-    "empathetic",
-    "humorous",
-    "authoritative",
-    "formal",
-    "neutral",
+    'friendly',
+    'professional',
+    'enthusiastic',
+    'casual',
+    'concise',
+    'empathetic',
+    'humorous',
+    'authoritative',
+    'formal',
+    'neutral',
   ]),
   role: z.enum([
-    "customer-support",
-    "sales",
-    "marketing",
-    "technical-support",
-    "other",
+    'customer-support',
+    'sales',
+    'marketing',
+    'technical-support',
+    'other',
   ]),
   first_message: z.string().min(3).max(500),
   lead_capture_message: z.string().optional(),
@@ -58,49 +61,52 @@ const botMetSchema = z.object({
   business_description: z.string().min(3).max(1000),
   capture_leads: z.boolean(),
   lead_capture_timing: z
-    .enum(["before-conversation", "after-first-message"])
+    .enum(['before-conversation', 'after-first-message'])
     .optional(),
   capture_name: z.boolean().optional(),
   capture_email: z.boolean().optional(),
   capture_phone: z.boolean().optional(),
-});
+})
 
 export async function updateBotInteractions(
   prevState: BotResult | null,
-  formData: FormData
+  formData: FormData,
 ): Promise<BotResult> {
   const nonce = Date.now().toString()
   const userId = await requireAuthUserId()
-  const organizationId = await resolveCurrentOrganizationId({ userId });
+  const organizationId = await resolveCurrentOrganizationId({ userId })
 
   if (!organizationId) {
-    return { error: "You must belong to an organization to create a bot", nonce };
+    return {
+      error: 'You must belong to an organization to create a bot',
+      nonce,
+    }
   }
 
   // Convert form data to proper types
-  const captureLeadsValue = formData.get("capture_leads");
+  const captureLeadsValue = formData.get('capture_leads')
   const captureLeads =
-    captureLeadsValue === "on" ||
-    captureLeadsValue === "true" ||
-    captureLeadsValue?.toString() === "true";
+    captureLeadsValue === 'on' ||
+    captureLeadsValue === 'true' ||
+    captureLeadsValue?.toString() === 'true'
 
-  const captureNameValue = formData.get("capture_name");
+  const captureNameValue = formData.get('capture_name')
   const captureName =
-    captureNameValue === "on" ||
-    captureNameValue === "true" ||
-    captureNameValue?.toString() === "true";
+    captureNameValue === 'on' ||
+    captureNameValue === 'true' ||
+    captureNameValue?.toString() === 'true'
 
-  const captureEmailValue = formData.get("capture_email");
+  const captureEmailValue = formData.get('capture_email')
   const captureEmail =
-    captureEmailValue === "on" ||
-    captureEmailValue === "true" ||
-    captureEmailValue?.toString() === "true";
+    captureEmailValue === 'on' ||
+    captureEmailValue === 'true' ||
+    captureEmailValue?.toString() === 'true'
 
-  const capturePhoneValue = formData.get("capture_phone");
+  const capturePhoneValue = formData.get('capture_phone')
   const capturePhone =
-    capturePhoneValue === "on" ||
-    capturePhoneValue === "true" ||
-    capturePhoneValue?.toString() === "true";
+    capturePhoneValue === 'on' ||
+    capturePhoneValue === 'true' ||
+    capturePhoneValue?.toString() === 'true'
 
   const validatedFields = botMetSchema.safeParse({
     name: formData.get('name'),
@@ -118,30 +124,30 @@ export async function updateBotInteractions(
   })
 
   if (!validatedFields.success) {
-    const fieldErrors: Record<string, string[]> = {};
-    validatedFields.error.issues.forEach((issue) => {
-      const path = issue.path.join(".");
+    const fieldErrors: Record<string, string[]> = {}
+    validatedFields.error.issues.forEach(issue => {
+      const path = issue.path.join('.')
       if (!fieldErrors[path]) {
-        fieldErrors[path] = [];
+        fieldErrors[path] = []
       }
-      fieldErrors[path].push(issue.message);
-    });
-    return { error: fieldErrors, nonce };
+      fieldErrors[path].push(issue.message)
+    })
+    return { error: fieldErrors, nonce }
   }
 
-  const data = validatedFields.data;
+  const data = validatedFields.data
 
   // Map form values to database column names
   // leadCaptureTiming: 'before-conversation' -> 'start', 'after-first-message' -> 'after_first'
   const leadCaptureTimingDb =
-    data.lead_capture_timing === "before-conversation"
-      ? "start"
-      : data.lead_capture_timing === "after-first-message"
-      ? "after_first"
-      : null;
+    data.lead_capture_timing === 'before-conversation'
+      ? 'start'
+      : data.lead_capture_timing === 'after-first-message'
+        ? 'after_first'
+        : null
 
   // Get bot_id from formData to determine if this is an update or create
-  const botId = formData.get("bot_id")?.toString();
+  const botId = formData.get('bot_id')?.toString()
 
   const dbData = {
     organizationId,
@@ -157,7 +163,7 @@ export async function updateBotInteractions(
     captureName: data.capture_name || false,
     captureEmail: data.capture_email || false,
     capturePhone: data.capture_phone || false,
-  };
+  }
 
   const mapBot = (b: {
     id: string
@@ -187,7 +193,8 @@ export async function updateBotInteractions(
     confirmation_message: b.confirmationMessage,
     lead_capture_message: b.leadCaptureMessage,
     capture_leads: b.captureLeads,
-    lead_capture_timing: (b.leadCaptureTiming ?? null) as Bot["lead_capture_timing"],
+    lead_capture_timing: (b.leadCaptureTiming ??
+      null) as Bot['lead_capture_timing'],
     capture_name: Boolean(b.captureName),
     capture_email: Boolean(b.captureEmail),
     capture_phone: Boolean(b.capturePhone),
@@ -204,7 +211,7 @@ export async function updateBotInteractions(
       return {
         error: "Bot not found or you don't have permission to update it",
         nonce,
-      };
+      }
     }
 
     const updatedBot = await prisma.bots.update({
@@ -231,10 +238,10 @@ export async function updateBotInteractions(
     })
 
     return {
-      success: "Bot configuration updated successfully",
+      success: 'Bot configuration updated successfully',
       bot: mapBot(updatedBot),
       nonce,
-    };
+    }
   } else {
     const newBot = await prisma.bots.create({
       data: dbData,
@@ -258,10 +265,50 @@ export async function updateBotInteractions(
       },
     })
 
+    // call python server and create a new records for the model config version.
+    const privateKey = getSecretKey()
+    if (!privateKey) {
+      return NextResponse.json(
+        { error: 'Internal server error' },
+        { status: 500 },
+      )
+    }
+
+    const token = signToken({
+      organization_id: organizationId,
+      bot_id: newBot.id,
+      type: 'agent',
+    })
+
+    try {
+      await pythonApiRequest('POST', '/api/model-config/create', token, {
+        bot_id: newBot.id,
+        user_id: userId,
+      })
+    } catch (error: unknown) {
+      //roll back the database transaction
+      console.error('Error creating model config:', error)
+      try {
+        await prisma.bots.delete({
+          where: { id: newBot.id },
+        })
+        return {
+          error: 'Failed to create bot',
+          nonce,
+        }
+      } catch (e: unknown) {
+        console.error('Error rolling back database transaction:', e)
+        return {
+          error: 'Failed to create bot',
+          nonce,
+        }
+      }
+    }
+
     return {
-      success: "Bot configuration saved successfully",
+      success: 'Bot configuration saved successfully',
       bot: mapBot(newBot),
       nonce,
-    };
+    }
   }
 }
