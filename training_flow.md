@@ -3,8 +3,7 @@
 ## File upload flow
 
 1. Send files to API call: `/training/upload/init`
-
-   a. Create training source
+  a. Create training source
       - Status `pending` with computed content hash
    b. Upload files
 
@@ -16,8 +15,9 @@ Use the same init API:
 
 c. Compute hash for all the files.  
 d. Check if training sources exist for each of the files, matching the hash.
-   - If exists, return existing training source id
-   - Else, do 1a.
+
+- If exists, return existing training source id
+- Else, do 1a.
 
 ## Update database
 
@@ -25,11 +25,12 @@ Check if file exists in storage for each of the training sources:
 
 - If yes:
   - DB mutation wrapped in a transaction:
-    a. Update training source with `pending` status to `created` for the uploaded file
-    b. Create file record with status `uploaded`
-
+  a. Update training source with `pending` status to `created` for the uploaded file
+  b. Create file record with status `uploaded`
 - Else:
-  a. Update training source status to `update failed` for non-existent files in storage
+a. Update training source status to `update failed` for non-existent files in storage
+
+
 
 ## Training source statuses (phase 1)
 
@@ -45,7 +46,10 @@ Check if file exists in storage for each of the training sources:
 
 - Upload succeeds and finalize API not called / user abandons flow midway (orphaned files and training source records) -> can be cleaned up by worker
 
+
+
 ## Status reference
+
 
 | Table name    | Status                | When to update                         |
 | ------------- | --------------------- | -------------------------------------- |
@@ -56,15 +60,19 @@ Check if file exists in storage for each of the training sources:
 | training_jobs | `failed`              | Job fails before any source is trained |
 | training_jobs | `cleanup_completed`   | Cleanup for soft-deleted sources done  |
 
-| Table name       | Status                 | When to update                                      |
-| ---------------- | ---------------------- | --------------------------------------------------- |
-| training_sources | `pending`              | Source record created                               |
-| training_sources | `created`              | Upload / fetch initiated                            |
-| training_sources | `upload_failed`        | Upload or fetch fails                               |
-| training_sources | `queued_for_training`  | When the job is enqueued successfully               |
-| training_sources | `training`             | Training job starts processing this source          |
-| training_sources | `trained`              | Source successfully embedded                        |
-| training_sources | `training_failed`      | Training fails for this source                      |
+
+
+| Table name       | Status                | When to update                             |
+| ---------------- | --------------------- | ------------------------------------------ |
+| training_sources | `pending`             | Source record created                      |
+| training_sources | `created`             | Upload / fetch initiated                   |
+| training_sources | `upload_failed`       | Upload or fetch fails                      |
+| training_sources | `queued_for_training` | When the job is enqueued successfully      |
+| training_sources | `training`            | Training job starts processing this source |
+| training_sources | `trained`             | Source successfully embedded               |
+| training_sources | `training_failed`     | Training fails for this source             |
+
+
 
 | Table name | Status              | When to update           |
 | ---------- | ------------------- | ------------------------ |
@@ -73,3 +81,9 @@ Check if file exists in storage for each of the training sources:
 | files      | `processed`         | Text extraction succeeds |
 | files      | `processing_failed` | Text extraction fails    |
 
+
+| Table name | Status              | When to update           |
+| ---------- | ------------------- | ------------------------ |
+| conversations      | `active`          | When created         |
+| conversations      | `idle`        | Unsure   |
+| conversations      | `closed`         | Text extraction succeeds |

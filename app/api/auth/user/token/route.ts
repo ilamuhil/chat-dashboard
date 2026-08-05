@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       organizationId: bot.organizationId,
       botId: bot_id,
       apiKeyId: apiKey.id,
-      status: 'connected',
+      status: 'active',
     },
     select: { id: true },
   })

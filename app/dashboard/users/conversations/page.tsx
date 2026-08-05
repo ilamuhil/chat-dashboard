@@ -13,12 +13,15 @@ export default async function ConversationsPage() {
     )
   }
 
-  const conversations = await prisma.conversationsMeta.findMany({
+  const conversation = await prisma.conversationsMeta.findFirst({
     where: { organizationId },
     select: { id: true },
-    orderBy: { lastMessageAt: 'desc' },
+    orderBy: [
+      { lastMessageAt: 'desc' },
+      { createdAt: 'desc' },
+    ],
   })
-  if (!conversations || conversations.length === 0) {
+  if (!conversation) {
     console.error('No conversations found')
     return (
       <div className='flex flex-col items-center justify-center h-full bg-white rounded'>
@@ -30,5 +33,5 @@ export default async function ConversationsPage() {
     )
   }
 
-  return redirect(`/dashboard/users/conversations/${conversations[0].id}`)
+  return redirect(`/dashboard/users/conversations/${conversation.id}`)
 }
