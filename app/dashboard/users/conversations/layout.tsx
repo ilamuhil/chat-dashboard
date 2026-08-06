@@ -7,7 +7,7 @@ import { prisma } from '@/lib/prisma'
 export default function ConversationsLayout() {
   const conversations = await prisma.conversationsMeta.findMany({
     where: { organizationId },
-    select: { id: true },
+    select: { id: true, lastMessageAt: true, lastMessageSnippet: true },
     orderBy: { lastMessageAt: 'desc' },
     take: 10,
   })
@@ -19,8 +19,6 @@ export default function ConversationsLayout() {
       email: true,
       phone: true,
       conversationId: true,
-      lastMessageSnippet: true,
-      lastMessageAt:true,
     },
   })
   const chats = conversations.map(c => {
