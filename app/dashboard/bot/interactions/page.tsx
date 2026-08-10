@@ -22,6 +22,7 @@ export default async function BotInteractionsPage() {
     id: b.id,
     organization_id: b.organizationId ?? organizationId,
     name: b.name,
+    institute_name: b.instituteName ?? null,
     tone: b.tone ?? null,
     role: b.role ?? null,
     business_description: b.businessDescription ?? null,

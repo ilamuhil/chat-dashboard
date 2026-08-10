@@ -21,6 +21,7 @@ export default async function BotTrainingPage() {
     id: b.id,
     organization_id: b.organizationId ?? organizationId,
     name: b.name,
+    institute_name: b.instituteName ?? null,
     tone: b.tone ?? null,
     role: b.role ?? null,
     business_description: b.businessDescription ?? null,

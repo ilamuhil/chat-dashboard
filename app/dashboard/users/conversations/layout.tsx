@@ -1,10 +1,14 @@
 
 
-import React from 'react'
+import React, { ReactNode } from 'react'
 import ConversationShell from './ConversationShell'
 import { prisma } from '@/lib/prisma'
+import { requireAuthUserId } from '@/lib/auth-server'
+import { resolveCurrentOrganizationId } from '@/lib/current-organization'
 
-export default function ConversationsLayout() {
+export default async function ConversationsLayout({ children }: { children: ReactNode }) {
+  const userId = await requireAuthUserId()
+  const organizationId = await resolveCurrentOrganizationId({ userId })
   const conversations = await prisma.conversationsMeta.findMany({
     where: { organizationId },
     select: { id: true, lastMessageAt: true, lastMessageSnippet: true },
@@ -38,7 +42,9 @@ export default function ConversationsLayout() {
         <h1 className='dashboard-title'>Conversations</h1>
       </header>
       <section className='flex-1 min-h-0 mt-6 overflow-hidden'>
-        <ConversationShell chats={chats} />
+        <ConversationShell chats={chats} >
+          {children}
+        </ConversationShell>
       </section>
     </main>
   )

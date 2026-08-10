@@ -84,7 +84,11 @@ export default function BotInteractionsClient({
             {selectedBot ? 'Edit Bot' : 'Create New Bot'}
           </h2>
         </div>
-        <ConfigureBotForm bot={selectedBot} onSuccess={handleFormSuccess} />
+        <ConfigureBotForm
+          key={selectedBot?.id ?? "new"}
+          bot={selectedBot}
+          onSuccess={handleFormSuccess}
+        />
       </div>
     )
   }

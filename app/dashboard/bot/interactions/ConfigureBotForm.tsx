@@ -20,6 +20,12 @@ import { updateBotInteractions, type BotResult, type Bot } from "./action";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 import { useEffect } from "react";
+import { InfoIcon } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type BotProps = {
   bot: Bot | null;
@@ -36,14 +42,9 @@ const ConfigureBotForm = (props: BotProps) => {
 
   const bot = state?.bot || props.bot;
 
-  const [leadCapture, setLeadCapture] = useState(bot?.capture_leads || false);
-
-  // Sync state when bot changes
-  useEffect(() => {
-    if (bot) {
-      setLeadCapture(bot.capture_leads || false);
-    }
-  }, [bot]);
+  const [leadCapture, setLeadCapture] = useState(
+    () => bot?.capture_leads || false
+  );
 
   useEffect(() => {
     if (state?.success) {
@@ -70,7 +71,7 @@ const ConfigureBotForm = (props: BotProps) => {
       action={formAction}
       className="space-y-4"
     >
-      <section className="grid grid-cols-2 gap-x-3 gap-y-6">
+      <section className="grid grid-cols-1 gap-x-4 gap-y-5 md:grid-cols-2">
         <div className="space-y-1">
           <Label className="text-xs font-medium text-muted-foreground">
             Bot Name
@@ -88,6 +89,18 @@ const ConfigureBotForm = (props: BotProps) => {
             type="hidden"
             defaultValue={bot?.id || ""}
           ></Input>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs font-medium text-muted-foreground">
+            Institute Name
+          </Label>
+          <Input
+            name="institute_name"
+            type="text"
+            defaultValue={bot?.institute_name || ""}
+            placeholder="Ex: Springfield Institute"
+            className="text-xs"
+          />
         </div>
         <div className="space-y-1">
           <Label className="text-xs font-medium text-muted-foreground">
@@ -151,7 +164,7 @@ const ConfigureBotForm = (props: BotProps) => {
             name="lead_capture_message"
             placeholder="Can i please get your name and email for more information?"
             rows={4}
-            className="text-xs min-h-[120px]"
+            className="min-h-30 text-xs"
             defaultValue={bot?.lead_capture_message || ""}
           />
         </div>
@@ -163,27 +176,74 @@ const ConfigureBotForm = (props: BotProps) => {
             name="confirmation_message"
             placeholder="Thank you for your information! We will get back to you soon."
             rows={4}
-            className="text-xs min-h-[120px]"
+            className="min-h-30 text-xs"
             defaultValue={bot?.confirmation_message || ""}
           />
         </div>
-        <div className="col-span-2 space-y-1">
-          <Label className="text-xs font-medium text-muted-foreground">
-            Business Description
-          </Label>
+        <div className="col-span-full space-y-1">
+          <div className="flex items-center gap-1">
+            <Label className="text-xs font-medium text-muted-foreground">
+              Business Description
+            </Label>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Business description guidance"
+                  className="text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <InfoIcon className="size-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="right"
+                className="max-w-xs leading-relaxed"
+              >
+                <p className="font-medium">Keep it focused on:</p>
+                <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                  <li>What the institute offers</li>
+                  <li>Target students</li>
+                  <li>Main programs or specialties</li>
+                  <li>Location or delivery mode</li>
+                  <li>Key differentiators</li>
+                </ul>
+                <p className="mt-1">Maximum 600 words.</p>
+                <p className="mt-1 text-background/70">
+                  Avoid detailed fees, schedules, policies, or course content.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
           <Textarea
             name="business_description"
             placeholder="Describe your business in a few sentences."
             rows={6}
-            className="text-xs min-h-[120px]"
+            className="min-h-30 text-xs"
             required
             defaultValue={bot?.business_description || ""}
           />
         </div>
-        <div className="col-span-2 space-y-3">
-          <Label className="text-xs font-medium text-muted-foreground">
-            Enable Lead Capture ?
-          </Label>
+        <div className="col-span-full space-y-3 rounded-md border bg-muted/30 p-4">
+          <div className="flex items-center gap-1">
+            <Label className="text-xs font-medium text-muted-foreground">
+              Enable Lead Capture?
+            </Label>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Lead capture guidance"
+                  className="text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <InfoIcon className="size-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-xs">
+                When enabled, the bot will try to capture the selected
+                information naturally from the visitor.
+              </TooltipContent>
+            </Tooltip>
+          </div>
           <Switch
             id="lead-capture"
             name="capture_leads"
@@ -283,7 +343,7 @@ const ConfigureBotForm = (props: BotProps) => {
         <Button
           type="submit"
           disabled={isPending}
-          className="m lg:w-[40%] md:w-1/2 w-full"
+          className="col-span-full w-full md:w-fit"
         >
           {isPending ? (
             <>

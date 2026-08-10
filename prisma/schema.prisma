@@ -69,6 +69,7 @@ model Bots {
   id                    String   @id @default(uuid()) @db.Uuid
   createdAt             DateTime @default(now()) @map("created_at")
   name                  String   @db.Text
+  instituteName         String?  @map("institute_name") @db.Text
   captureLeads          Boolean  @default(false) @map("capture_leads")
   updatedAt             DateTime @default(now()) @map("updated_at")
   organizationId       String?  @map("organization_id")

@@ -1,21 +1,23 @@
 "use client"
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ConversationsMeta } from '@/generated/prisma'
 import { EllipsisVerticalIcon } from 'lucide-react'
+import { formatDistanceToNow } from 'date-fns'
+import { ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
 
 type Chats = {
   id: string
   name: string
   email: string
   phone: string
-  lastMessageAt: Date
-  highlightSnippet: string
+  lastMessageAt: Date | null
+  highlightSnippet: string | null
 }
 
-export default function ConversationShell(props: { chats: Chats[] }) {
-  const { chats } = props
-
+export default function ConversationShell(props: { chats: Chats[], children: ReactNode }) {
+  const { chats, children } = props
+  const router = useRouter()
   return (
     <div className='grid grid-cols-[1fr_2fr] gap-2 h-full min-h-0'>
       <aside className='bg-white rounded p-2 flex flex-col h-full overflow-hidden min-h-0'>
@@ -34,14 +36,17 @@ export default function ConversationShell(props: { chats: Chats[] }) {
           {chats.map(chat => (
             <article
               key={chat.id}
+              onClick={() => {
+                router.push(`/dashboard/users/conversations/${chat.id}`)
+              }}
               className='shadow-none rounded bg-muted p-2 cursor-pointer hover:bg-gray-200 transition-all duration-300 hover:shadow-sm'>
               <h3 className='text-sm font-medium'>{chat.name}</h3>
               <p className='text-xs text-muted-foreground'>{chat.email}</p>
               <p className='text-xs text-muted-foreground line-clamp-1 max-w-[50ch]'>
-                {chat.highlightSnippet}
+                {chat?.highlightSnippet ?? 'NA'}
               </p>
               <time className='text-xs text-yellow-500 italic'>
-                {formatDistanceToNow(chat.lastMessageAt, {
+                {chat?.lastMessageAt && formatDistanceToNow(chat?.lastMessageAt, {
                   addSuffix: true,
                 })}
               </time>

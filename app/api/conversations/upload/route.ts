@@ -3,10 +3,11 @@ import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/jwt'
 import { uploadFile, deleteFile } from '@/lib/filemanagement'
 
-const FILE_UPLOAD_BUCKET = process.env.CHAT_FILE_BUCKET
-if (!FILE_UPLOAD_BUCKET) {
-  throw new Error('CHAT_FILE_BUCKET environment variable is not set')
-}
+const FILE_UPLOAD_BUCKET =
+  process.env.CHAT_FILE_BUCKET ??
+  (() => {
+    throw new Error('CHAT_FILE_BUCKET environment variable is not set')
+  })()
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

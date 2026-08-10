@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { resolveCurrentOrganizationId } from '@/lib/current-organization'
 import { requireAuthUserId } from '@/lib/auth-server'
 import { prisma } from '@/lib/prisma'
-import { getSecretKey } from '@/lib/utils'
+import { getSecretKey } from '@/lib/jwt'
 import { pythonApiRequest } from '@/lib/axios-server-config'
 import { signToken } from '@/lib/jwt'
 
@@ -15,6 +15,7 @@ export type Bot = {
   tone: string | null
   role: string | null
   business_description: string | null
+  institute_name: string | null
   first_message: string | null
   confirmation_message: string | null
   lead_capture_message: string | null
@@ -56,9 +57,16 @@ const botMetSchema = z.object({
     'other',
   ]),
   first_message: z.string().min(3).max(500),
+  institute_name: z.string().min(3).max(75).optional(),
   lead_capture_message: z.string().optional(),
   confirmation_message: z.string().optional(),
-  business_description: z.string().min(3).max(1000),
+  business_description: z
+    .string()
+    .min(3)
+    .refine(
+      value => value.trim().split(/\s+/).filter(Boolean).length <= 600,
+      'Business description must be 600 words or fewer',
+    ),
   capture_leads: z.boolean(),
   lead_capture_timing: z
     .enum(['before-conversation', 'after-first-message'])
@@ -110,6 +118,7 @@ export async function updateBotInteractions(
 
   const validatedFields = botMetSchema.safeParse({
     name: formData.get('name'),
+    institute_name: formData.get('institute_name'),
     tone: formData.get('tone'),
     role: formData.get('role'),
     first_message: formData.get('first_message'),
@@ -152,6 +161,7 @@ export async function updateBotInteractions(
   const dbData = {
     organizationId,
     name: data.name,
+    instituteName: data.institute_name,
     tone: data.tone,
     role: data.role,
     businessDescription: data.business_description,
@@ -169,6 +179,7 @@ export async function updateBotInteractions(
     id: string
     organizationId: string | null
     name: string
+    instituteName: string | null
     tone: string | null
     role: string | null
     businessDescription: string | null
@@ -185,6 +196,7 @@ export async function updateBotInteractions(
   }): Bot => ({
     id: b.id,
     organization_id: b.organizationId ?? organizationId,
+    institute_name: b.instituteName,
     name: b.name,
     tone: b.tone,
     role: b.role,
@@ -220,6 +232,7 @@ export async function updateBotInteractions(
       select: {
         id: true,
         organizationId: true,
+        instituteName: true,
         name: true,
         tone: true,
         role: true,
@@ -248,6 +261,7 @@ export async function updateBotInteractions(
       select: {
         id: true,
         organizationId: true,
+        instituteName: true,
         name: true,
         tone: true,
         role: true,
@@ -268,17 +282,20 @@ export async function updateBotInteractions(
     // call python server and create a new records for the model config version.
     const privateKey = getSecretKey()
     if (!privateKey) {
-      return NextResponse.json(
-        { error: 'Internal server error' },
-        { status: 500 },
-      )
+      return {
+        error: 'Internal server error',
+        nonce,
+      }
     }
 
-    const token = signToken({
-      organization_id: organizationId,
-      bot_id: newBot.id,
-      type: 'agent',
-    })
+    const token = signToken(
+      {
+        organization_id: organizationId,
+        bot_id: newBot.id,
+        type: 'agent',
+      },
+      privateKey,
+    )
 
     try {
       await pythonApiRequest('POST', '/api/model-config/create', token, {

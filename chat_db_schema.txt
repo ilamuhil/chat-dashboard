@@ -68,6 +68,7 @@ bots
 id                       uuid PRIMARY KEY
 created_at               timestamptz DEFAULT now()
 name                     text NOT NULL
+institute_name           text
 capture_leads            boolean DEFAULT false
 updated_at               timestamptz DEFAULT now()
 organization_id          text REFERENCES organizations(id)
