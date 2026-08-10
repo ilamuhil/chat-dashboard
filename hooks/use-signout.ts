@@ -1,23 +1,19 @@
-'use client'
+"use client";
 
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation";
 
 const useSignout = () => {
-  const router = useRouter()
+  const router = useRouter();
   const signOut = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' })
+      await fetch("/api/auth/logout", { method: "POST" });
+      window.localStorage.removeItem("auth_token");
     } catch {
       // ignore
     }
-    try {
-      window.localStorage.removeItem('auth_token')
-    } catch {
-      // ignore
-    }
-    router.push('/auth/login')
-  }
-  return { signOut }
-}
+    router.push("/auth/login");
+  };
+  return { signOut };
+};
 
-export default useSignout
+export default useSignout;

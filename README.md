@@ -141,13 +141,28 @@ pnpm install
 3. Set up environment variables:
 Create a `.env.local` file in the root directory:
 ```env
-DATABASE_URL=your_postgres_connection_string
-AUTH_JWT_SECRET=your_random_secret
-AWS_REGION=ap-south-1
-AWS_SES_FROM_EMAIL=verified-sender@example.com
-CLOUDFLARE_R2_BASE_URL=https://<accountid>.r2.cloudflarestorage.com
-ACCESS_KEY_ID=your_r2_access_key
-SECRET_ACCESS_KEY=your_r2_secret_key
+# ------------  client side public env variables prefix with NEXT_PUBLIC_ -------- #
+
+NEXT_PUBLIC_APP_NAME=
+NEXT_PUBLIC_APP_URL=
+NEXT_PUBLIC_PYTHON_SERVER_URL=
+
+
+# ------------- server side env variables ------------- #
+R2_ACCOUNT_ID=
+R2_API_KEY_TOKEN=
+APP_URL=
+SUPABASE_SERVICE_KEY=
+CLOUDFLARE_R2_BASE_URL=
+ACCESS_KEY_ID=
+SECRET_ACCESS_KEY=
+AWS_REGION=
+AWS_SES_FROM_EMAIL=
+AWS_SES_FROM_NAME=
+DATABASE_URL=
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AUTH_JWT_SECRET=
 ```
 
 4. Run the development server:
@@ -155,11 +170,11 @@ SECRET_ACCESS_KEY=your_r2_secret_key
 pnpm dev
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+5. Open [localhost:4000](http://localhost:4000) in your browser.
 
 ## Authentication
 
-Email OTP authentication via AWS SES. Authentication pages live in `app/auth/` and use `AuthForm`.
+Email OTP authentication. Authentication pages live in `app/auth/` and use `AuthForm`.
 
 ## Database Schema
 
@@ -167,11 +182,6 @@ The application uses PostgreSQL with Prisma. See `prisma/schema.prisma` for tabl
 
 ## Development
 
-### Code Style
-
-- TypeScript for type safety
-- ESLint for code quality
-- Prettier for code formatting (if configured)
 
 ### Component Structure
 
@@ -181,21 +191,10 @@ The application uses PostgreSQL with Prisma. See `prisma/schema.prisma` for tabl
 - Reusable UI components in `components/ui/`
 - Feature-specific components in `components/[feature]/`
 
-## Deployment
 
-The application can be deployed on [Vercel](https://vercel.com) (recommended for Next.js) or any platform that supports Next.js.
-
-1. Push your code to a Git repository
-2. Connect your repository to Vercel
-3. Add environment variables in Vercel dashboard
-4. Deploy!
-
-## Learn More
+## Documentation links
 
 - [Next.js Documentation](https://nextjs.org/docs)
 - [Prisma Documentation](https://www.prisma.io/docs)
 - [shadcn/ui Components](https://ui.shadcn.com/)
 
-## License
-
-[Add your license here]
