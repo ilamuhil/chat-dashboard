@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
       { success: true, url },
       { status: 200, headers: corsHeaders },
     )
-  } catch (err: unknown) {
+  } catch {
     //no need to log here as it will be logged in the uploadFile function
     return NextResponse.json(
       { error: 'Failed to upload file' },
@@ -156,7 +156,7 @@ export async function DELETE(request: NextRequest) {
       { success: true },
       { status: 200, headers: corsHeaders },
     )
-  } catch (err: unknown) {
+  } catch {
     //no need to log here as it will be logged in the deleteFile function
     return NextResponse.json(
       { error: 'Failed to delete file' },

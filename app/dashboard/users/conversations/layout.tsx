@@ -1,12 +1,15 @@
-
-
 import React, { ReactNode } from 'react'
 import ConversationShell from './ConversationShell'
 import { prisma } from '@/lib/prisma'
 import { requireAuthUserId } from '@/lib/auth-server'
 import { resolveCurrentOrganizationId } from '@/lib/current-organization'
+import { DashboardPageHeader } from '@/components/dashboard-page-header'
 
-export default async function ConversationsLayout({ children }: { children: ReactNode }) {
+export default async function ConversationsLayout({
+  children,
+}: {
+  children: ReactNode
+}) {
   const userId = await requireAuthUserId()
   const organizationId = await resolveCurrentOrganizationId({ userId })
   const conversations = await prisma.conversationsMeta.findMany({
@@ -16,7 +19,9 @@ export default async function ConversationsLayout({ children }: { children: Reac
     take: 10,
   })
   const leads = await prisma.leads.findMany({
-    where: { conversationId: { in: conversations.map(conversation => conversation.id) } },
+    where: {
+      conversationId: { in: conversations.map(conversation => conversation.id) },
+    },
     select: {
       id: true,
       name: true,
@@ -32,25 +37,17 @@ export default async function ConversationsLayout({ children }: { children: Reac
       name: lead?.name || 'Unknown',
       email: lead?.email || 'Unknown',
       phone: lead?.phone || 'Unknown',
-      lastMessageAt: c.lastMessageAt,
-      highlightSnippet: c.lastMessageSnippet
+      lastMessageAt: c.lastMessageAt?.toISOString() ?? null,
+      highlightSnippet: c.lastMessageSnippet,
     }
   })
+
   return (
-    <main className='flex flex-col h-full min-h-0 overflow-hidden'>
-      <header className='shrink-0'>
-        <h1 className='dashboard-title'>Conversations</h1>
-      </header>
-      <section className='flex-1 min-h-0 mt-6 overflow-hidden'>
-        <ConversationShell chats={chats} >
-          {children}
-        </ConversationShell>
-      </section>
-    </main>
+    <DashboardPageHeader
+      title='Conversations'
+      description='Review live and recent chats between visitors and your bots.'
+      scrollable={false}>
+      <ConversationShell chats={chats}>{children}</ConversationShell>
+    </DashboardPageHeader>
   )
 }
-
-
-
-
-

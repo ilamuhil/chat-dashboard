@@ -6,9 +6,18 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import ConfigureBotForm from './ConfigureBotForm'
 import type { Bot } from './action'
-import { PlusIcon, TrashIcon, CalendarIcon, MessageSquareIcon, SparklesIcon } from 'lucide-react'
+import {
+  PlusIcon,
+  TrashIcon,
+  CalendarIcon,
+  SparklesIcon,
+  BotIcon,
+  ArrowLeftIcon,
+  ChevronRightIcon,
+} from 'lucide-react'
 import ConfirmationDialog from '@/components/ui/ConfirmationDialog'
 import { toast } from 'sonner'
+
 type BotInteractionsClientProps = {
   bots: Bot[]
 }
@@ -20,6 +29,7 @@ export default function BotInteractionsClient({
   const [selectedBot, setSelectedBot] = useState<Bot | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+
   const handleBotClick = (bot: Bot) => {
     setSelectedBot(bot)
     setShowForm(true)
@@ -29,8 +39,8 @@ export default function BotInteractionsClient({
     setSelectedBot(null)
     setShowForm(true)
   }
-  const handleDelete = async(botId: string) => {
-    //open alert dialog to confirm deletion
+
+  const handleDelete = async (botId: string) => {
     const res = await fetch(`/api/bots/${botId}`, { method: 'DELETE' })
     if (!res.ok) {
       console.error('Error deleting bot:', await res.text())
@@ -42,9 +52,7 @@ export default function BotInteractionsClient({
   }
 
   const handleFormSuccess = () => {
-    // Refresh server components to fetch updated bot list
     router.refresh()
-    // Close the form and return to bot list view
     setShowForm(false)
     setSelectedBot(null)
   }
@@ -67,25 +75,37 @@ export default function BotInteractionsClient({
       .join(' ')
   }
 
-  // If form is shown, display the form
   if (showForm) {
     return (
-      <div className='space-y-4'>
-        <div className='flex items-center gap-4'>
-          <Button
-            variant='outline'
-            onClick={() => {
-              setShowForm(false)
-              setSelectedBot(null)
-            }}>
-            ← Back to Bots
-          </Button>
-          <h2 className='text-lg font-semibold'>
-            {selectedBot ? 'Edit Bot' : 'Create New Bot'}
-          </h2>
+      <div className='space-y-6'>
+        <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+          <div className='flex min-w-0 items-center gap-3'>
+            <Button
+              variant='outline'
+              size='sm'
+              type='button'
+              className='h-9 shrink-0 gap-1.5 rounded-lg border-slate-200 bg-white px-3 text-xs font-medium shadow-sm'
+              onClick={() => {
+                setShowForm(false)
+                setSelectedBot(null)
+              }}>
+              <ArrowLeftIcon className='size-3.5' />
+              Back
+            </Button>
+            <div className='min-w-0'>
+              <h2 className='truncate text-sm font-semibold text-foreground'>
+                {selectedBot ? selectedBot.name : 'Create New Bot'}
+              </h2>
+              <p className='text-xs text-muted-foreground'>
+                {selectedBot
+                  ? 'Update how this bot speaks and captures leads'
+                  : 'Configure personality, messages, and lead capture'}
+              </p>
+            </div>
+          </div>
         </div>
         <ConfigureBotForm
-          key={selectedBot?.id ?? "new"}
+          key={selectedBot?.id ?? 'new'}
           bot={selectedBot}
           onSuccess={handleFormSuccess}
         />
@@ -93,28 +113,33 @@ export default function BotInteractionsClient({
     )
   }
 
-  // If no bots exist, show create new bot button
   if (bots.length === 0) {
     return (
-      <div className='flex flex-col items-center justify-center py-12 px-4'>
-        <div className='text-center space-y-4 max-w-md'>
-          <div className='text-muted-foreground'>
-            <p className='text-lg mb-2'>No bots configured yet</p>
-            <p className='text-sm'>
-              Create your first bot to start interacting with your customers
-            </p>
-          </div>
-          <Button onClick={handleCreateNew} size='lg' className='gap-2'>
-            <PlusIcon className='h-4 w-4' />
-            Create New Bot
-          </Button>
+      <div className='flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-linear-to-b from-slate-50/80 to-white px-4 py-16'>
+        <div className='mb-4 flex size-12 items-center justify-center rounded-full bg-linear-to-br from-sky-100 to-slate-100 text-sky-700 shadow-sm ring-1 ring-sky-200/60'>
+          <BotIcon className='size-5' />
         </div>
+        <div className='max-w-sm space-y-2 text-center'>
+          <p className='text-sm font-semibold text-foreground'>
+            No bots configured yet
+          </p>
+          <p className='text-xs leading-relaxed text-muted-foreground'>
+            Create your first bot to define its tone, role, and conversation
+            flow for your customers.
+          </p>
+        </div>
+        <Button
+          onClick={handleCreateNew}
+          className='mt-5 h-10 gap-2 rounded-lg bg-linear-to-r from-slate-800 to-sky-800 px-4 text-sm font-medium shadow-sm hover:from-slate-900 hover:to-sky-900'>
+          <PlusIcon className='size-4' />
+          Create New Bot
+        </Button>
       </div>
     )
   }
 
   return (
-    <div className='space-y-4'>
+    <div className='space-y-5'>
       <ConfirmationDialog
         title='Delete Bot'
         description='Are you sure you want to delete this bot? Deleting this bot will delete all associated API keys, stop all widget conversations in your applications and delete all trained data.'
@@ -125,87 +150,110 @@ export default function BotInteractionsClient({
           handleDelete(selectedBot.id)
         }}
       />
-      <div className='flex items-center gap-4'>
-        <Button
-          onClick={handleCreateNew}
-          variant='default'
-          size='sm'
-          className='gap-2'>
-          <PlusIcon className='h-4 w-4' />
-          Create New Bot
-        </Button>
-        <p className='text-[0.65em] text-muted-foreground'>
-          {bots.length} {bots.length === 1 ? 'bot' : 'bots'} configured
-        </p>
+
+      <div className='flex items-end justify-between gap-4'>
+        <div className='space-y-1'>
+          <h2 className='text-base font-semibold tracking-tight text-foreground'>
+            Your bots
+          </h2>
+          <p className='text-xs text-muted-foreground'>
+            Select a bot to edit its personality and interaction settings.
+          </p>
+        </div>
+        <div className='flex shrink-0 items-center gap-2'>
+          <span className='rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600'>
+            {bots.length} {bots.length === 1 ? 'bot' : 'bots'}
+          </span>
+          <Button
+            onClick={handleCreateNew}
+            size='sm'
+            className='h-9 gap-1.5 rounded-lg bg-linear-to-r from-slate-800 to-sky-800 px-3 text-xs font-medium shadow-sm hover:from-slate-900 hover:to-sky-900'>
+            <PlusIcon className='size-3.5' />
+            Create Bot
+          </Button>
+        </div>
       </div>
-      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2'>
+
+      <div className='grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3'>
         {bots.map(bot => (
           <div
             key={bot.id}
-            className='cursor-pointer rounded hover:border-gray-300 hover:shadow-sm transition-all duration-200 border border-gray-200 bg-white p-2'
-            onClick={() => {
-              handleBotClick(bot)
-            }}>
-            <div className='flex items-start justify-between gap-1 mb-1'>
-              <h3 className='text-sm font-semibold leading-tight line-clamp-1'>
-                {bot.name}
-              </h3>
-              <div className='flex items-center gap-1 shrink-0'>
+            role='button'
+            tabIndex={0}
+            onClick={() => handleBotClick(bot)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                handleBotClick(bot)
+              }
+            }}
+            className='dashboard-surface group relative flex w-full cursor-pointer flex-col overflow-hidden rounded-xl p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/40'>
+            <div className='pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-sky-300/60 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100' />
+
+            <div className='mb-3 flex items-start justify-between gap-3'>
+              <div className='flex min-w-0 items-center gap-3'>
+                <div className='flex size-9 shrink-0 items-center justify-center rounded-lg bg-linear-to-br from-sky-500 to-slate-700 text-white shadow-sm'>
+                  <BotIcon className='size-4' />
+                </div>
+                <div className='min-w-0'>
+                  <h3 className='truncate text-sm font-semibold text-foreground'>
+                    {bot.name}
+                  </h3>
+                  {bot.role && (
+                    <p className='truncate text-xs text-muted-foreground'>
+                      {formatRole(bot.role)}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className='flex shrink-0 items-center gap-1'>
                 {bot.capture_leads && (
                   <Badge
                     variant='outline'
-                    className='text-[0.65em] px-1 py-0.5 bg-emerald-50 text-emerald-700 border-emerald-200 rounded-sm'>
+                    className='rounded-md border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700'>
                     Leads
                   </Badge>
                 )}
-                <Button 
+                <Button
                   type='button'
-                  variant='ghost' 
-                  size='icon' 
-                  className='h-5 w-5 p-0'
-                  onClick={(e) => {
+                  variant='ghost'
+                  size='icon'
+                  className='size-7 rounded-md hover:bg-rose-50'
+                  onClick={e => {
                     e.stopPropagation()
                     setShowDeleteDialog(true)
                     setSelectedBot(bot)
                   }}>
-                  <TrashIcon className='h-3 w-3 text-red-500' />
+                  <TrashIcon className='size-3.5 text-rose-500' />
                 </Button>
+                <ChevronRightIcon className='size-4 text-slate-300 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-sky-500' />
               </div>
             </div>
-            <div className='space-y-0.5'>
-              {bot.role && (
-                <div className='flex items-center gap-1'>
-                  <MessageSquareIcon className='size-2.5 text-muted-foreground shrink-0' />
-                  <span className='text-[0.65em] text-muted-foreground'>
-                    Role:
-                  </span>
-                  <span className='text-[0.65em] font-medium text-foreground'>
-                    {formatRole(bot.role)}
-                  </span>
-                </div>
-              )}
+
+            <div className='mb-3 space-y-2'>
               {bot.tone && (
-                <div className='flex items-center gap-1'>
-                  <SparklesIcon className='size-2.5 text-muted-foreground shrink-0' />
-                  <span className='text-[0.65em] text-muted-foreground'>
-                    Tone:
-                  </span>
-                  <span className='text-[0.65em] font-medium text-foreground capitalize'>
+                <div className='flex items-center gap-1.5 text-xs text-muted-foreground'>
+                  <SparklesIcon className='size-3.5 shrink-0 text-slate-400' />
+                  <span>Tone</span>
+                  <span className='font-medium capitalize text-foreground'>
                     {bot.tone}
                   </span>
                 </div>
               )}
-              {bot.business_description && (
-                <p className='text-[0.65em] text-muted-foreground line-clamp-2 leading-tight'>
+              {bot.business_description ? (
+                <p className='line-clamp-2 text-xs leading-relaxed text-muted-foreground'>
                   {bot.business_description}
+                </p>
+              ) : (
+                <p className='text-xs leading-relaxed text-muted-foreground/70'>
+                  No description provided.
                 </p>
               )}
             </div>
-            <div className='pt-1 mt-1 border-t flex items-center gap-1'>
-              <CalendarIcon className='size-2.5 text-muted-foreground shrink-0' />
-              <span className='text-[0.65em] text-muted-foreground'>
-                Updated {formatDate(bot.updated_at)}
-              </span>
+
+            <div className='mt-auto flex items-center gap-1.5 border-t border-slate-100 pt-3 text-xs text-muted-foreground'>
+              <CalendarIcon className='size-3.5 shrink-0' />
+              <span>Updated {formatDate(bot.updated_at)}</span>
             </div>
           </div>
         ))}

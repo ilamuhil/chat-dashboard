@@ -2,6 +2,7 @@ import ProfileForm from './ProfileForm'
 import { resolveCurrentOrganizationId } from '@/lib/current-organization'
 import { requireAuthUserId } from '@/lib/auth-server'
 import { prisma } from '@/lib/prisma'
+import { DashboardPageHeader } from '@/components/dashboard-page-header'
 
 type OrganizationAddress = {
   address_line1: string | null
@@ -32,9 +33,11 @@ function isOrganizationAddress(value: unknown): value is OrganizationAddress {
     'zip',
     'country',
   ]
-  return keys.every((key) => {
+  return keys.every(key => {
     const field = record[key]
-    return field === null || typeof field === 'string' || typeof field === 'undefined'
+    return (
+      field === null || typeof field === 'string' || typeof field === 'undefined'
+    )
   })
 }
 
@@ -48,10 +51,19 @@ export default async function ProfilePage() {
   if (organizationId) {
     const org = await prisma.organizations.findUnique({
       where: { id: organizationId },
-      select: { id: true, name: true, email: true, phone: true, logoUrl: true, address: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        logoUrl: true,
+        address: true,
+      },
     })
     if (org) {
-      const address = isOrganizationAddress(org.address) ? org.address : emptyAddress
+      const address = isOrganizationAddress(org.address)
+        ? org.address
+        : emptyAddress
       organization = {
         id: org.id,
         name: org.name ?? '',
@@ -64,11 +76,10 @@ export default async function ProfilePage() {
   }
 
   return (
-    <main className='max-h-dvh overflow-y-auto no-scrollbar space-y-4'>
-      <header className='shrink-0 mb-12'>
-        <h1 className='dashboard-title'>Business Profile</h1>
-      </header>
+    <DashboardPageHeader
+      title='Business Profile'
+      description='Manage your organization details, logo, and contact information.'>
       <ProfileForm organization={organization} />
-    </main>
+    </DashboardPageHeader>
   )
 }

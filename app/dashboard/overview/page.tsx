@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/table'
 import { EyeIcon } from 'lucide-react'
 import Link from 'next/link'
+import { DashboardPageHeader } from '@/components/dashboard-page-header'
 
 export default function OverviewPage() {
   const stats = [
@@ -36,27 +37,22 @@ export default function OverviewPage() {
   }))
 
   return (
-    <main className='space-y-4'>
-      <header>
-        <h1 className='dashboard-title'>Overview</h1>
-        <p className='text-muted-foreground mt-1 text-sm'>
-          Welcome back! Here&apos;s what&apos;s happening with your bot today.
-        </p>
-      </header>
-
+    <DashboardPageHeader
+      title='Overview'
+      description="Welcome back! Here's what is happening with your bot today.">
       <section className='space-y-4'>
         {/* Stats Cards */}
         <div className='flex flex-wrap gap-2 *:grow *:shrink-0 *:basis-3xs'>
           {stats.map(stat => (
             <Card
               key={stat.title}
-              className='rounded-md shadow-xs border'>
-              <CardHeader className='text-center pb-1 px-3 pt-2.5'>
+              className='rounded-md border shadow-xs'>
+              <CardHeader className='px-3 pt-2.5 pb-1 text-center'>
                 <CardTitle className='text-xs font-medium text-muted-foreground'>
                   {stat.title}
                 </CardTitle>
               </CardHeader>
-              <CardContent className='text-center px-3 pb-2.5 pt-0'>
+              <CardContent className='px-3 pt-0 pb-2.5 text-center'>
                 <p className='text-xl font-semibold'>{stat.value}</p>
               </CardContent>
             </Card>
@@ -65,63 +61,59 @@ export default function OverviewPage() {
 
         {/* Quick Actions */}
         <section>
-          <h2 className='text-base font-semibold mb-2'>Quick Actions</h2>
+          <h2 className='mb-2 text-base font-semibold'>Quick Actions</h2>
           <div className='flex flex-wrap gap-2'>
             <Button variant='outline' size='default' asChild>
-              <Link href='/dashboard/bot/interactions'>
-                Customize Bot
-              </Link>
+              <Link href='/dashboard/bot/interactions'>Customize Bot</Link>
             </Button>
             <Button variant='outline' size='default' asChild>
-              <Link href='/dashboard/bot/training'>
-                Add Knowledge Base
-              </Link>
+              <Link href='/dashboard/bot/training'>Add Knowledge Base</Link>
             </Button>
             <Button variant='outline' size='default' asChild>
-              <Link href='/dashboard/bot/api'>
-                View API Key
-              </Link>
+              <Link href='/dashboard/bot/api'>View API Key</Link>
             </Button>
           </div>
         </section>
 
         {/* Recent Conversations */}
         <section>
-          <h2 className='text-base font-semibold mb-2'>Recent Conversations</h2>
-          <Table className='bg-white'>
-            <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Snippet</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {conversations.map(conversation => (
-                <TableRow
-                  key={conversation.id}
-                  className='hover:bg-muted/50 *:text-xs'>
-                  <TableCell>{conversation.user}</TableCell>
-                  <TableCell className='overflow-hidden text-ellipsis max-w-[200px] text-muted-foreground text-xs italic'>
-                    {conversation.snippet}
-                  </TableCell>
-                  <TableCell>{conversation.date}</TableCell>
-                  <TableCell>
-                    <Button asChild size='sm' className='bg-sky-700 text-white'>
-                      <Link
-                        href={`/dashboard/conversations/${conversation.id}`}
-                        className='text-sm inline-flex items-center gap-1'>
-                        View <EyeIcon className='size-3' />
-                      </Link>
-                    </Button>
-                  </TableCell>
+          <h2 className='mb-2 text-base font-semibold'>Recent Conversations</h2>
+          <div className='dashboard-surface overflow-hidden rounded-xl'>
+            <Table>
+              <TableHeader>
+                <TableRow className='border-slate-100 hover:bg-transparent'>
+                  <TableHead className='px-5'>User</TableHead>
+                  <TableHead className='px-5'>Snippet</TableHead>
+                  <TableHead className='px-5'>Date</TableHead>
+                  <TableHead className='px-5'>Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {conversations.map(conversation => (
+                  <TableRow
+                    key={conversation.id}
+                    className='border-slate-100 hover:bg-slate-50/60 *:text-xs'>
+                    <TableCell className='px-5 py-3'>{conversation.user}</TableCell>
+                    <TableCell className='max-w-50 overflow-hidden px-5 py-3 text-xs text-ellipsis text-muted-foreground italic'>
+                      {conversation.snippet}
+                    </TableCell>
+                    <TableCell className='px-5 py-3'>{conversation.date}</TableCell>
+                    <TableCell className='px-5 py-3'>
+                      <Button asChild size='sm' className='bg-sky-700 text-white'>
+                        <Link
+                          href={`/dashboard/conversations/${conversation.id}`}
+                          className='inline-flex items-center gap-1 text-sm'>
+                          View <EyeIcon className='size-3' />
+                        </Link>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </section>
       </section>
-    </main>
+    </DashboardPageHeader>
   )
 }

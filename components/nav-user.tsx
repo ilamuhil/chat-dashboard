@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import {
   BadgeCheck,
@@ -6,13 +6,9 @@ import {
   ChevronsUpDown,
   CreditCard,
   LogOut,
-} from "lucide-react"
+} from 'lucide-react'
 
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,15 +17,15 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from '@/components/ui/dropdown-menu'
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@/components/ui/sidebar"
+} from '@/components/ui/sidebar'
 
-import useSignout from '../hooks/use-signout';
+import useSignout from '../hooks/use-signout'
 
 type AppUser = {
   id: string
@@ -60,76 +56,87 @@ function capitalizeName(name: string): string {
     .join(' ')
 }
 
-export function NavUser({
-  user,
-}: {
-  user: AppUser
-}) {
+export function NavUser({ user }: { user: AppUser }) {
   const { isMobile } = useSidebar()
   const { signOut } = useSignout()
-  
+
   const fullName = user.fullName || ''
   const rawDisplayName = fullName || user.email?.split('@')[0] || 'User'
   const displayName = capitalizeName(rawDisplayName)
-  // Use displayName for initials to ensure we always have something to work with
   const initials = getInitials(fullName || rawDisplayName)
   const email = user.email || ''
-  
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
-              size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-            >
-              <Avatar className="h-8 w-8 rounded-lg">
-                <AvatarImage src={user.avatarUrl ?? undefined} alt={displayName} />
-                <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
+              size='lg'
+              className='h-12 rounded-xl border border-slate-200/80 bg-white px-2.5 shadow-sm transition-colors hover:bg-sky-50/60 data-[state=open]:bg-sky-50/80 data-[state=open]:ring-1 data-[state=open]:ring-sky-200/70'>
+              <Avatar className='h-8 w-8 rounded-lg ring-1 ring-slate-200/80'>
+                <AvatarImage
+                  src={user.avatarUrl ?? undefined}
+                  alt={displayName}
+                />
+                <AvatarFallback className='rounded-lg bg-linear-to-br from-sky-500 to-slate-700 text-xs font-semibold text-white'>
+                  {initials}
+                </AvatarFallback>
               </Avatar>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{displayName}</span>
-                <span className="truncate text-[10px] text-muted-foreground">{email}</span>
+              <div className='grid flex-1 text-left text-sm leading-tight'>
+                <span className='truncate font-semibold text-slate-900'>
+                  {displayName}
+                </span>
+                <span className='truncate text-[10px] text-slate-500'>
+                  {email}
+                </span>
               </div>
-              <ChevronsUpDown className="ml-auto size-4" />
+              <ChevronsUpDown className='ml-auto size-4 text-slate-400' />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
-            side={isMobile ? "bottom" : "right"}
-            align="end"
-            sideOffset={4}
-          >
-            <DropdownMenuLabel className="p-0 font-normal">
-              <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={user.avatarUrl ?? undefined} alt={displayName} />
-                  <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
+            className='w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-xl border-slate-200'
+            side={isMobile ? 'bottom' : 'right'}
+            align='end'
+            sideOffset={4}>
+            <DropdownMenuLabel className='p-0 font-normal'>
+              <div className='flex items-center gap-2 px-1 py-1.5 text-left text-sm'>
+                <Avatar className='h-8 w-8 rounded-lg ring-1 ring-slate-200/80'>
+                  <AvatarImage
+                    src={user.avatarUrl ?? undefined}
+                    alt={displayName}
+                  />
+                  <AvatarFallback className='rounded-lg bg-linear-to-br from-sky-500 to-slate-700 text-xs font-semibold text-white'>
+                    {initials}
+                  </AvatarFallback>
                 </Avatar>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{displayName}</span>
-                  <span className="truncate text-[10px] text-muted-foreground">{email}</span>
+                <div className='grid flex-1 text-left text-sm leading-tight'>
+                  <span className='truncate font-semibold'>{displayName}</span>
+                  <span className='truncate text-[10px] text-muted-foreground'>
+                    {email}
+                  </span>
                 </div>
               </div>
-            </DropdownMenuLabel>       
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem className='rounded-lg'>
                 <BadgeCheck />
                 Account
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem className='rounded-lg'>
                 <CreditCard />
                 Billing
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem className='rounded-lg'>
                 <Bell />
                 Notifications
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={signOut}>
+            <DropdownMenuItem
+              className='rounded-lg text-rose-600 focus:text-rose-600'
+              onClick={signOut}>
               <LogOut />
               Log out
             </DropdownMenuItem>

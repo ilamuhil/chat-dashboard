@@ -120,7 +120,7 @@ export function StatusChip({
     <span
       aria-label={`status: ${effectiveLabel}`}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-none px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset",
+        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize tracking-wide ring-1 ring-inset",
         style.className,
         className
       )}
@@ -128,21 +128,49 @@ export function StatusChip({
       {(normalized === "processing" ||
         normalized === "queued" ||
         normalized === "queued_for_training" ||
-        normalized === "training") && (
+        normalized === "training" ||
+        normalized === "uploaded" ||
+        normalized === "created") && style.dotClassName ? (
         <span className="relative inline-flex size-1.5">
+          {(normalized === "processing" ||
+            normalized === "queued" ||
+            normalized === "queued_for_training" ||
+            normalized === "training") && (
+            <span
+              className={cn(
+                "absolute inline-flex h-full w-full animate-ping rounded-full opacity-40",
+                style.dotClassName
+              )}
+            />
+          )}
           <span
             className={cn(
-              "absolute inline-flex h-full w-full animate-ping rounded-full opacity-40",
-              style.dotClassName
-            )}
-          />
-          <span
-            className={cn(
-              "relative inline-flex size-1.5 animate-pulse rounded-full",
-              style.dotClassName
+              "relative inline-flex size-1.5 rounded-full",
+              style.dotClassName,
+              (normalized === "processing" ||
+                normalized === "queued" ||
+                normalized === "queued_for_training" ||
+                normalized === "training") &&
+                "animate-pulse"
             )}
           />
         </span>
+      ) : (
+        <span
+          className={cn(
+            "inline-flex size-1.5 rounded-full",
+            normalized === "trained" ||
+              normalized === "processed" ||
+              normalized === "completed"
+              ? "bg-emerald-500"
+              : normalized === "failed" ||
+                  normalized === "training_failed" ||
+                  normalized === "processing_failed" ||
+                  normalized === "upload_failed"
+                ? "bg-rose-500"
+                : "bg-slate-400"
+          )}
+        />
       )}
       <span className="leading-none">{effectiveLabel}</span>
     </span>

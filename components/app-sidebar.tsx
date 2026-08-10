@@ -1,6 +1,6 @@
-"use client";
+'use client'
 
-import * as React from "react";
+import * as React from 'react'
 import {
   GalleryVerticalEnd,
   Wallet,
@@ -9,81 +9,81 @@ import {
   Users,
   LayoutDashboard,
   UserRoundPen,
-} from "lucide-react";
+} from 'lucide-react'
 
-import { NavMain } from "@/components/nav-main";
-// import { NavProjects } from "@/components/nav-projects"
-import { NavUser } from "@/components/nav-user";
-import { TeamSwitcher } from "@/components/team-switcher";
+import { NavMain } from '@/components/nav-main'
+import { NavUser } from '@/components/nav-user'
+import { TeamSwitcher } from '@/components/team-switcher'
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
-} from "@/components/ui/sidebar";
+  SidebarSeparator,
+} from '@/components/ui/sidebar'
 
 type AppUser = {
-  id: string;
-  email?: string | null;
-  fullName?: string | null;
-  avatarUrl?: string | null;
-};
+  id: string
+  email?: string | null
+  fullName?: string | null
+  avatarUrl?: string | null
+}
 
 const data = {
   navMain: [
     {
-      title: "Overview",
-      url: "/dashboard/overview",
+      title: 'Overview',
+      url: '/dashboard/overview',
       icon: LayoutDashboard,
     },
     {
-      title: "Bot Configuration",
+      title: 'Bot Configuration',
       icon: MonitorCog,
       isActive: true,
       items: [
         {
-          title: "Interactions",
-          url: "/dashboard/bot/interactions",
+          title: 'Interactions',
+          url: '/dashboard/bot/interactions',
         },
         {
-          title: "Training Data",
-          url: "/dashboard/bot/training",
+          title: 'Training Data',
+          url: '/dashboard/bot/training',
         },
         {
-          title: "API Setup",
-          url: "/dashboard/bot/api",
+          title: 'API Setup',
+          url: '/dashboard/bot/api',
         },
       ],
     },
     {
-      title: "Users",
+      title: 'Users',
       icon: MessageCircleMore,
       isActive: true,
       items: [
         {
-          title: "Conversations",
-          url: "/dashboard/users/conversations",
+          title: 'Conversations',
+          url: '/dashboard/users/conversations',
         },
         {
-          title: "Leads",
-          url: "/dashboard/users/leads",
+          title: 'Leads',
+          url: '/dashboard/users/leads',
           icon: Users,
         },
       ],
     },
     {
-      title: "Profile",
-      url: "/dashboard/profile",
+      title: 'Profile',
+      url: '/dashboard/profile',
       icon: UserRoundPen,
     },
     {
-      title: "Subscription",
-      url: "/dashboard/subscription",
+      title: 'Subscription',
+      url: '/dashboard/subscription',
       icon: Wallet,
     },
   ],
-};
+}
 
 export function AppSidebar({
   user,
@@ -101,18 +101,21 @@ export function AppSidebar({
   }))
 
   return (
-    <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader>
+    <Sidebar
+      collapsible='icon'
+      className='border-r border-slate-200/80 bg-linear-to-b from-white via-slate-50/80 to-sky-50/40'
+      {...props}>
+      <SidebarHeader className='gap-2 px-2 py-3'>
         <TeamSwitcher teams={orgsForSwitcher} />
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarSeparator className='mx-2 bg-slate-200/80' />
+      <SidebarContent className='px-1 py-2'>
         <NavMain items={data.navMain} />
-        {/* <NavProjects projects={data.projects} /> */}
       </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter className='gap-2 border-t border-slate-200/70 px-2 py-3'>
         <NavUser user={user} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
-  );
+  )
 }

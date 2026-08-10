@@ -69,14 +69,14 @@
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.984 0.003 247.858);
-  --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.208 0.042 265.755);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.968 0.007 247.896);
-  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-  --sidebar-border: oklch(0.929 0.013 255.508);
-  --sidebar-ring: oklch(0.704 0.04 256.788);
+  --sidebar: oklch(0.985 0.01 240);
+  --sidebar-foreground: oklch(0.28 0.03 255);
+  --sidebar-primary: oklch(0.45 0.12 245);
+  --sidebar-primary-foreground: oklch(0.99 0.005 240);
+  --sidebar-accent: oklch(0.95 0.02 240);
+  --sidebar-accent-foreground: oklch(0.3 0.05 250);
+  --sidebar-border: oklch(0.91 0.015 245);
+  --sidebar-ring: oklch(0.65 0.1 245);
   --shadow-default: 0px 2px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
@@ -145,10 +145,53 @@
   .shadow-default {
     box-shadow: var(--shadow-default);
   }
+  .dashboard-surface {
+    @apply border border-slate-200/80 bg-linear-to-br from-white via-white to-sky-50/40;
+  }
 }
 
 @utility no-scrollbar {
   @apply scrollbar-none [&::-webkit-scrollbar]:hidden;
+}
+
+/* Training progress bar animations */
+@keyframes training-progress-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes training-progress-sheen {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+.training-progress-active {
+  animation: training-progress-flow 2.4s ease-in-out infinite;
+}
+
+.training-progress-sheen {
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.55) 50%,
+    transparent 65%
+  );
+  animation: training-progress-sheen 1.8s ease-in-out infinite;
+}
+
+.training-progress-fill {
+  will-change: width;
 }
 
 /* View Transitions API - Page Transition Animations */
