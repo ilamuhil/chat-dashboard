@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       organization_id: conversation.organizationId,
       bot_id: conversation.botId,
       conversation_id: conversation.id,
-      type: 'agent',
+      type: 'support_agent',
     },
     privateKey
   )

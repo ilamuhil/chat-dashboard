@@ -1,16 +1,17 @@
-//! Not to be used in the client side
+//! Not to be used in the client side of the dashboard
+//! dashboard server to python chat server communication (python api request fn)
+//! dashboard server to r2 cloudflare storage communication (r2 Axios instance)
 
 import axios from 'axios'
 
-if (!process.env.R2_ACCOUNT_ID) { 
+if (!process.env.R2_ACCOUNT_ID) {
   throw new Error('R2_ACCOUNT_ID is not set')
 }
 const r2_base_url = `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/`
 
-
 const r2Axios = axios.create({
   headers: {
-    'Authorization': `Bearer ${process.env.R2_API_KEY}`
+    Authorization: `Bearer ${process.env.R2_API_KEY}`,
   },
   baseURL: r2_base_url,
 })
@@ -20,7 +21,8 @@ const r2Axios = axios.create({
  * Use this for server-side requests to the Python chat/training server.
  */
 const pythonApiAxios = axios.create({
-  baseURL: process.env.PYTHON_API_URL || process.env.NEXT_PUBLIC_PYTHON_SERVER_URL,
+  baseURL:
+    process.env.PYTHON_API_URL || process.env.NEXT_PUBLIC_PYTHON_SERVER_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -35,7 +37,7 @@ export async function pythonApiRequest<T = unknown>(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
   endpoint: string,
   token: string,
-  data?: unknown
+  data?: unknown,
 ): Promise<T> {
   const response = await pythonApiAxios.request<T>({
     method,

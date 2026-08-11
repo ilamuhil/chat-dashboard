@@ -4,6 +4,9 @@ import { getSecretKey, signToken } from '@/lib/jwt'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
+
+//! this route is used to mint a token for the end_user used to chat with the bot/support_agent. Do not use this route to mint a token for the support_agent.
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',

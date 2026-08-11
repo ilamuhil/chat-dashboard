@@ -16,7 +16,6 @@ export default async function ConversationsLayout({
     where: { organizationId },
     select: { id: true, lastMessageAt: true, lastMessageSnippet: true },
     orderBy: { lastMessageAt: 'desc' },
-    take: 10,
   })
   const leads = await prisma.leads.findMany({
     where: {

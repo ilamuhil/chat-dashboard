@@ -130,7 +130,7 @@ export async function DELETE(request: NextRequest) {
   }
 
   const token = signToken(
-    { organization_id: organizationId, bot_id, type: 'agent' },
+    { organization_id: organizationId, bot_id, type: 'support_agent' },
     privateKey,
     '5m'
   )

@@ -133,6 +133,7 @@ export default function ConversationShell(props: {
   const { chats, children } = props
   const router = useRouter()
   const pathname = usePathname()
+  const activeConversationId = pathname?.split('/').filter(Boolean).at(-1)
 
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState<ChatFilter>('unassigned')
@@ -513,7 +514,7 @@ export default function ConversationShell(props: {
             </div>
           ) : (
             filteredChats.map(chat => {
-              const isActive = pathname?.includes(chat.id)
+              const isActive = activeConversationId === chat.id
               const meta = getMeta(chat.id)
               const isSelected = selectedIds.has(chat.id)
 
@@ -523,7 +524,7 @@ export default function ConversationShell(props: {
                   className={cn(
                     'group relative flex w-full items-start gap-2 rounded-lg border p-2.5 transition-all duration-200',
                     isActive
-                      ? 'border-sky-200 bg-linear-to-br from-sky-50 via-white to-slate-50 shadow-sm'
+                      ? 'border-sky-300 bg-sky-50 shadow-sm ring-1 ring-sky-200/70'
                       : 'border-transparent bg-slate-50/80 hover:border-slate-200 hover:bg-white hover:shadow-sm',
                     isSelected && 'border-sky-300 bg-sky-50/70'
                   )}>

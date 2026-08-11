@@ -1,12 +1,14 @@
 import axios from 'axios'
 
 /**
- * Browser-only Axios instance that attaches `Authorization: Bearer <token>`
- * from `localStorage.auth_token`.
+ * ! Browser-only Axios instance that attaches `Authorization: Bearer <token>`
+ * ! from `localStorage.auth_token`.
+ * ! Use this to communicate between the dashboard client and the dashboard server.
+ * ! This is independent of the chat server
  */
 export const clientApiAxios = axios.create()
 
-clientApiAxios.interceptors.request.use((config) => {
+clientApiAxios.interceptors.request.use(config => {
   if (typeof window !== 'undefined') {
     const token = window.localStorage.getItem('auth_token')
     if (token) {
@@ -18,8 +20,8 @@ clientApiAxios.interceptors.request.use((config) => {
 })
 
 clientApiAxios.interceptors.response.use(
-  (res) => res,
-  (err) => {
+  res => res,
+  err => {
     if (typeof window !== 'undefined') {
       const status = err?.response?.status
       if (status === 401) {
@@ -27,6 +29,5 @@ clientApiAxios.interceptors.response.use(
       }
     }
     return Promise.reject(err)
-  }
+  },
 )
-

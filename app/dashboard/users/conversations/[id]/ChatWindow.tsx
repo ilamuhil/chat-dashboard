@@ -6,15 +6,10 @@ import { PaperclipIcon, SendIcon, MessagesSquareIcon } from 'lucide-react'
 import { useRef } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { cn } from '@/lib/utils'
+import { Message } from './types'
 
 type ChatWindowProps = {
-  messages: Array<{
-    id: string
-    content: string
-    role: 'user' | 'assistant'
-    content_type: 'text' | 'file'
-    created_at: Date
-  }>
+  messages: Message[]
   expanded?: boolean
 }
 
@@ -33,58 +28,58 @@ export default function ChatWindow(props: ChatWindowProps) {
   }
 
   const renderMessage = (
-    message: {
-      id: string
-      content: string
-      role: 'user' | 'assistant'
-      created_at: Date
-    },
+    message: Message,
     index: number,
-    messages: Array<{
-      id: string
-      content: string
-      role: 'user' | 'assistant'
-      created_at: Date
-    }>
+    messages: Array<Message>
   ) => {
     const isUser = message.role === 'user'
+    const visualRole = isUser ? 'user' : 'assistant'
     const isLastMessage = index === messages.length - 1
     const nextMessage = messages[index + 1]
     const prevMessage = messages[index - 1]
 
     const showAvatar =
-      isLastMessage || (nextMessage && nextMessage.role !== message.role)
+      isLastMessage ||
+      (nextMessage &&
+        (nextMessage.role === 'user') !== (message.role === 'user'))
 
     const showTimestamp =
-      isLastMessage || (nextMessage && nextMessage.role !== message.role)
+      isLastMessage ||
+      (nextMessage &&
+        (nextMessage.role === 'user') !== (message.role === 'user'))
 
-    const isConsecutive = nextMessage && nextMessage.role === message.role
+    const isConsecutive =
+      nextMessage &&
+      (nextMessage.role === 'user') === (message.role === 'user')
     const marginBottom = isConsecutive ? 'mb-1' : 'mb-4'
 
     const hasPreviousSameSender =
-      prevMessage && prevMessage.role === message.role
-    const hasNextSameSender = nextMessage && nextMessage.role === message.role
+      prevMessage &&
+      (prevMessage.role === 'user') === (message.role === 'user')
+    const hasNextSameSender =
+      nextMessage &&
+      (nextMessage.role === 'user') === (message.role === 'user')
 
     let borderRadiusClasses = ''
 
-    if (isUser) {
+    if (visualRole === 'user') {
       if (hasNextSameSender && hasPreviousSameSender) {
         borderRadiusClasses = 'rounded-2xl'
       } else if (hasNextSameSender) {
         borderRadiusClasses = 'rounded-t-2xl rounded-b-2xl'
       } else if (hasPreviousSameSender) {
-        borderRadiusClasses = 'rounded-2xl rounded-br-md'
+        borderRadiusClasses = 'rounded-2xl rounded-bl-md'
       } else {
-        borderRadiusClasses = 'rounded-2xl rounded-br-md'
+        borderRadiusClasses = 'rounded-2xl rounded-bl-md'
       }
     } else if (hasNextSameSender && hasPreviousSameSender) {
       borderRadiusClasses = 'rounded-2xl'
     } else if (hasNextSameSender) {
       borderRadiusClasses = 'rounded-t-2xl rounded-b-2xl'
     } else if (hasPreviousSameSender) {
-      borderRadiusClasses = 'rounded-2xl rounded-bl-md'
+      borderRadiusClasses = 'rounded-2xl rounded-br-md'
     } else {
-      borderRadiusClasses = 'rounded-2xl rounded-bl-md'
+      borderRadiusClasses = 'rounded-2xl rounded-br-md'
     }
 
     return (
@@ -93,13 +88,13 @@ export default function ChatWindow(props: ChatWindowProps) {
         className={cn(
           'flex items-end gap-2',
           marginBottom,
-          isUser ? 'flex-row-reverse' : 'flex-row'
+          visualRole === 'user' ? 'flex-row' : 'flex-row-reverse'
         )}>
-        {!isUser && (
+        {isUser && (
           <div className={cn('shrink-0', showAvatar ? 'size-8' : 'w-8')}>
             {showAvatar && (
-              <div className='flex size-8 items-center justify-center rounded-lg bg-linear-to-br from-sky-500 to-slate-700 text-xs font-semibold text-white shadow-sm'>
-                AI
+              <div className='flex size-8 items-center justify-center rounded-lg bg-slate-700 text-xs font-semibold text-white shadow-sm'>
+                U
               </div>
             )}
           </div>
@@ -107,15 +102,15 @@ export default function ChatWindow(props: ChatWindowProps) {
         <div
           className={cn(
             'flex max-w-[75%] flex-col',
-            isUser ? 'items-end' : 'items-start'
+            visualRole === 'user' ? 'items-start' : 'items-end'
           )}>
           <div
             className={cn(
               borderRadiusClasses,
               'px-3.5 py-2.5 text-sm shadow-sm',
-              isUser
-                ? 'bg-linear-to-br from-sky-600 to-slate-700 text-white'
-                : 'border border-slate-200/80 bg-white text-slate-900'
+              visualRole === 'user'
+                ? 'border border-slate-200/80 bg-white text-slate-900'
+                : 'bg-linear-to-br from-sky-600 to-slate-700 text-white'
             )}>
             <p className='leading-relaxed whitespace-pre-wrap'>
               {message.content}

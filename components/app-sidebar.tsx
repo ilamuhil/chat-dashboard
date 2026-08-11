@@ -108,7 +108,9 @@ export function AppSidebar({
       <SidebarHeader className='gap-2 px-2 py-3'>
         <TeamSwitcher teams={orgsForSwitcher} />
       </SidebarHeader>
-      <SidebarSeparator className='mx-2 bg-slate-200/80' />
+      <div className='mx-2 min-w-0 overflow-hidden'>
+        <SidebarSeparator className='mx-0 w-full bg-slate-200/80' />
+      </div>
       <SidebarContent className='px-1 py-2'>
         <NavMain items={data.navMain} />
       </SidebarContent>

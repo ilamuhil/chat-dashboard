@@ -13,6 +13,7 @@ export async function getAuthUserIdFromCookies(): Promise<string | null> {
   try {
     return verifyAuthToken(token).sub
   } catch {
+    console.error('Invalid auth token')
     return null
   }
 }

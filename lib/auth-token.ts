@@ -1,5 +1,8 @@
 import jwt from 'jsonwebtoken'
 
+//! All the functions here are between the dasboard client and the dashboard server. This is independent of the chat server
+
+
 export type AuthTokenPayload = {
   sub: string // userId (uuid)
   type: 'access'

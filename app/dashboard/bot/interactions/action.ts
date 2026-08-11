@@ -292,7 +292,7 @@ export async function updateBotInteractions(
       {
         organization_id: organizationId,
         bot_id: newBot.id,
-        type: 'agent',
+        type: 'support_agent',
       },
       privateKey,
     )
