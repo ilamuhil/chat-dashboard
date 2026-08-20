@@ -6,6 +6,13 @@ import { CURRENT_ORG_COOKIE } from '@/lib/current-organization'
 import { resolveCurrentOrganizationId } from '@/lib/current-organization'
 import type { NextRequest } from 'next/server'
 
+export const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Max-Age': '86400',
+}
+
 export async function getAuthUserIdFromCookies(): Promise<string | null> {
   const cookieStore = await cookies()
   const token = cookieStore.get('auth_token')?.value
@@ -34,14 +41,17 @@ export async function requireAuthUser() {
   return user
 }
 
-export async function requireUserOrgAndBot(request: NextRequest, botId: string): Promise<{ userId: string, organizationId: string, botId: string } | null>  { 
+export async function requireUserOrgAndBot(
+  request: NextRequest,
+  botId: string,
+): Promise<{ userId: string; organizationId: string; botId: string } | null> {
   const user = await requireAuthUser()
   if (!user) return null
   const organizationId = await resolveCurrentOrganizationId({ userId: user.id })
   if (!organizationId) return null
   const bot = await prisma.bots.findFirst({
     where: { id: botId, organizationId },
-    select: { id: true }
+    select: { id: true },
   })
   if (!bot) return null
   return { userId: user.id, organizationId, botId: bot.id }
@@ -88,4 +98,3 @@ export async function setCurrentOrganizationCookie(orgId: string) {
     maxAge: 60 * 60 * 24 * 30,
   })
 }
-

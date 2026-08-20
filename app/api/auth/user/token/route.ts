@@ -3,16 +3,9 @@ import { hashApiKey } from '@/lib/utils'
 import { getSecretKey, signToken } from '@/lib/jwt'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
-
+import { corsHeaders } from '@/lib/auth-server'
 
 //! this route is used to mint a token for the end_user used to chat with the bot/support_agent. Do not use this route to mint a token for the support_agent.
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Max-Age': '86400',
-}
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: corsHeaders })
@@ -74,7 +67,7 @@ export async function POST(request: NextRequest) {
       organizationId: bot.organizationId,
       botId: bot_id,
       apiKeyId: apiKey.id,
-      status: 'active',
+      status: 'open',
     },
     select: { id: true },
   })

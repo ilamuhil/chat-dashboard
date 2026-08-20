@@ -293,12 +293,15 @@ model ConversationsMeta {
   id                String    @id @default(uuid()) @db.Uuid
   createdAt         DateTime  @default(now()) @map("created_at")
   mode              String    @default("ai") @db.Text
-  organizationId    String?   @map("organization_id")
+  organizationId    String    @map("organization_id")
   botId             String?   @map("bot_id") @db.Uuid
   apiKeyId          String?   @map("api_key_id") @db.Uuid
   userName          String?   @map("user_name") @db.Text
   userEmail         String?   @map("user_email") @db.Text
-  status            String?   @db.Text
+  status            String   @default("open") @db.Text //! open, closed
+  handOverStatus    String?   @map("handover_status") @db.Text @default("none") //! none, requested, accepted, timed_out
+  closedBy          String?   @map("closed_by") @db.Text //! visitor | support_agent | system | admin (when the bot is deleted or org is disabled or manual cleanups are necessary)
+  closedAt          DateTime? @map("closed_at")
   lastMessageSnippet String? @map("last_message_snippet") @db.Text
   lastMessageAt     DateTime? @map("last_message_at")
 

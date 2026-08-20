@@ -1,7 +1,13 @@
 import jwt from 'jsonwebtoken'
+import { getSecretKey } from '@/lib/jwt'
 
 //! All the functions here are between the dasboard client and the dashboard server. This is independent of the chat server
 
+export type SSEAuthTokenPayload = {
+  sub: string // userId (uuid)
+  type: 'sse' // sse token
+  orgId: string // organizationId (uuid)
+}
 
 export type AuthTokenPayload = {
   sub: string // userId (uuid)
@@ -16,7 +22,7 @@ function mustGetEnv(name: string): string {
 
 export function signAuthToken(
   payload: { userId: string },
-  expiresIn: jwt.SignOptions['expiresIn'] = '7d'
+  expiresIn: jwt.SignOptions['expiresIn'] = '7d',
 ) {
   const secret = mustGetEnv('AUTH_JWT_SECRET')
   const p: AuthTokenPayload = { sub: payload.userId, type: 'access' }
@@ -28,6 +34,25 @@ export function signAuthToken(
   })
 }
 
+export function signSSEAuthToken(payload: { userId: string; orgId: string }) {
+  const privateKey = getSecretKey()
+  if (!privateKey) {
+    throw new Error('Private key not found at keys/private.pem')
+  }
+
+  const p: SSEAuthTokenPayload = {
+    sub: payload.userId,
+    type: 'sse',
+    orgId: payload.orgId,
+  }
+  return jwt.sign(p, privateKey, {
+    algorithm: 'RS256',
+    expiresIn: '1d',
+    issuer: 'dashboard-server',
+    audience: 'chat-server',
+  })
+}
+
 export function verifyAuthToken(token: string): AuthTokenPayload {
   const secret = mustGetEnv('AUTH_JWT_SECRET')
   const decoded = jwt.verify(token, secret, {
@@ -35,7 +60,11 @@ export function verifyAuthToken(token: string): AuthTokenPayload {
     issuer: 'chat-dashboard',
     audience: 'chat-dashboard-web',
   })
-  if (typeof decoded !== 'object' || decoded === null || Array.isArray(decoded)) {
+  if (
+    typeof decoded !== 'object' ||
+    decoded === null ||
+    Array.isArray(decoded)
+  ) {
     throw new Error('Invalid token payload')
   }
   const payload = decoded as jwt.JwtPayload & { type?: unknown }
@@ -46,4 +75,3 @@ export function verifyAuthToken(token: string): AuthTokenPayload {
   }
   return { sub, type }
 }
-

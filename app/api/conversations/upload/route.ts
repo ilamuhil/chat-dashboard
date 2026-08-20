@@ -2,19 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/jwt'
 import { uploadFile, deleteFile } from '@/lib/filemanagement'
+import { corsHeaders } from '@/lib/auth-server'
 
 const FILE_UPLOAD_BUCKET =
   process.env.CHAT_FILE_BUCKET ??
   (() => {
     throw new Error('CHAT_FILE_BUCKET environment variable is not set')
   })()
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Max-Age': '86400',
-}
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: corsHeaders })

@@ -39,7 +39,7 @@ export function signToken(
     {
       algorithm: 'RS256',
       expiresIn,
-      issuer: 'next-server',
+      issuer: 'dashboard-server',
       audience: 'chat-server',
     },
   )
@@ -62,7 +62,7 @@ export function verifyToken(token: string): ChatTokenPayload | null {
   try {
     const decoded = jwt.verify(token, privateKey, {
       algorithms: ['RS256'],
-      issuer: 'next-server',
+      issuer: 'dashboard-server',
       audience: 'chat-server',
     })
     if (
