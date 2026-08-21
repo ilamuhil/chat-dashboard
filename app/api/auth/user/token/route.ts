@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
       botId: bot_id,
       apiKeyId: apiKey.id,
       status: 'open',
+      lastMessageAt: new Date(),
     },
     select: { id: true },
   })

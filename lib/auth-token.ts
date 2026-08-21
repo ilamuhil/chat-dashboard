@@ -6,7 +6,7 @@ import { getSecretKey } from '@/lib/jwt'
 export type SSEAuthTokenPayload = {
   sub: string // userId (uuid)
   type: 'sse' // sse token
-  orgId: string // organizationId (uuid)
+  organization_id: string // organizationId (uuid)
 }
 
 export type AuthTokenPayload = {
@@ -43,7 +43,7 @@ export function signSSEAuthToken(payload: { userId: string; orgId: string }) {
   const p: SSEAuthTokenPayload = {
     sub: payload.userId,
     type: 'sse',
-    orgId: payload.orgId,
+    organization_id: payload.orgId,
   }
   return jwt.sign(p, privateKey, {
     algorithm: 'RS256',

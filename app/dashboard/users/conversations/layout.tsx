@@ -12,25 +12,29 @@ export default async function ConversationsLayout({
 }) {
   const userId = await requireAuthUserId()
   const organizationId = await resolveCurrentOrganizationId({ userId })
-  const conversations = await prisma.conversationsMeta.findMany({
-    where: { organizationId },
-    select: { id: true, lastMessageAt: true, lastMessageSnippet: true },
-    orderBy: { lastMessageAt: 'desc' },
-  })
-  const leads = await prisma.leads.findMany({
-    where: {
-      conversationId: { in: conversations.map(conversation => conversation.id) },
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      phone: true,
-      conversationId: true,
-    },
-  })
+  const conversations = organizationId
+    ? await prisma.conversationsMeta.findMany({
+        where: { organizationId },
+        select: {
+          id: true,
+          lastMessageAt: true,
+          lastMessageSnippet: true,
+          handOverStatus: true,
+          leads: {
+            orderBy: { capturedAt: 'desc' },
+            take: 1,
+            select: {
+              name: true,
+              email: true,
+              phone: true,
+            },
+          },
+        },
+        orderBy: { lastMessageAt: 'desc' },
+      })
+    : []
   const chats = conversations.map(c => {
-    const lead = leads.find(l => l.conversationId === c.id)
+    const lead = c.leads[0]
     return {
       id: c.id,
       name: lead?.name || 'Unknown',
@@ -38,6 +42,7 @@ export default async function ConversationsLayout({
       phone: lead?.phone || 'Unknown',
       lastMessageAt: c.lastMessageAt?.toISOString() ?? null,
       highlightSnippet: c.lastMessageSnippet,
+      handOverStatus: c.handOverStatus,
     }
   })
 

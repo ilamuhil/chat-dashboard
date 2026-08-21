@@ -3,8 +3,11 @@
 import { useEffect } from "react"
 import { toast, Toaster } from "sonner"
 import { clientApiAxios } from "@/lib/axios-client"
+import { useDashboardNotifications } from "@/app/dashboard/notifications/NotificationProvider"
 
 export default function Boot() {
+  const { addNotification } = useDashboardNotifications()
+
   useEffect(() => {
     let eventStream: EventSource | null = null
     let cancelled = false
@@ -26,15 +29,39 @@ export default function Boot() {
         eventStream = new EventSource(
           `${serverUrl}/api/notifications/events?token=${encodeURIComponent(token)}`,
         )
-        console.log("SSE connection established...")
+        eventStream.onopen = () => {
+          console.log("SSE connection opened")
+        }
 
-        eventStream.addEventListener("handover_request", event => {
+        const handleHandoverRequest = (event: MessageEvent<string>) => {
           const data = JSON.parse(event.data) as {
-            type: string
-            conversation_id: string
+            id?: string
+            request_id?: string
+            type?: string
+            conversation_id?: string
           }
-          toast.info(`Handover request received ${data.type}`)
-        })
+          const conversationId = data.conversation_id
+
+          if (!conversationId) {
+            console.error("Ignoring handover event without conversation_id")
+            return
+          }
+
+          addNotification({
+            id:
+              event.lastEventId ||
+              data.id ||
+              data.request_id ||
+              `handover_request:${conversationId}`,
+            type: "handover_request",
+            conversationId,
+            createdAt: Date.now(),
+          })
+          toast.info("Agent request received")
+        }
+
+        eventStream.addEventListener("handover_request", handleHandoverRequest)
+        eventStream.addEventListener("agent_request", handleHandoverRequest)
 
         eventStream.onerror = error => {
           console.error("SSE connection error:", error)
@@ -52,7 +79,7 @@ export default function Boot() {
       cancelled = true
       eventStream?.close()
     }
-  }, [])
+  }, [addNotification])
 
   return <Toaster richColors />
 }

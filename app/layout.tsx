@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import QueryProvider from "./query-provider";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Boot from "./boot";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -89,7 +88,6 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Boot />
         <QueryProvider>
           {children}
         </QueryProvider>

@@ -24,6 +24,9 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar'
+import { useDashboardNotifications } from '@/app/dashboard/notifications/NotificationProvider'
+import { useRouter } from 'next/navigation'
+import { formatDistanceToNow } from 'date-fns'
 
 import useSignout from '../hooks/use-signout'
 
@@ -59,6 +62,8 @@ function capitalizeName(name: string): string {
 export function NavUser({ user }: { user: AppUser }) {
   const { isMobile } = useSidebar()
   const { signOut } = useSignout()
+  const router = useRouter()
+  const { notifications, unreadCount, markRead } = useDashboardNotifications()
 
   const fullName = user.fullName || ''
   const rawDisplayName = fullName || user.email?.split('@')[0] || 'User'
@@ -68,6 +73,68 @@ export function NavUser({ user }: { user: AppUser }) {
 
   return (
     <SidebarMenu>
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuButton
+              size='sm'
+              className='relative h-9 rounded-lg border border-slate-200/80 bg-white text-slate-600 shadow-sm hover:bg-sky-50/60 data-[state=open]:bg-sky-50/80'>
+              <Bell />
+              <span className='group-data-[collapsible=icon]/sidebar-wrapper:hidden'>
+                Notifications
+              </span>
+              {unreadCount > 0 && (
+                <span className='absolute top-1.5 right-1.5 flex size-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-semibold text-white'>
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </SidebarMenuButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            className='w-72 rounded-xl border-slate-200'
+            side={isMobile ? 'bottom' : 'right'}
+            align='end'
+            sideOffset={8}>
+            <DropdownMenuLabel className='text-xs'>
+              Agent requests
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {notifications.length === 0 ? (
+              <DropdownMenuItem disabled className='rounded-lg text-xs'>
+                No new requests
+              </DropdownMenuItem>
+            ) : (
+              notifications.slice(0, 5).map(notification => (
+                <DropdownMenuItem
+                  key={notification.id}
+                  className='items-start rounded-lg'
+                  onSelect={() => {
+                    markRead(notification.id)
+                    router.push(
+                      `/dashboard/users/conversations/${notification.conversationId}`,
+                    )
+                  }}>
+                  <Bell className='mt-0.5' />
+                  <span className='min-w-0 flex-1'>
+                    <span className='block truncate font-medium'>
+                      Agent request
+                    </span>
+                    <span className='block text-[10px] text-muted-foreground'>
+                      Conversation ·{' '}
+                      {formatDistanceToNow(notification.createdAt, {
+                        addSuffix: true,
+                      })}
+                    </span>
+                  </span>
+                  {!notification.read && (
+                    <span className='mt-1.5 size-1.5 shrink-0 rounded-full bg-sky-600' />
+                  )}
+                </DropdownMenuItem>
+              ))
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -127,10 +194,6 @@ export function NavUser({ user }: { user: AppUser }) {
               <DropdownMenuItem className='rounded-lg'>
                 <CreditCard />
                 Billing
-              </DropdownMenuItem>
-              <DropdownMenuItem className='rounded-lg'>
-                <Bell />
-                Notifications
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

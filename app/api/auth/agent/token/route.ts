@@ -52,10 +52,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const agent = await prisma.users.findUnique({
+    where: { id: userId },
+    select: { fullName: true, email: true },
+  })
+
   if (agent_takeover) {
     await prisma.conversationsMeta.update({
       where: { id: conversation.id },
-      data: { mode: 'human' },
+      data: { mode: 'human', handOverStatus: 'accepted' },
     })
   }
 
@@ -74,5 +79,12 @@ export async function POST(request: NextRequest) {
     privateKey
   )
 
-  return NextResponse.json({ token: agentJwt, conversation_id: conversation.id }, { status: 200 })
+  return NextResponse.json(
+    {
+      token: agentJwt,
+      conversation_id: conversation.id,
+      agent_name: agent?.fullName || agent?.email || null,
+    },
+    { status: 200 },
+  )
 }

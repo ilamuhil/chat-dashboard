@@ -12,6 +12,8 @@ import { cookies } from 'next/headers'
 import { verifyAuthToken } from '@/lib/auth-token'
 import { prisma } from '@/lib/prisma'
 import { getOnboardingStatus } from '@/lib/auth-server'
+import Boot from '@/app/boot'
+import { NotificationProvider } from '@/app/dashboard/notifications/NotificationProvider'
 
 export default async function DashboardLayout({
   children,
@@ -63,23 +65,26 @@ export default async function DashboardLayout({
     }))
   
   return (
-    <SidebarProvider className='h-svh overflow-hidden'>
-      <AppSidebar user={user} organizations={organizations} />
-      <SidebarInset className='min-h-0 overflow-hidden bg-slate-50'>
-        <header className='flex h-14 shrink-0 items-center border-b border-slate-200/80 bg-linear-to-r from-white via-white to-sky-50/40 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12'>
-          <div className='flex w-full items-center gap-3 px-4'>
-            <SidebarTrigger className='size-8 rounded-lg border border-slate-200/80 bg-white text-slate-600 shadow-sm hover:bg-sky-50 hover:text-sky-800' />
-            <Separator
-              orientation='vertical'
-              className='data-[orientation=vertical]:h-5 bg-slate-200'
-            />
-            <DashboardBreadcrumb />
-          </div>
-        </header>
-        <main className='flex min-h-0 flex-1 flex-col overflow-hidden bg-linear-to-b from-slate-50 via-slate-50 to-sky-50/30 px-4 py-6'>
-          {children}
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
+    <NotificationProvider>
+      <SidebarProvider className='h-svh overflow-hidden'>
+        <Boot />
+        <AppSidebar user={user} organizations={organizations} />
+        <SidebarInset className='min-h-0 overflow-hidden bg-slate-50'>
+          <header className='flex h-14 shrink-0 items-center border-b border-slate-200/80 bg-linear-to-r from-white via-white to-sky-50/40 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12'>
+            <div className='flex w-full items-center gap-3 px-4'>
+              <SidebarTrigger className='size-8 rounded-lg border border-slate-200/80 bg-white text-slate-600 shadow-sm hover:bg-sky-50 hover:text-sky-800' />
+              <Separator
+                orientation='vertical'
+                className='data-[orientation=vertical]:h-5 bg-slate-200'
+              />
+              <DashboardBreadcrumb />
+            </div>
+          </header>
+          <main className='flex min-h-0 flex-1 flex-col overflow-hidden bg-linear-to-b from-slate-50 via-slate-50 to-sky-50/30 px-4 py-6'>
+            {children}
+          </main>
+        </SidebarInset>
+      </SidebarProvider>
+    </NotificationProvider>
   )
 }

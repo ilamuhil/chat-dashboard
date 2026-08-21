@@ -21,6 +21,8 @@ export default async function ConversationPage({ params }: { params: { id: strin
   }
 
   let messages: Message[] = []
+  let conversationMode = 'ai'
+  let conversationHandOverStatus = 'none'
 
   try {
     //get conversation and check if it belongs to the organization.
@@ -28,12 +30,14 @@ export default async function ConversationPage({ params }: { params: { id: strin
 
     const conversation = await prisma.conversationsMeta.findFirst({
       where: { id: conversationId, organizationId },
-      select: { botId: true },
+      select: { botId: true, mode: true, handOverStatus: true },
     })
     if (!conversation || !conversation.botId) {
       console.error('Conversation not found')
       return notFound()
     }
+    conversationMode = conversation.mode
+    conversationHandOverStatus = conversation.handOverStatus ?? 'none'
 
     const privateKey = getSecretKey()
     if (!privateKey) {
@@ -66,7 +70,10 @@ export default async function ConversationPage({ params }: { params: { id: strin
 
   return (
     <ChatInterface
+      conversationId={conversationId}
       messages={messages}
+      initialMode={conversationMode}
+      initialHandOverStatus={conversationHandOverStatus}
     />
   )
 

@@ -31,6 +31,7 @@ import { ReactNode, useMemo, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { useDashboardNotifications } from '@/app/dashboard/notifications/NotificationProvider'
 
 type LeadCategory = 'hot' | 'warm' | 'cold' | 'unassigned'
 type ChatFilter = LeadCategory | 'archived'
@@ -42,6 +43,7 @@ type Chats = {
   phone: string
   lastMessageAt: string | null
   highlightSnippet: string | null
+  handOverStatus: string | null
 }
 
 type ChatMeta = {
@@ -134,6 +136,7 @@ export default function ConversationShell(props: {
   const router = useRouter()
   const pathname = usePathname()
   const activeConversationId = pathname?.split('/').filter(Boolean).at(-1)
+  const { notifications } = useDashboardNotifications()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState<ChatFilter>('unassigned')
@@ -517,6 +520,11 @@ export default function ConversationShell(props: {
               const isActive = activeConversationId === chat.id
               const meta = getMeta(chat.id)
               const isSelected = selectedIds.has(chat.id)
+              const hasAgentRequest = notifications.some(
+                notification =>
+                  notification.conversationId === chat.id &&
+                  !notification.read,
+              ) || chat.handOverStatus === 'requested'
 
               return (
                 <div
@@ -565,6 +573,7 @@ export default function ConversationShell(props: {
                           </h3>
                           {chat.lastMessageAt && (
                             <time
+                              suppressHydrationWarning
                               className={cn(
                                 'shrink-0 text-[11px]',
                                 isActive
@@ -593,6 +602,12 @@ export default function ConversationShell(props: {
                           {meta.archived && (
                             <span className='inline-flex rounded-md border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[10px] font-medium text-violet-700'>
                               Archived
+                            </span>
+                          )}
+                          {hasAgentRequest && (
+                            <span className='inline-flex shrink-0 items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700'>
+                              <span className='size-1.5 rounded-full bg-amber-500' />
+                              Agent request
                             </span>
                           )}
                           <p className='min-w-0 flex-1 truncate text-xs text-slate-600'>

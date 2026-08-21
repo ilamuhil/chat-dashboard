@@ -1,20 +1,56 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { PaperclipIcon, SendIcon, MessagesSquareIcon } from 'lucide-react'
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { Message } from './types'
+import { renderChatMarkdown } from './markdown'
 
 type ChatWindowProps = {
   messages: Message[]
   expanded?: boolean
+  onSendMessage?: (content: string) => void
+  isSending?: boolean
+  disabled?: boolean
 }
 
 export default function ChatWindow(props: ChatWindowProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const scrollAnchorRef = useRef<HTMLDivElement>(null)
+  const didInitialScrollRef = useRef(false)
+  const [draft, setDraft] = useState('')
+
+  const sendDraft = () => {
+    const content = draft.trim()
+    if (!content || !props.onSendMessage || props.disabled || props.isSending) {
+      return
+    }
+    props.onSendMessage(content)
+    setDraft('')
+  }
+
+  useEffect(() => {
+    const element = textareaRef.current
+    if (!element) return
+    element.style.height = 'auto'
+    element.style.height = `${Math.min(element.scrollHeight, 120)}px`
+  }, [draft])
+
+  const lastMessage = props.messages[props.messages.length - 1]
+  useEffect(() => {
+    scrollAnchorRef.current?.scrollIntoView({
+      behavior: didInitialScrollRef.current ? 'smooth' : 'auto',
+      block: 'end',
+    })
+    didInitialScrollRef.current = true
+  }, [
+    props.messages.length,
+    lastMessage?.id,
+    lastMessage?.content,
+  ])
 
   const handleFileUpload = () => {
     fileInputRef.current?.click()
@@ -107,14 +143,17 @@ export default function ChatWindow(props: ChatWindowProps) {
           <div
             className={cn(
               borderRadiusClasses,
-              'px-3.5 py-2.5 text-sm shadow-sm',
+              'min-w-0 px-3.5 py-2.5 text-[13px] shadow-sm',
               visualRole === 'user'
                 ? 'border border-slate-200/80 bg-white text-slate-900'
                 : 'bg-linear-to-br from-sky-600 to-slate-700 text-white'
             )}>
-            <p className='leading-relaxed whitespace-pre-wrap'>
-              {message.content}
-            </p>
+            <div
+              className='chat-markdown wrap-break-word'
+              dangerouslySetInnerHTML={{
+                __html: renderChatMarkdown(message.content),
+              }}
+            />
           </div>
           {showTimestamp && (
             <time className='mt-1 px-1 text-[11px] text-muted-foreground'>
@@ -152,6 +191,7 @@ export default function ChatWindow(props: ChatWindowProps) {
             renderMessage(message, index, props.messages)
           )
         )}
+        <div ref={scrollAnchorRef} aria-hidden='true' />
       </div>
 
       <div className='shrink-0 border-t border-slate-200/80 bg-white/90 px-3 py-3 backdrop-blur-sm'>
@@ -172,14 +212,31 @@ export default function ChatWindow(props: ChatWindowProps) {
             className='size-9 shrink-0 rounded-lg border-slate-200 hover:bg-slate-50'>
             <PaperclipIcon className='size-4' />
           </Button>
-          <Input
-            type='text'
+          <textarea
             placeholder='Type your message…'
-            className='h-9 flex-1 border-slate-200 text-sm shadow-sm'
+            className='h-9 min-h-9 flex-1 resize-none rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm outline-none placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-sky-500/30 disabled:cursor-not-allowed disabled:opacity-50'
+            value={draft}
+            onChange={event => setDraft(event.target.value)}
+            rows={1}
+            ref={textareaRef}
+            disabled={props.disabled || props.isSending}
+            onKeyDown={event => {
+              if (event.key !== 'Enter' || event.shiftKey) return
+              if (event.nativeEvent.isComposing) return
+              event.preventDefault()
+              sendDraft()
+            }}
           />
           <Button
             type='button'
             size='icon'
+            disabled={
+              !draft.trim() ||
+              props.disabled ||
+              props.isSending ||
+              !props.onSendMessage
+            }
+            onClick={sendDraft}
             className='size-9 rounded-lg bg-linear-to-r from-slate-800 to-sky-800 shadow-sm hover:from-slate-900 hover:to-sky-900'>
             <SendIcon className='size-4' />
           </Button>
