@@ -14,6 +14,7 @@ import { prisma } from '@/lib/prisma'
 import { getOnboardingStatus } from '@/lib/auth-server'
 import Boot from '@/app/boot'
 import { NotificationProvider } from '@/app/dashboard/notifications/NotificationProvider'
+import DashboardNotifications from '@/components/dashboard-notifications'
 
 export default async function DashboardLayout({
   children,
@@ -78,6 +79,9 @@ export default async function DashboardLayout({
                 className='data-[orientation=vertical]:h-5 bg-slate-200'
               />
               <DashboardBreadcrumb />
+              <div className='ml-auto'>
+                <DashboardNotifications />
+              </div>
             </div>
           </header>
           <main className='flex min-h-0 flex-1 flex-col overflow-hidden bg-linear-to-b from-slate-50 via-slate-50 to-sky-50/30 px-4 py-6'>

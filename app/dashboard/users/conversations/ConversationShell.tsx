@@ -27,7 +27,7 @@ import {
   XIcon,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
-import { ReactNode, useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -59,47 +59,47 @@ const FILTERS: Array<{
   activeClass: string
   badgeClass: string
 }> = [
-  {
-    id: 'unassigned',
-    label: 'Unassigned',
-    shortLabel: 'Unassigned',
-    icon: InboxIcon,
-    activeClass: 'border-slate-300 bg-slate-100 text-slate-800',
-    badgeClass: 'bg-slate-200 text-slate-700',
-  },
-  {
-    id: 'hot',
-    label: 'Hot leads',
-    shortLabel: 'Hot',
-    icon: FlameIcon,
-    activeClass: 'border-rose-200 bg-rose-50 text-rose-800',
-    badgeClass: 'bg-rose-100 text-rose-700',
-  },
-  {
-    id: 'warm',
-    label: 'Warm leads',
-    shortLabel: 'Warm',
-    icon: SunMediumIcon,
-    activeClass: 'border-amber-200 bg-amber-50 text-amber-800',
-    badgeClass: 'bg-amber-100 text-amber-700',
-  },
-  {
-    id: 'cold',
-    label: 'Cold leads',
-    shortLabel: 'Cold',
-    icon: SnowflakeIcon,
-    activeClass: 'border-sky-200 bg-sky-50 text-sky-800',
-    badgeClass: 'bg-sky-100 text-sky-700',
-  },
-  {
-    id: 'archived',
-    label: 'Archived',
-    shortLabel: 'Archived',
-    icon: ArchiveIcon,
-    activeClass: 'border-violet-200 bg-violet-50 text-violet-800',
-    badgeClass: 'bg-violet-100 text-violet-700',
-  },
-]
+    {
+      id: 'unassigned',
+      label: 'Unassigned',
+      shortLabel: 'Unassigned',
+      icon: InboxIcon,
+      activeClass: 'border-slate-300 bg-slate-100 text-slate-800',
+      badgeClass: 'bg-slate-200 text-slate-700',
+    },
+    {
+      id: 'hot',
+      label: 'Hot leads',
+      shortLabel: 'Hot',
+      icon: FlameIcon,
+      activeClass: 'border-rose-200 bg-rose-50 text-rose-800',
+      badgeClass: 'bg-rose-100 text-rose-700',
+    },
+    {
+      id: 'warm',
+      label: 'Warm leads',
+      shortLabel: 'Warm',
+      icon: SunMediumIcon,
+      activeClass: 'border-amber-200 bg-amber-50 text-amber-800',
+      badgeClass: 'bg-amber-100 text-amber-700',
+    },
+    {
+      id: 'cold',
+      label: 'Cold leads',
+      shortLabel: 'Cold',
+      icon: SnowflakeIcon,
+      activeClass: 'border-sky-200 bg-sky-50 text-sky-800',
+      badgeClass: 'bg-sky-100 text-sky-700',
+    },
+    {
+      id: 'archived',
+      label: 'Archived',
+      shortLabel: 'Archived',
+      icon: ArchiveIcon,
+      activeClass: 'border-violet-200 bg-violet-50 text-violet-800',
+      badgeClass: 'bg-violet-100 text-violet-700',
+    },
+  ]
 
 const CATEGORY_LABEL: Record<LeadCategory, string> = {
   hot: 'Hot',
@@ -136,7 +136,8 @@ export default function ConversationShell(props: {
   const router = useRouter()
   const pathname = usePathname()
   const activeConversationId = pathname?.split('/').filter(Boolean).at(-1)
-  const { notifications } = useDashboardNotifications()
+  const { notifications, markConversationRead } =
+    useDashboardNotifications()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState<ChatFilter>('unassigned')
@@ -520,11 +521,18 @@ export default function ConversationShell(props: {
               const isActive = activeConversationId === chat.id
               const meta = getMeta(chat.id)
               const isSelected = selectedIds.has(chat.id)
-              const hasAgentRequest = notifications.some(
+              const hasUnreadAgentRequest = notifications.some(
                 notification =>
-                  notification.conversationId === chat.id &&
-                  !notification.read,
-              ) || chat.handOverStatus === 'requested'
+                  notification.type === 'handover_request' &&
+                  notification.metadata.conversationId === chat.id &&
+                  !notification.readAt
+              )
+
+              const hasAgentRequest =
+                chat.handOverStatus === 'requested' ||
+                ((chat.handOverStatus === null ||
+                  chat.handOverStatus === 'none') &&
+                  hasUnreadAgentRequest)
 
               return (
                 <div
@@ -554,6 +562,8 @@ export default function ConversationShell(props: {
                         toggleSelect(chat.id)
                         return
                       }
+
+                      void markConversationRead(chat.id)
                       router.push(`/dashboard/users/conversations/${chat.id}`)
                     }}>
                     <div className='flex items-start gap-2.5'>

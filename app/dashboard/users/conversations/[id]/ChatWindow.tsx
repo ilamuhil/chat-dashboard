@@ -1,7 +1,12 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { PaperclipIcon, SendIcon, MessagesSquareIcon } from 'lucide-react'
+import {
+  CheckCircle2Icon,
+  PaperclipIcon,
+  SendIcon,
+  MessagesSquareIcon,
+} from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { cn } from '@/lib/utils'
@@ -16,16 +21,41 @@ type ChatWindowProps = {
   disabled?: boolean
 }
 
+function isConversationEndedMessage(message: Message) {
+  const endedContentTypes = [
+    'end_chat',
+    'chat_ended',
+    'chat_closed',
+    'conversation_end',
+    'conversation_ended',
+    'conversation_closed',
+  ]
+
+  if (endedContentTypes.includes(message.content_type)) {
+    return true
+  }
+
+  return (
+    message.role === 'system' &&
+    /\b(?:chat|conversation)\b.*\b(?:ended|closed)\b|\b(?:ended|closed)\b.*\b(?:chat|conversation)\b|\b(?:ended|closed)\b.*\b(?:user|visitor)\b/i.test(
+      message.content,
+    )
+  )
+}
+
 export default function ChatWindow(props: ChatWindowProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const scrollAnchorRef = useRef<HTMLDivElement>(null)
   const didInitialScrollRef = useRef(false)
   const [draft, setDraft] = useState('')
+  const conversationEnded = props.messages.some(isConversationEndedMessage)
+  const composerDisabled =
+    props.disabled || props.isSending || conversationEnded
 
   const sendDraft = () => {
     const content = draft.trim()
-    if (!content || !props.onSendMessage || props.disabled || props.isSending) {
+    if (!content || !props.onSendMessage || composerDisabled) {
       return
     }
     props.onSendMessage(content)
@@ -68,6 +98,19 @@ export default function ChatWindow(props: ChatWindowProps) {
     index: number,
     messages: Array<Message>
   ) => {
+    if (isConversationEndedMessage(message)) {
+      return (
+        <div
+          key={message.id}
+          className='flex justify-center px-4 py-5'>
+          <div className='flex items-center gap-2 rounded-xl border border-slate-200/80 bg-white/80 px-3.5 py-2.5 text-xs text-slate-500 shadow-sm'>
+            <CheckCircle2Icon className='size-4 text-slate-400' />
+            <span>Conversation ended by the visitor</span>
+          </div>
+        </div>
+      )
+    }
+
     const isUser = message.role === 'user'
     const visualRole = isUser ? 'user' : 'assistant'
     const isLastMessage = index === messages.length - 1
@@ -203,12 +246,14 @@ export default function ChatWindow(props: ChatWindowProps) {
             className='hidden'
             onChange={handleFileChange}
             accept='image/*,application/pdf,.doc,.docx,.txt'
+            disabled={composerDisabled}
           />
           <Button
             type='button'
             variant='outline'
             size='icon'
             onClick={handleFileUpload}
+            disabled={composerDisabled}
             className='size-9 shrink-0 rounded-lg border-slate-200 hover:bg-slate-50'>
             <PaperclipIcon className='size-4' />
           </Button>
@@ -219,7 +264,7 @@ export default function ChatWindow(props: ChatWindowProps) {
             onChange={event => setDraft(event.target.value)}
             rows={1}
             ref={textareaRef}
-            disabled={props.disabled || props.isSending}
+            disabled={composerDisabled}
             onKeyDown={event => {
               if (event.key !== 'Enter' || event.shiftKey) return
               if (event.nativeEvent.isComposing) return
@@ -232,8 +277,7 @@ export default function ChatWindow(props: ChatWindowProps) {
             size='icon'
             disabled={
               !draft.trim() ||
-              props.disabled ||
-              props.isSending ||
+              composerDisabled ||
               !props.onSendMessage
             }
             onClick={sendDraft}

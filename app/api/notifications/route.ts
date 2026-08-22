@@ -1,0 +1,31 @@
+import { NextResponse } from 'next/server'
+
+import { requireAuthUserId } from '@/lib/auth-server'
+import { resolveCurrentOrganizationId } from '@/lib/current-organization'
+import { prisma } from '@/lib/prisma'
+
+export async function GET() {
+  const userId = await requireAuthUserId()
+
+  const organizationId = await resolveCurrentOrganizationId({ userId })
+
+  if (!organizationId) {
+    return NextResponse.json(
+      { error: 'No organization selected' },
+      { status: 400 },
+    )
+  }
+
+  const notifications = await prisma.notifications.findMany({
+    where: {
+      userId,
+      organizationId,
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+    take: 50,
+  })
+
+  return NextResponse.json(notifications)
+}
