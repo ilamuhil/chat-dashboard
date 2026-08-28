@@ -16,7 +16,6 @@ export async function POST(request: NextRequest) {
   const parsed = z
     .object({
       api_key: z.string().min(1),
-      bot_id: z.string().uuid(),
     })
     .safeParse(body)
 
@@ -31,10 +30,21 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const { api_key, bot_id } = parsed.data
+  const { api_key } = parsed.data
+
+  const apiKey = await prisma.apiKeys.findFirst({
+    where: { keyHash: hashApiKey(api_key), isActive: true },
+    select: { id: true, botId: true, organizationId: true },
+  })
+  if (!apiKey?.botId) {
+    return NextResponse.json(
+      { error: 'Invalid api key' },
+      { status: 401, headers: corsHeaders },
+    )
+  }
 
   const bot = await prisma.bots.findUnique({
-    where: { id: bot_id },
+    where: { id: apiKey.botId },
     select: {
       id: true,
       organizationId: true,
@@ -51,21 +61,10 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const apiKey = await prisma.apiKeys.findFirst({
-    where: { keyHash: hashApiKey(api_key), isActive: true, botId: bot_id },
-    select: { id: true },
-  })
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: 'Invalid api key' },
-      { status: 401, headers: corsHeaders },
-    )
-  }
-
   const conversation = await prisma.conversationsMeta.create({
     data: {
       organizationId: bot.organizationId,
-      botId: bot_id,
+      botId: bot.id,
       apiKeyId: apiKey.id,
       status: 'open',
       lastMessageAt: new Date(),
@@ -84,7 +83,7 @@ export async function POST(request: NextRequest) {
   const token = signToken(
     {
       organization_id: bot.organizationId,
-      bot_id: bot_id,
+      bot_id: bot.id,
       conversation_id: conversation.id,
       type: 'user',
     },
