@@ -16,7 +16,12 @@ import { Switch } from '@/components/ui/switch'
 import { useActionState, useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { Checkbox } from '@/components/ui/checkbox'
-import { updateBotInteractions, type BotResult, type Bot } from './action'
+import {
+  updateBotInteractions,
+  type BotResult,
+  type Bot,
+  type BotFormValues,
+} from './action'
 import { Spinner } from '@/components/ui/spinner'
 import { toast } from 'sonner'
 import { InfoIcon } from 'lucide-react'
@@ -49,9 +54,10 @@ const ConfigureBotForm = (props: BotProps) => {
   })
 
   const bot = state?.bot || props.bot
+  const values: BotFormValues | undefined = state?.formValues
 
   const [leadCapture, setLeadCapture] = useState(
-    () => bot?.capture_leads || false
+    () => values?.capture_leads ?? bot?.capture_leads ?? false
   )
 
   useEffect(() => {
@@ -75,7 +81,7 @@ const ConfigureBotForm = (props: BotProps) => {
 
   return (
     <form
-      key={bot?.updated_at || bot?.id || 'new'}
+      key={state?.nonce || bot?.updated_at || bot?.id || 'new'}
       action={formAction}
       className='space-y-5'>
       <input type='hidden' name='bot_id' defaultValue={bot?.id || ''} />
@@ -97,7 +103,7 @@ const ConfigureBotForm = (props: BotProps) => {
               id='bot-name'
               name='name'
               type='text'
-              defaultValue={bot?.name}
+              defaultValue={values?.name ?? bot?.name ?? ''}
               placeholder='Ex: Siri, Alexa, etc.'
               className={fieldControlClass}
               required
@@ -111,14 +117,14 @@ const ConfigureBotForm = (props: BotProps) => {
               id='institute-name'
               name='institute_name'
               type='text'
-              defaultValue={bot?.institute_name || ''}
+              defaultValue={values?.institute_name ?? bot?.institute_name ?? ''}
               placeholder='Ex: Springfield Institute'
               className={fieldControlClass}
             />
           </div>
           <div className='space-y-1.5'>
             <Label className={fieldLabelClass}>Tone</Label>
-            <Select name='tone' required defaultValue={bot?.tone || ''}>
+            <Select name='tone' required defaultValue={values?.tone ?? bot?.tone ?? ''}>
               <SelectTrigger className={cn('w-full', fieldControlClass)}>
                 <SelectValue placeholder='Friendly' />
               </SelectTrigger>
@@ -138,7 +144,7 @@ const ConfigureBotForm = (props: BotProps) => {
           </div>
           <div className='space-y-1.5'>
             <Label className={fieldLabelClass}>Role of the Bot</Label>
-            <Select name='role' required defaultValue={bot?.role || ''}>
+            <Select name='role' required defaultValue={values?.role ?? bot?.role ?? ''}>
               <SelectTrigger className={cn('w-full', fieldControlClass)}>
                 <SelectValue placeholder='Customer Support' />
               </SelectTrigger>
@@ -175,7 +181,7 @@ const ConfigureBotForm = (props: BotProps) => {
               type='text'
               placeholder='Ex: Hello, how can I help you today?'
               className={fieldControlClass}
-              defaultValue={bot?.first_message || ''}
+              defaultValue={values?.first_message ?? bot?.first_message ?? ''}
               required
             />
           </div>
@@ -190,7 +196,11 @@ const ConfigureBotForm = (props: BotProps) => {
                 placeholder='Can I please get your name and email for more information?'
                 rows={4}
                 className='min-h-28 resize-y border-slate-200 text-sm shadow-sm'
-                defaultValue={bot?.lead_capture_message || ''}
+                defaultValue={
+                  values?.lead_capture_message ??
+                  bot?.lead_capture_message ??
+                  ''
+                }
               />
             </div>
             <div className='space-y-1.5'>
@@ -203,7 +213,11 @@ const ConfigureBotForm = (props: BotProps) => {
                 placeholder='Thank you for your information! We will get back to you soon.'
                 rows={4}
                 className='min-h-28 resize-y border-slate-200 text-sm shadow-sm'
-                defaultValue={bot?.confirmation_message || ''}
+                defaultValue={
+                  values?.confirmation_message ??
+                  bot?.confirmation_message ??
+                  ''
+                }
               />
             </div>
           </div>
@@ -255,7 +269,11 @@ const ConfigureBotForm = (props: BotProps) => {
             rows={6}
             className='min-h-36 resize-y border-slate-200 text-sm shadow-sm'
             required
-            defaultValue={bot?.business_description || ''}
+            defaultValue={
+              values?.business_description ??
+              bot?.business_description ??
+              ''
+            }
           />
         </div>
       </section>
@@ -326,11 +344,12 @@ const ConfigureBotForm = (props: BotProps) => {
                 <RadioGroup
                   name='lead_capture_timing'
                   defaultValue={
-                    bot?.lead_capture_timing === 'start'
+                    values?.lead_capture_timing ||
+                    (bot?.lead_capture_timing === 'start'
                       ? 'before-conversation'
                       : bot?.lead_capture_timing === 'after_first'
                         ? 'after-first-message'
-                        : 'before-conversation'
+                        : 'before-conversation')
                   }
                   className='space-y-2.5'>
                   <div className='flex items-center gap-2.5'>
@@ -361,7 +380,9 @@ const ConfigureBotForm = (props: BotProps) => {
                     <Checkbox
                       id='capture-name'
                       name='capture_name'
-                      defaultChecked={bot?.capture_name || false}
+                      defaultChecked={
+                        values?.capture_name ?? bot?.capture_name ?? false
+                      }
                     />
                     <Label
                       htmlFor='capture-name'
@@ -373,7 +394,9 @@ const ConfigureBotForm = (props: BotProps) => {
                     <Checkbox
                       id='capture-email'
                       name='capture_email'
-                      defaultChecked={bot?.capture_email || false}
+                      defaultChecked={
+                        values?.capture_email ?? bot?.capture_email ?? false
+                      }
                     />
                     <Label
                       htmlFor='capture-email'
@@ -385,7 +408,9 @@ const ConfigureBotForm = (props: BotProps) => {
                     <Checkbox
                       id='capture-phone'
                       name='capture_phone'
-                      defaultChecked={bot?.capture_phone || false}
+                      defaultChecked={
+                        values?.capture_phone ?? bot?.capture_phone ?? false
+                      }
                     />
                     <Label
                       htmlFor='capture-phone'

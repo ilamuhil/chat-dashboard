@@ -20,9 +20,7 @@ export default async function ConversationsLayout({
           lastMessageAt: true,
           lastMessageSnippet: true,
           handOverStatus: true,
-          leads: {
-            orderBy: { capturedAt: 'desc' },
-            take: 1,
+          lead: {
             select: {
               name: true,
               email: true,
@@ -34,7 +32,7 @@ export default async function ConversationsLayout({
       })
     : []
   const chats = conversations.map(c => {
-    const lead = c.leads[0]
+    const lead = c.lead
     return {
       id: c.id,
       name: lead?.name || 'Unknown',

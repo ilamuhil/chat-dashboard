@@ -107,6 +107,7 @@ created_at           timestamptz DEFAULT now()
 mode                 text DEFAULT 'ai'
 organization_id      text REFERENCES organizations(id)
 bot_id               uuid REFERENCES bots(id)
+lead_id              uuid REFERENCES leads(id)
 api_key_id           uuid REFERENCES api_keys(id)
 user_name            text
 user_email           text
@@ -124,7 +125,6 @@ email                text
 phone                text
 organization_id      text REFERENCES organizations(id)
 bot_id               uuid REFERENCES bots(id)
-conversation_id      uuid REFERENCES conversations_meta(id)
 
 
 training_sources

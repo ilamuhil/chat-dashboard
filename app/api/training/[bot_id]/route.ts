@@ -152,10 +152,29 @@ export async function POST(
   } catch (error: unknown) {
     const fallbackErrorMessage = 'Error occurred while training the bot. Please try again.'
     if (isAxiosError(error)) {
-      console.error('Queueing failed', error.response?.data)
-      const data = error.response?.data as { error?: string } | undefined
+      const data = error.response?.data as
+        | {
+            error?: unknown
+            detail?: unknown
+            message?: unknown
+          }
+        | undefined
+      const upstreamMessage =
+        typeof data?.error === 'string'
+          ? data.error
+          : typeof data?.detail === 'string'
+            ? data.detail
+            : typeof data?.message === 'string'
+              ? data.message
+              : error.message
+
+      console.error('Queueing failed', {
+        status: error.response?.status,
+        message: upstreamMessage,
+      })
+
       return NextResponse.json(
-        { error: data?.error || fallbackErrorMessage },
+        { error: upstreamMessage || fallbackErrorMessage },
         { status: error.response?.status ?? 500 }
       )
     } else {

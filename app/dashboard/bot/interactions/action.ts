@@ -33,6 +33,23 @@ export type BotResult = {
   success?: string
   bot?: Bot | null
   nonce?: string | null
+  formValues?: BotFormValues
+}
+
+export type BotFormValues = {
+  name: string
+  institute_name: string
+  tone: string
+  role: string
+  first_message: string
+  lead_capture_message: string
+  confirmation_message: string
+  business_description: string
+  capture_leads: boolean
+  lead_capture_timing: string
+  capture_name: boolean
+  capture_email: boolean
+  capture_phone: boolean
 }
 
 const botMetSchema = z.object({
@@ -116,6 +133,30 @@ export async function updateBotInteractions(
     capturePhoneValue === 'true' ||
     capturePhoneValue?.toString() === 'true'
 
+  const formValues: BotFormValues = {
+    name: String(formData.get('name') ?? ''),
+    institute_name: String(formData.get('institute_name') ?? ''),
+    tone: String(formData.get('tone') ?? ''),
+    role: String(formData.get('role') ?? ''),
+    first_message: String(formData.get('first_message') ?? ''),
+    lead_capture_message: String(
+      formData.get('lead_capture_message') ?? '',
+    ),
+    confirmation_message: String(
+      formData.get('confirmation_message') ?? '',
+    ),
+    business_description: String(
+      formData.get('business_description') ?? '',
+    ),
+    capture_leads: captureLeads,
+    lead_capture_timing: String(
+      formData.get('lead_capture_timing') ?? '',
+    ),
+    capture_name: captureName,
+    capture_email: captureEmail,
+    capture_phone: capturePhone,
+  }
+
   const validatedFields = botMetSchema.safeParse({
     name: formData.get('name'),
     institute_name: formData.get('institute_name'),
@@ -141,7 +182,7 @@ export async function updateBotInteractions(
       }
       fieldErrors[path].push(issue.message)
     })
-    return { error: fieldErrors, nonce }
+    return { error: fieldErrors, nonce, formValues }
   }
 
   const data = validatedFields.data
@@ -223,6 +264,7 @@ export async function updateBotInteractions(
       return {
         error: "Bot not found or you don't have permission to update it",
         nonce,
+        formValues,
       }
     }
 
@@ -285,6 +327,7 @@ export async function updateBotInteractions(
       return {
         error: 'Internal server error',
         nonce,
+        formValues,
       }
     }
 
@@ -312,12 +355,14 @@ export async function updateBotInteractions(
         return {
           error: 'Failed to create bot',
           nonce,
+          formValues,
         }
       } catch (e: unknown) {
         console.error('Error rolling back database transaction:', e)
         return {
           error: 'Failed to create bot',
           nonce,
+          formValues,
         }
       }
     }
