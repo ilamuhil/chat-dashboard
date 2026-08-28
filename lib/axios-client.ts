@@ -34,6 +34,9 @@ clientApiAxios.interceptors.response.use(
     if (status === 401 && typeof window !== 'undefined') {
       window.localStorage.removeItem('auth_token')
     }
+    if (err?.code === 'ECONNABORTED' || err?.code === 'ETIMEDOUT') {
+      return Promise.reject(err)
+    }
     const shouldRetry = !err.response || (status >= 500 && status < 600)
     if (!shouldRetry) return Promise.reject(err)
     config._retryCount = config._retryCount ?? 0

@@ -15,7 +15,7 @@ type UseChatSocketParams = {
   token: string | null
   conversationId: string | null
   onServerMessage?: (data: unknown) => void
-  onCloseCleanUp?: () => void
+  onCloseCleanUp?: (reason?: string) => void
 }
 
 function toWebSocketUrl(httpOrWsUrl: string) {
@@ -112,6 +112,7 @@ export function useChatSocket({
 
       manualCloseRef.current = false
       const socket = new WebSocket(socketUrl)
+      let stableConnectionTimer: ReturnType<typeof setTimeout> | undefined
       socketRef.current = socket
       setReadyState('connecting')
 
@@ -119,8 +120,22 @@ export function useChatSocket({
         if (cancelled || socketRef.current !== socket) return
 
         clearHeartbeat()
-        attempt = 0
         setReadyState('open')
+
+        /*
+         * Do not reset retries immediately on open. The server can accept
+         * the TCP/WebSocket handshake and then reject the auth frame.
+         * A connection that stays open briefly is considered stable.
+         */
+        stableConnectionTimer = setTimeout(() => {
+          if (
+            !cancelled &&
+            socketRef.current === socket &&
+            socket.readyState === WebSocket.OPEN
+          ) {
+            attempt = 0
+          }
+        }, 10_000)
 
         const activeToken = tokenRef.current
         const activeConversationId = conversationIdRef.current
@@ -196,8 +211,12 @@ export function useChatSocket({
         }
       }
 
-      socket.onclose = () => {
+      socket.onclose = event => {
         clearHeartbeat()
+        if (stableConnectionTimer) {
+          clearTimeout(stableConnectionTimer)
+          stableConnectionTimer = undefined
+        }
         if (cancelled) return
 
         if (socketRef.current === socket) {
@@ -213,7 +232,10 @@ export function useChatSocket({
         }
 
         setReadyState('closed')
-        onCloseRef.current?.()
+        onCloseRef.current?.(
+          event.reason ||
+            'The chat server rejected the connection after several attempts.',
+        )
       }
     }
 

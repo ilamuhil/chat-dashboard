@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { isAxiosError } from 'axios'
 import {
   CheckIcon,
   ExpandIcon,
@@ -64,12 +65,13 @@ export default function ChatInterface({
 }: ChatInterfaceProps) {
   const [expandedChat, setExpandedChat] = React.useState(false)
   const [isJoining, setIsJoining] = React.useState(false)
+  const [socketError, setSocketError] = React.useState<string | null>(null)
   const initiallyClosed = initialStatus !== 'open'
 
   const [isJoined, setIsJoined] = React.useState(
     !initiallyClosed &&
-      (initialMode === 'human' ||
-        initialHandOverStatus === 'accepted'),
+    (initialMode === 'human' ||
+      initialHandOverStatus === 'accepted'),
   )
 
   const [socketEnabled, setSocketEnabled] =
@@ -149,9 +151,9 @@ export default function ChatInterface({
       )
         ? (payload.role as ChatMessage['role'])
         : payload.type === 'system' ||
-            conversationEndedTypes.includes(
-              typeof payload.type === 'string' ? payload.type : '',
-            )
+          conversationEndedTypes.includes(
+            typeof payload.type === 'string' ? payload.type : '',
+          )
           ? 'system'
           : 'user'
 
@@ -189,10 +191,10 @@ export default function ChatInterface({
                 typeof payload.content_type === 'string'
                   ? payload.content_type
                   : conversationEndedTypes.includes(
-                        typeof payload.type === 'string'
-                          ? payload.type
-                          : '',
-                      )
+                    typeof payload.type === 'string'
+                      ? payload.type
+                      : '',
+                  )
                     ? payload.type as string
                     : 'text',
               content,
@@ -205,13 +207,16 @@ export default function ChatInterface({
     [conversationId, messages],
   )
 
-  const handleSocketClosed = React.useCallback(() => {
+  const handleSocketClosed = React.useCallback((reason?: string) => {
     setSocketEnabled(false)
     setSocketCredentials(null)
     setIsJoined(false)
+    setSocketError(
+      reason || 'The chat connection could not be established.',
+    )
 
     toast.error(
-      'The live conversation connection was closed',
+      reason || 'The live conversation connection was closed',
     )
   }, [])
 
@@ -244,6 +249,7 @@ export default function ChatInterface({
       setIsJoining(true)
 
       try {
+        setSocketError(null)
         const { data } =
           await clientApiAxios.post<{
             token: string
@@ -252,6 +258,8 @@ export default function ChatInterface({
           }>('/api/auth/agent/token', {
             conversation_id: conversationId,
             agent_takeover: agentTakeover,
+          }, {
+            timeout: 10_000,
           })
 
         if (
@@ -308,10 +316,28 @@ export default function ChatInterface({
         setIsJoined(false)
 
         if (agentTakeover || notify) {
+          const serverError = isAxiosError(error)
+            ? error.response?.data as {
+              error?: unknown
+              detail?: unknown
+              message?: unknown
+            } | undefined
+            : undefined
+          const errorMessage =
+            typeof serverError?.error === 'string'
+              ? serverError.error
+              : typeof serverError?.detail === 'string'
+                ? serverError.detail
+                : typeof serverError?.message === 'string'
+                  ? serverError.message
+                  : isAxiosError(error) &&
+                    (error.code === 'ECONNABORTED' ||
+                      error.code === 'ETIMEDOUT')
+                    ? 'The join request timed out. Please try again.'
+                    : 'Could not join the conversation'
+
           toast.error(
-            agentTakeover
-              ? 'Could not join the conversation'
-              : 'Could not reconnect to the conversation',
+            agentTakeover ? errorMessage : 'Could not reconnect to the conversation',
           )
         }
       } finally {
@@ -479,11 +505,11 @@ export default function ChatInterface({
                 Chat closed
               </span>
             ) : isJoined &&
-              readyState !== 'open' && (
-                <span className='text-[11px] text-muted-foreground'>
-                  Connecting…
-                </span>
-              )}
+            readyState !== 'open' && (
+              <span className='text-[11px] text-muted-foreground'>
+                Connecting…
+              </span>
+            )}
 
             {!conversationEnded &&
               isJoined &&
@@ -532,6 +558,7 @@ export default function ChatInterface({
           <ChatWindow
             messages={chatMessages}
             onSendMessage={sendMessage}
+            connectionError={socketError}
             disabled={
               !isJoined ||
               !socketEnabled ||

@@ -19,6 +19,7 @@ type ChatWindowProps = {
   onSendMessage?: (content: string) => void
   isSending?: boolean
   disabled?: boolean
+  connectionError?: string | null
 }
 
 function isConversationEndedMessage(message: Message) {
@@ -241,6 +242,13 @@ export default function ChatWindow(props: ChatWindowProps) {
         props.expanded ? 'fixed inset-0 z-50 h-dvh w-dvw' : ''
       )}>
       <div className='mb-0 min-h-0 flex-1 overflow-y-auto px-4 py-4 no-scrollbar'>
+        {props.connectionError && (
+          <div
+            role='alert'
+            className='mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700'>
+            {props.connectionError}
+          </div>
+        )}
         {props.messages.length === 0 ? (
           <div className='flex h-full flex-col items-center justify-center text-center'>
             <div className='mb-3 flex size-11 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm ring-1 ring-slate-200/80'>
