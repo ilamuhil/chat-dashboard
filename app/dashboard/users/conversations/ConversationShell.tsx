@@ -497,7 +497,7 @@ export default function ConversationShell(props: {
           )}
         </div>
 
-        <nav className='mt-3 min-h-0 flex-1 space-y-1.5 overflow-y-auto px-2 pb-3 no-scrollbar'>
+        <nav className='mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto px-2 pb-2 no-scrollbar'>
           {filteredChats.length === 0 ? (
             <div className='flex flex-col items-center justify-center px-4 py-12 text-center'>
               <div className='mb-3 flex size-10 items-center justify-center rounded-full bg-slate-100 text-slate-400'>
@@ -538,7 +538,7 @@ export default function ConversationShell(props: {
                 <div
                   key={chat.id}
                   className={cn(
-                    'group relative flex w-full items-start gap-2 rounded-lg border p-2.5 transition-all duration-200',
+                    'group relative flex w-full items-start gap-1.5 rounded-lg border p-2 transition-all duration-200',
                     isActive
                       ? 'border-sky-300 bg-sky-50 shadow-sm ring-1 ring-sky-200/70'
                       : 'border-transparent bg-slate-50/80 hover:border-slate-200 hover:bg-white hover:shadow-sm',
@@ -566,10 +566,10 @@ export default function ConversationShell(props: {
                       void markConversationRead(chat.id)
                       router.push(`/dashboard/users/conversations/${chat.id}`)
                     }}>
-                    <div className='flex items-start gap-2.5'>
+                    <div className='flex items-start gap-2'>
                       <div
                         className={cn(
-                          'flex size-9 shrink-0 items-center justify-center rounded-lg text-xs font-semibold text-white shadow-sm',
+                          'flex size-8 shrink-0 items-center justify-center rounded-lg text-[11px] font-semibold text-white shadow-sm',
                           isActive
                             ? 'bg-linear-to-br from-sky-500 to-slate-700'
                             : 'bg-linear-to-br from-slate-500 to-slate-700'
@@ -578,7 +578,7 @@ export default function ConversationShell(props: {
                       </div>
                       <div className='min-w-0 flex-1'>
                         <div className='flex items-start justify-between gap-2'>
-                          <h3 className='truncate text-sm font-semibold text-foreground'>
+                          <h3 className='truncate text-xs font-semibold text-foreground'>
                             {chat.name}
                           </h3>
                           {chat.lastMessageAt && (
@@ -596,14 +596,14 @@ export default function ConversationShell(props: {
                             </time>
                           )}
                         </div>
-                        <p className='mt-0.5 truncate text-xs text-muted-foreground'>
+                        <p className='mt-0.5 truncate text-[11px] text-muted-foreground'>
                           {chat.email}
                         </p>
-                        <div className='mt-1.5 flex items-center gap-1.5'>
+                        <div className='mt-1 flex items-center gap-1'>
                           {!meta.archived && (
                             <span
                               className={cn(
-                                'inline-flex rounded-md border px-1.5 py-0.5 text-[10px] font-medium',
+                                'inline-flex rounded-md border px-1 py-0.5 text-[10px] font-medium',
                                 categoryChipClass(meta.category)
                               )}>
                               {CATEGORY_LABEL[meta.category]}
@@ -620,7 +620,7 @@ export default function ConversationShell(props: {
                               Agent request
                             </span>
                           )}
-                          <p className='min-w-0 flex-1 truncate text-xs text-slate-600'>
+                          <p className='min-w-0 flex-1 truncate text-[11px] text-slate-600'>
                             {chat.highlightSnippet ?? 'No messages yet'}
                           </p>
                         </div>

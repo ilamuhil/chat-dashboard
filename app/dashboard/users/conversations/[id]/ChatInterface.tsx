@@ -376,9 +376,12 @@ export default function ChatInterface({
 
   const sendMessage = (content: string) => {
     const trimmedContent = content.trim()
+    const contentWithoutBreakTags = trimmedContent
+      .replace(/<br\s*\/?>/gi, '')
+      .trim()
 
     if (
-      !trimmedContent ||
+      !contentWithoutBreakTags ||
       !socketEnabled ||
       readyState !== 'open'
     ) {

@@ -318,10 +318,29 @@ model ConversationsMeta {
 
 model Leads {
   id             String   @id @default(uuid()) @db.Uuid
-  capturedAt     DateTime @default(now()) @map("captured_at")
   name           String?  @db.Text
   email          String?  @db.Text
   phone          String?  @db.Text
+  enquirerType   String?  @db.Text @map("enquirer_type") //!parent | guardian | student | friend | relative | other 
+  studentName    String?  @map("student_name") @db.Text
+  studentAge     String?  @map("student_age") @db.Text
+  studentGender  String?  @map("student_gender") @db.Text
+  courseInterest String?  @map("course_interest") @db.Text
+  educationLevel String?  @map("education_level") @db.Text
+  preferredMode  String?  @map("preferred_mode") @db.Text //! online | offline | both
+  joiningTimeline String?  @map("joining_timeline") @db.Text //! immediate | within_1_week | within_1_month | within_3_months | beyond_3_months
+  primaryIntent String?  @map("primary_intent") @db.Text //! course_info, course_recommendation, elligibility, fees, batch_or_schedule, application, counselling, demo, campus_visit, general_enquiry, other
+  leadPriority  String?  @map("lead_priority") @db.Text //! hot warm cold
+  priorityReason String?  @map("priority_reason") @db.Text
+  aiSummary      String?  @map("ai_summary") @db.Text
+  recommendedNextAction String?  @map("recommended_next_action") @db.Text //! schedule_callback, schedule_demo, schedule_campus_visit, application_follow_up, send_course_details, review_elligibility, other
+  pipelineStage  String?  @map("pipeline_stage") @db.Text //! new_enquiry, qualified, counselling_requested, contacted, application_started, enrolled, lost
+  consent_to_contact Boolean? @default(false) @map("consent_to_contact")
+  updatedAt        DateTime @updatedAt @map("updated_at") 
+  capturedAt     DateTime @default(now()) @map("captured_at")
+  deletedAt      DateTime? @map("deleted_at")
+  deletedById    String?   @map("deleted_by_id") @db.Uuid
+  visitorId      String?   @map("visitor_id") @db.Uuid
   organizationId String?  @map("organization_id")
   botId          String?  @map("bot_id") @db.Uuid
   conversationId String?  @map("conversation_id") @db.Uuid
@@ -330,6 +349,7 @@ model Leads {
   bot          Bots?              @relation(fields: [botId], references: [id], onDelete: SetNull)
   conversation ConversationsMeta? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
   organization Organizations?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  leadFollowUps LeadFollowUps[]
 
   @@map("leads")
   @@schema("public")
@@ -350,4 +370,26 @@ model Notifications {
   @@index([userId, readAt, createdAt(sort: Desc)])
   @@map("notifications")
   @@schema("public")
+}
+
+
+model LeadFollowUps {
+  id             String    @id @default(uuid()) @db.Uuid
+  counsellorId   String?   @map("counsellor_id") @db.Uuid
+  followUpType   String?   @map("follow_up_type") @db.Text //! callback, demo, campus_visit, application_follow_up, send_course_details, review_elligibility, other
+  status         String?   @map("status") @db.Text //! pending, complete, cancelled
+  scheduledFor   DateTime? @map("scheduled_for")
+  completedAt    DateTime? @map("completed_at")
+  outcome        String?   @map("outcome") @db.Text //! contacted not_interested, interested, no_answer, follow_up_again, application_started, enrolled, lost
+  notes          String?   @map("notes") @db.Text
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at") @default(now())
+  leadId         String   @map("lead_id") @db.Uuid
+  lead           Leads    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  deletedAt      DateTime? @map("deleted_at")
+  deletedById    String?   @map("deleted_by_id") @db.Uuid
+
+  @@index([leadId])
+  @@schema("public")
+  @@map("lead_follow_ups")
 }

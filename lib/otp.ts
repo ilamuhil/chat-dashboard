@@ -25,7 +25,6 @@ function normalizeEmail(email: string) {
   return email.trim().toLowerCase()
 }
 
-
 function mapPurpose(purpose: OtpPurposeApi) {
   switch (purpose) {
     case 'signup_email':
@@ -74,6 +73,7 @@ export async function createAndSendOtp(params: {
     },
     select: { id: true, expiresAt: true },
   })
+  console.log('otp record created with otp_id: ', record.id)
 
   if (channel === 'email' && email) {
     if (purpose === 'signup_email') {
@@ -99,12 +99,15 @@ export async function verifyOtp(params: {
   if (!otp) return { ok: false as const, error: 'OTP not found' }
 
   if (otp.isUsed) return { ok: false as const, error: 'OTP already used' }
-  if (otp.expiresAt.getTime() < Date.now()) return { ok: false as const, error: 'OTP expired' }
-  if (otp.attempts >= otp.maxAttempts) return { ok: false as const, error: 'Too many attempts' }
+  if (otp.expiresAt.getTime() < Date.now())
+    return { ok: false as const, error: 'OTP expired' }
+  if (otp.attempts >= otp.maxAttempts)
+    return { ok: false as const, error: 'Too many attempts' }
 
   if (params.purpose) {
     const expected = mapPurpose(params.purpose)
-    if (otp.purpose !== expected) return { ok: false as const, error: 'OTP purpose mismatch' }
+    if (otp.purpose !== expected)
+      return { ok: false as const, error: 'OTP purpose mismatch' }
   }
 
   if (params.email) {
@@ -129,4 +132,3 @@ export async function verifyOtp(params: {
 
   return { ok: true as const, userId: otp.userId ?? null }
 }
-

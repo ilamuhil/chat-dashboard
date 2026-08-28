@@ -173,7 +173,7 @@ export default function AuthForm(props: Props) {
     onError: () => {
       setBanner({
         type: "error",
-        msg: "Signup failed due to an internal server error.",
+        msg: "Signup failed!.",
       });
     },
   });

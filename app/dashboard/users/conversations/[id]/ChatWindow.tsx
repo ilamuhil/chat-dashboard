@@ -43,6 +43,10 @@ function isConversationEndedMessage(message: Message) {
   )
 }
 
+function isThematicBreakMessage(content: string) {
+  return /^(?:\s*-\s*){3,}$/.test(content)
+}
+
 export default function ChatWindow(props: ChatWindowProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -55,7 +59,15 @@ export default function ChatWindow(props: ChatWindowProps) {
 
   const sendDraft = () => {
     const content = draft.trim()
-    if (!content || !props.onSendMessage || composerDisabled) {
+    const contentWithoutBreakTags = content
+      .replace(/<br\s*\/?>/gi, '')
+      .trim()
+
+    if (
+      !contentWithoutBreakTags ||
+      !props.onSendMessage ||
+      composerDisabled
+    ) {
       return
     }
     props.onSendMessage(content)
@@ -98,6 +110,18 @@ export default function ChatWindow(props: ChatWindowProps) {
     index: number,
     messages: Array<Message>
   ) => {
+    if (isThematicBreakMessage(message.content)) {
+      return (
+        <div
+          key={message.id}
+          className='my-2 flex items-center px-3'
+          role='separator'
+          aria-hidden='true'>
+          <hr className='chat-message-separator' />
+        </div>
+      )
+    }
+
     if (isConversationEndedMessage(message)) {
       return (
         <div
