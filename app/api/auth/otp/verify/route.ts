@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { verifyOtp } from '@/lib/otp'
+import { getPublicOtpErrorMessage, verifyOtp } from '@/lib/otp'
 
 export const runtime = 'nodejs'
 
 const bodySchema = z.object({
   otpId: z.string().uuid(),
-  code: z.string().min(4).max(12),
+  code: z.string().regex(/^\d{4}$/),
   purpose: z.enum(['signup_email', 'login']).optional(),
   email: z.string().email().optional(),
 })
@@ -24,13 +24,31 @@ export async function POST(request: NextRequest) {
     })
 
     if (!res.ok) {
-      return NextResponse.json({ ok: false, error: res.error }, { status: 400 })
+      return NextResponse.json(
+        { ok: false, error: getPublicOtpErrorMessage(res.error) },
+        { status: 400 },
+      )
     }
 
     return NextResponse.json({ ok: true })
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Failed to verify OTP'
-    return NextResponse.json({ ok: false, error: message }, { status: 400 })
+    console.error('[auth/otp/verify] OTP verification failed:', err)
+
+    if (err instanceof z.ZodError || err instanceof SyntaxError) {
+      return NextResponse.json(
+        { ok: false, error: 'Please enter a valid verification code.' },
+        { status: 400 },
+      )
+    }
+
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          'We could not verify your code right now. Please try again shortly.',
+      },
+      { status: 500 },
+    )
   }
 }
 

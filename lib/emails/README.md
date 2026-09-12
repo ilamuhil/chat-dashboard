@@ -1,6 +1,6 @@
 # Email Templates
 
-This directory contains email templates for various transactional emails sent through Amazon SES.
+This directory contains email templates for transactional emails delivered through Resend.
 
 ## Templates
 
@@ -40,14 +40,14 @@ await sendEmailVerificationEmail(
 // Send login OTP
 await sendLoginOTPEmail(
   'user@example.com',
-  '123456', // 6-digit OTP
+  '1234', // 4-digit OTP
   10 // expires in 10 minutes
 )
 
 // Send verify email OTP
 await sendVerifyEmailOtp(
   'user@example.com',
-  '123456',
+  '1234',
   10
 )
 ```
@@ -55,7 +55,6 @@ await sendVerifyEmailOtp(
 ## Customization
 
 Each template uses the following environment variables for customization:
-- `NEXT_PUBLIC_APP_NAME`: Your application name (defaults to "Chat Dashboard")
-- `NEXT_PUBLIC_APP_URL`: Your application URL (defaults to "http://localhost:3000")
+- `NEXT_PUBLIC_APP_NAME`: Your application name (defaults to "Your workspace")
 
 Templates return both HTML and plain text versions for better email client compatibility.

@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { signAuthToken } from '@/lib/auth-token'
-import { verifyOtp } from '@/lib/otp'
+import { getPublicOtpErrorMessage, verifyOtp } from '@/lib/otp'
 
 export const runtime = 'nodejs'
 
 const bodySchema = z.object({
   email: z.email(),
   otpId: z.uuid(),
-  otpCode: z.string().min(4).max(12),
+  otpCode: z.string().regex(/^\d{4}$/),
 })
 
 export async function POST(request: NextRequest) {
@@ -26,7 +26,10 @@ export async function POST(request: NextRequest) {
       email,
     })
     if (!otpRes.ok) {
-      return NextResponse.json({ ok: false, error: otpRes.error }, { status: 400 })
+      return NextResponse.json(
+        { ok: false, error: getPublicOtpErrorMessage(otpRes.error) },
+        { status: 400 },
+      )
     }
 
     const user = await prisma.users.findFirst({
@@ -71,8 +74,25 @@ export async function POST(request: NextRequest) {
     })
     return res
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Login failed'
-    return NextResponse.json({ ok: false, error: message }, { status: 400 })
+    console.error('[auth/login] Login failed:', err)
+
+    if (err instanceof z.ZodError || err instanceof SyntaxError) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'Please check your email and verification code.',
+        },
+        { status: 400 },
+      )
+    }
+
+    return NextResponse.json(
+      {
+        ok: false,
+        error: 'We could not sign you in right now. Please try again shortly.',
+      },
+      { status: 500 },
+    )
   }
 }
 

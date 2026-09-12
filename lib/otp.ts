@@ -6,7 +6,22 @@ type OtpChannel = 'email'
 
 export type OtpPurposeApi = 'signup_email' | 'login'
 
-function randomOtp(length: number = 6) {
+export function getPublicOtpErrorMessage(error: string): string {
+  switch (error) {
+    case 'OTP expired':
+      return 'This code has expired. Please request a new one.'
+    case 'OTP already used':
+      return 'This code has already been used. Please request a new one.'
+    case 'Too many attempts':
+      return 'Too many incorrect attempts. Please request a new code.'
+    case 'Invalid OTP':
+      return 'The code you entered is incorrect.'
+    default:
+      return 'This verification code is invalid. Please request a new one.'
+  }
+}
+
+function randomOtp(length: number = 4) {
   // numeric-only OTP
   const max = 10 ** length
   const n = Math.floor(Math.random() * max)
@@ -48,7 +63,7 @@ export async function createAndSendOtp(params: {
   userId?: string | null
 }) {
   const { channel, purpose, ipAddress, userAgent } = params
-  const otp = randomOtp(6)
+  const otp = randomOtp(4)
   const otpHash = await bcrypt.hash(otp, 10)
 
   const expiresInMinutes = purpose === 'login' ? 10 : 10
