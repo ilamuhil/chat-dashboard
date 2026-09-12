@@ -260,6 +260,8 @@ model Files {
 model TrainingSources {
   id               String    @id @default(uuid()) @db.Uuid
   createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  lastTrainedAt     DateTime? @map("last_trained_at")
   organizationId   String?   @map("organization_id")
   botId            String?   @map("bot_id") @db.Uuid
   type             String?   @db.Text
@@ -270,6 +272,8 @@ model TrainingSources {
   originalFilename String?   @map("original_filename") @db.Text
   sizeBytes        BigInt?   @map("size_bytes")
   mimeType         String?   @map("mime_type") @db.Text
+  qualityStatus    String?   @map("quality_status") @db.Text //! good, warning, poor
+  qualitySummary   Json?     @map("quality_summary") @db.JsonB 
   deletedAt        DateTime? @map("deleted_at")
   deletedBy        String?   @map("deleted_by") @db.Text
   // deletedBy can be a user_id or "system"
