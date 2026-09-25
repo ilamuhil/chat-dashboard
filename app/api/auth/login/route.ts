@@ -45,11 +45,15 @@ export async function POST(request: NextRequest) {
       data: { lastLoggedIn: new Date() },
     })
 
-    const membership = await prisma.organizationMembers.findFirst({
+    const memberships = await prisma.organizationMembers.findMany({
       where: { userId: user.id },
       select: { organizationId: true },
     })
-    const onboardingCompleted = user.onboardingCompleted || !!membership
+    const organizationIds = memberships
+      .map(membership => membership.organizationId)
+      .filter((id): id is string => Boolean(id))
+    const onboardingCompleted =
+      user.onboardingCompleted || organizationIds.length > 0
     if (onboardingCompleted && !user.onboardingCompleted) {
       await prisma.users.update({
         where: { id: user.id },
@@ -63,7 +67,9 @@ export async function POST(request: NextRequest) {
       token,
       user,
       onboardingCompleted,
-      organizationId: membership?.organizationId ?? null,
+      organizationId: organizationIds[0] ?? null,
+      organizationCount: organizationIds.length,
+      requiresOrganizationSelection: organizationIds.length > 1,
     })
     res.cookies.set('auth_token', token, {
       httpOnly: true,

@@ -2,6 +2,11 @@ import { Resend } from 'resend'
 import { renderEmailVerificationEmail } from './emails/email-verification'
 import { renderLoginOTPEmail } from './emails/login-otp'
 import { renderVerifyOtpEmail } from './emails/verify-otp'
+import { renderMagicLinkEmail } from './emails/magic-link'
+import {
+  renderMembershipRemovedEmail,
+  renderMembershipRoleUpdatedEmail,
+} from './emails/membership'
 
 function getDefaultSender(): { email: string; name: string } {
   const email = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'
@@ -130,6 +135,51 @@ export async function sendVerifyEmailOtp(
   return sendEmail({
     to,
     subject: 'Verify your email',
+    htmlBody: html,
+    textBody: text,
+  })
+}
+
+export async function sendOrganizationMagicLinkEmail(params: {
+  to: string
+  magicLink: string
+  organizationName: string
+  inviterName?: string
+  expiresInMinutes: number
+}) {
+  const { html, text } = renderMagicLinkEmail(params)
+  return sendEmail({
+    to: params.to,
+    subject: `Your invitation to ${params.organizationName}`,
+    htmlBody: html,
+    textBody: text,
+  })
+}
+
+export async function sendMembershipRoleUpdatedEmail(params: {
+  to: string
+  organizationName: string
+  role: string
+  administratorName: string
+}) {
+  const { html, text } = renderMembershipRoleUpdatedEmail(params)
+  return sendEmail({
+    to: params.to,
+    subject: `Your role in ${params.organizationName} was updated`,
+    htmlBody: html,
+    textBody: text,
+  })
+}
+
+export async function sendMembershipRemovedEmail(params: {
+  to: string
+  organizationName: string
+  administratorName: string
+}) {
+  const { html, text } = renderMembershipRemovedEmail(params)
+  return sendEmail({
+    to: params.to,
+    subject: `Your access to ${params.organizationName} was removed`,
     htmlBody: html,
     textBody: text,
   })

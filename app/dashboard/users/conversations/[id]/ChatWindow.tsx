@@ -190,9 +190,9 @@ export default function ChatWindow(props: ChatWindowProps) {
       <div
         key={message.id}
         className={cn(
-          'flex items-end gap-2',
+          'flex items-end',
           marginBottom,
-          visualRole === 'user' ? 'flex-row' : 'flex-row-reverse'
+          visualRole === 'user' ? 'flex-row gap-3' : 'flex-row-reverse gap-2'
         )}>
         {isUser && (
           <div className={cn('shrink-0', showAvatar ? 'size-8' : 'w-8')}>
@@ -211,10 +211,15 @@ export default function ChatWindow(props: ChatWindowProps) {
           <div
             className={cn(
               borderRadiusClasses,
+              'chat-message-bubble',
+              !hasNextSameSender &&
+                (visualRole === 'user'
+                  ? 'chat-message-bubble--user-tail'
+                  : 'chat-message-bubble--assistant-tail'),
               'min-w-0 px-3.5 py-2.5 text-[13px] shadow-sm',
               visualRole === 'user'
-                ? 'border border-slate-200/80 bg-white text-slate-900'
-                : 'bg-linear-to-br from-sky-600 to-slate-700 text-white'
+                ? 'bg-[#e9e9eb] text-slate-900'
+                : 'bg-sky-700 text-white'
             )}>
             <div
               className='chat-markdown wrap-break-word'

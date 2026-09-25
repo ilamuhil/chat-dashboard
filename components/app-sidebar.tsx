@@ -70,6 +70,11 @@ const data = {
           url: '/dashboard/users/leads',
           icon: Users,
         },
+        {
+          title: 'Organization members',
+          url: '/dashboard/users/org-members',
+          icon: Users,
+        },
       ],
     },
     {

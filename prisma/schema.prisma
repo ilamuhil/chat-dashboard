@@ -47,6 +47,7 @@ model Organizations {
   bots                Bots[]
   organizationMembers OrganizationMembers[]
   invites             OrganizationInvites[]
+  magicLinks          MagicLinks[]
   apiKeys             ApiKeys[]
   files               Files[]
   trainingSources     TrainingSources[]
@@ -104,6 +105,7 @@ model OrganizationMembers {
 
   @@index([userId])
   @@index([organizationId])
+  @@unique([organizationId, userId])
   @@map("organization_members")
   @@schema("public")
 }
@@ -149,6 +151,7 @@ model Users {
   // Relations
   organizationMembers OrganizationMembers[]
   otps                Otps[]
+  magicLinks          MagicLinks[]
 
   @@index([email])
   @@index([googleId])
@@ -209,6 +212,25 @@ model Otps {
   @@index([code])
   @@index([expiresAt])
   @@map("otps")
+  @@schema("public")
+}
+
+model MagicLinks {
+  id             String    @id @default(uuid()) @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at")
+  userId         String    @map("user_id") @db.Uuid
+  organizationId String?   @map("organization_id")
+  tokenHash      String    @unique @map("token_hash") @db.Text
+  expiresAt      DateTime  @map("expires_at")
+  usedAt         DateTime? @map("used_at")
+
+  user         Users         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organizations? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([expiresAt])
+  @@map("magic_links")
   @@schema("public")
 }
 

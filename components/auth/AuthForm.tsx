@@ -209,6 +209,7 @@ export default function AuthForm(props: Props) {
         token: string;
         onboardingCompleted?: boolean;
         organizationId?: string | null;
+        requiresOrganizationSelection?: boolean;
       }>("/api/auth/login", {
         email: loginEmail.trim().toLowerCase(),
         otpId: loginOtpId,
@@ -216,7 +217,13 @@ export default function AuthForm(props: Props) {
       }),
     onSuccess: (data) => {
       window.localStorage.setItem("auth_token", data.token);
-      router.push(data.onboardingCompleted ? "/dashboard" : "/onboarding");
+      router.push(
+        data.onboardingCompleted
+          ? data.requiresOrganizationSelection
+            ? "/auth/select-organization"
+            : "/dashboard"
+          : "/onboarding",
+      );
     },
     onError: (error) => {
       setBanner({
