@@ -28,6 +28,11 @@ async function sendEmail(params: {
   textBody?: string
   from?: { email: string; name: string }
   replyTo?: string | string[]
+  attachments?: Array<{
+    filename: string
+    content: Buffer
+    contentType?: string
+  }>
 }): Promise<{ messageId: string }> {
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) {
@@ -36,7 +41,15 @@ async function sendEmail(params: {
 
   const resend = new Resend(apiKey)
   const defaultSender = getDefaultSender()
-  const { to, subject, htmlBody, textBody, from = defaultSender, replyTo } = params
+  const {
+    to,
+    subject,
+    htmlBody,
+    textBody,
+    from = defaultSender,
+    replyTo,
+    attachments,
+  } = params
 
   const toAddresses = Array.isArray(to) ? to : [to]
   const replyToAddresses = replyTo ? (Array.isArray(replyTo) ? replyTo : [replyTo]) : undefined
@@ -49,6 +62,7 @@ async function sendEmail(params: {
       html: htmlBody,
       ...(textBody ? { text: textBody } : {}),
       ...(replyToAddresses ? { replyTo: replyToAddresses } : {}),
+      ...(attachments?.length ? { attachments } : {}),
     })
 
     if (error) {
@@ -201,6 +215,72 @@ export async function sendCustomEmail(params: {
   textBody?: string
   from?: { email: string; name: string }
   replyTo?: string | string[]
+  attachments?: Array<{
+    filename: string
+    content: Buffer
+    contentType?: string
+  }>
 }): Promise<{ messageId: string }> {
   return sendEmail(params)
+}
+
+export async function sendFeedbackEmail(params: {
+  message: string
+  userName: string
+  userEmail: string
+  userId: string
+  organizationName: string
+  sourceUrl?: string
+  userAgent?: string
+  attachments?: Array<{
+    filename: string
+    content: Buffer
+    contentType?: string
+  }>
+}) {
+  const escaped = (value: string) =>
+    value.replace(
+      /[&<>"']/g,
+      character =>
+        ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;',
+        })[character] ?? character,
+    )
+  const message = escaped(params.message).replace(/\r?\n/g, '<br />')
+  const text = [
+    `Submitted by: ${params.userName}`,
+    `User email: ${params.userEmail}`,
+    `User ID: ${params.userId}`,
+    `Organization: ${params.organizationName}`,
+    `Submitted at: ${new Date().toISOString()}`,
+    `Source page: ${params.sourceUrl || 'Dashboard'}`,
+    `User agent: ${params.userAgent || 'Not available'}`,
+    '',
+    params.message,
+  ].join('\n')
+
+  return sendEmail({
+    to: 'ilamuhil@gmail.com',
+    subject: `Dashboard feedback from ${params.organizationName}`,
+    htmlBody: `
+      <h2>Dashboard feedback</h2>
+      <h3>Reporter information</h3>
+      <p><strong>Submitted by:</strong> ${escaped(params.userName)}</p>
+      <p><strong>User email:</strong> ${escaped(params.userEmail)}</p>
+      <p><strong>User ID:</strong> ${escaped(params.userId)}</p>
+      <p><strong>Organization:</strong> ${escaped(params.organizationName)}</p>
+      <p><strong>Submitted at:</strong> ${new Date().toISOString()}</p>
+      <p><strong>Source page:</strong> ${escaped(params.sourceUrl || 'Dashboard')}</p>
+      <p><strong>User agent:</strong> ${escaped(params.userAgent || 'Not available')}</p>
+      <hr />
+      <p>${message}</p>
+    `,
+    textBody: text,
+    attachments: params.attachments,
+    replyTo: params.userEmail,
+  })
 }

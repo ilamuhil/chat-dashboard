@@ -15,6 +15,7 @@ import { getOnboardingStatus } from '@/lib/auth-server'
 import Boot from '@/app/boot'
 import { NotificationProvider } from '@/app/dashboard/notifications/NotificationProvider'
 import DashboardNotifications from '@/components/dashboard-notifications'
+import DashboardFeedback from '@/components/dashboard-feedback'
 
 export default async function DashboardLayout({
   children,
@@ -79,7 +80,8 @@ export default async function DashboardLayout({
                 className='data-[orientation=vertical]:h-5 bg-slate-200'
               />
               <DashboardBreadcrumb />
-              <div className='ml-auto'>
+              <div className='ml-auto flex items-center gap-2'>
+                <DashboardFeedback />
                 <DashboardNotifications />
               </div>
             </div>
