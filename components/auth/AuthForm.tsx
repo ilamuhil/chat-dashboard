@@ -299,7 +299,7 @@ export default function AuthForm(props: Props) {
               <Bot className="size-5" />
             </span>
             <span className="text-lg font-semibold tracking-tight">
-              Chat Dashboard
+              AI Chat Bot
             </span>
           </Link>
 
@@ -357,7 +357,7 @@ export default function AuthForm(props: Props) {
                 <Bot className="size-4.5" />
               </span>
               <span className="font-semibold tracking-tight text-slate-900">
-                Chat Dashboard
+                AI Chat Bot
               </span>
             </Link>
 
@@ -627,7 +627,7 @@ export default function AuthForm(props: Props) {
 
             <p className="mt-7 text-center text-sm text-slate-500">
               {mode === "login"
-                ? "New to Chat Dashboard?"
+                ? "New to AI Chat Bot?"
                 : "Already have an account?"}{" "}
               <Link
                 href={mode === "login" ? "/auth/signup" : "/auth/login"}
