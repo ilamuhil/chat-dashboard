@@ -1,7 +1,7 @@
 'use client'
 
 import { formatDistanceToNow } from 'date-fns'
-import { Bell, UserRoundPlus } from 'lucide-react'
+import { ArrowRight, Bell, BellRing, UserRoundPlus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 import {
@@ -55,12 +55,22 @@ export default function DashboardNotifications() {
           type='button'
           variant='ghost'
           size='icon'
-          aria-label='Notifications'
-          className='relative size-9 rounded-lg border border-slate-200/80 bg-white text-slate-600 shadow-sm hover:bg-sky-50 hover:text-sky-800 data-[state=open]:bg-sky-50'>
-          <Bell className='size-4' />
+          aria-label={
+            unreadCount > 0
+              ? `${unreadCount} unread notifications`
+              : 'Notifications'
+          }
+          className='group relative size-10 rounded-xl border border-slate-200/80 bg-white text-slate-500 shadow-[0_2px_8px_rgba(15,23,42,0.06)] transition-all duration-200 hover:-translate-y-px hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700 hover:shadow-[0_5px_14px_rgba(14,165,233,0.14)] data-[state=open]:border-sky-200 data-[state=open]:bg-sky-50 data-[state=open]:text-sky-700'>
+          <span className='grid size-7 place-items-center rounded-lg bg-slate-50 transition-colors group-hover:bg-white group-data-[state=open]:bg-white'>
+            {unreadCount > 0 ? (
+              <BellRing className='size-[17px] stroke-[1.8]' />
+            ) : (
+              <Bell className='size-[17px] stroke-[1.8]' />
+            )}
+          </span>
 
           {unreadCount > 0 && (
-            <span className='absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-semibold text-white'>
+            <span className='absolute -top-1 -right-1 flex min-w-4.5 items-center justify-center rounded-full border-2 border-white bg-rose-500 px-1 text-[9px] font-bold leading-4 text-white shadow-sm'>
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}
@@ -81,7 +91,7 @@ export default function DashboardNotifications() {
             No notifications
           </DropdownMenuItem>
         ) : (
-          notifications.slice(0, 5).map(notification => {
+          notifications.slice(0, 10).map(notification => {
             const route = getNotificationRoute(
               notification.type,
               notification.metadata,
@@ -126,6 +136,14 @@ export default function DashboardNotifications() {
             )
           })
         )}
+
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className='justify-center rounded-lg text-xs font-semibold text-sky-700 focus:bg-sky-50 focus:text-sky-800'
+          onSelect={() => router.push('/dashboard/notifications')}>
+          See all notifications
+          <ArrowRight className='ml-1 size-3.5' aria-hidden='true' />
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )

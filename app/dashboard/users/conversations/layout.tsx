@@ -19,6 +19,8 @@ export default async function ConversationsLayout({
           id: true,
           lastMessageAt: true,
           lastMessageSnippet: true,
+          status: true,
+          isArchived: true,
           handOverStatus: true,
           lead: {
             select: {
@@ -41,6 +43,8 @@ export default async function ConversationsLayout({
       lastMessageAt: c.lastMessageAt?.toISOString() ?? null,
       highlightSnippet: c.lastMessageSnippet,
       handOverStatus: c.handOverStatus,
+      status: c.status,
+      isArchived: c.isArchived,
     }
   })
 

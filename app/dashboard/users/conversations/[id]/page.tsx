@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation'
 import { Message } from './types'
 import { prisma } from '@/lib/prisma'
 import { getSecretKey, signToken } from '@/lib/jwt'
+import axios from 'axios'
 
 
 export default async function ConversationPage({ params }: { params: { id: string } }) {
@@ -24,6 +25,7 @@ export default async function ConversationPage({ params }: { params: { id: strin
   let conversationMode = 'ai'
   let conversationHandOverStatus = 'none'
   let conversationStatus = 'open'
+  let messageLoadError: string | null = null
 
   try {
     //get conversation and check if it belongs to the organization.
@@ -63,15 +65,21 @@ export default async function ConversationPage({ params }: { params: { id: strin
     )
 
     //call python server to get the conversation messages.
-    const response = await pythonApiRequest<{ messages: Message[] }>(
-      'GET',
-      `/api/conversations/${conversationId}/messages`,
-      token,
-    )
-    messages = response.messages ?? []
-
+    try {
+      const response = await pythonApiRequest<{ messages: Message[] }>(
+        'GET',
+        `/api/conversations/${conversationId}/messages`,
+        token,
+      )
+      messages = response.messages ?? []
+    } catch (error) {
+      console.error('Error fetching conversation messages:', error)
+      messageLoadError = axios.isAxiosError(error)
+        ? 'Message history is temporarily unavailable. The chat service may be offline.'
+        : 'Message history could not be loaded. Please try again.'
+    }
   } catch (error) {
-    console.error('Error fetching conversation messages:', error)
+    console.error('Error preparing conversation:', error)
     return notFound()
   }
 
@@ -82,6 +90,7 @@ export default async function ConversationPage({ params }: { params: { id: strin
       initialMode={conversationMode}
       initialHandOverStatus={conversationHandOverStatus}
       initialStatus={conversationStatus}
+      initialLoadError={messageLoadError}
     />
   )
 

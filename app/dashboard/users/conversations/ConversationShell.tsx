@@ -16,25 +16,23 @@ import {
   ArchiveIcon,
   ArchiveRestoreIcon,
   CheckSquareIcon,
-  FlameIcon,
-  InboxIcon,
+  LoaderCircleIcon,
+  MessageCircleIcon,
   MessageSquareIcon,
   MoreVerticalIcon,
   SearchIcon,
-  SnowflakeIcon,
-  SunMediumIcon,
   Trash2Icon,
   XIcon,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
-import { useMemo, useState, type ReactNode } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { clientApiAxios } from '@/lib/axios-client'
 import { useDashboardNotifications } from '@/app/dashboard/notifications/NotificationProvider'
 
-type LeadCategory = 'hot' | 'warm' | 'cold' | 'unassigned'
-type ChatFilter = LeadCategory | 'archived'
+type ChatFilter = 'all' | 'open' | 'closed' | 'archived'
 
 type Chats = {
   id: string
@@ -44,11 +42,8 @@ type Chats = {
   lastMessageAt: string | null
   highlightSnippet: string | null
   handOverStatus: string | null
-}
-
-type ChatMeta = {
-  category: LeadCategory
-  archived: boolean
+  status: string
+  isArchived: boolean
 }
 
 const FILTERS: Array<{
@@ -57,39 +52,35 @@ const FILTERS: Array<{
   shortLabel: string
   icon: React.ComponentType<{ className?: string }>
   activeClass: string
+  inactiveClass: string
   badgeClass: string
 }> = [
     {
-      id: 'unassigned',
-      label: 'Unassigned',
-      shortLabel: 'Unassigned',
-      icon: InboxIcon,
+      id: 'open',
+      label: 'Open',
+      shortLabel: 'Open',
+      icon: MessageCircleIcon,
+      activeClass: 'border-sky-200 bg-sky-50 text-sky-800',
+      inactiveClass: 'border-sky-100 bg-sky-50/40 text-sky-700 hover:bg-sky-50',
+      badgeClass: 'bg-sky-100 text-sky-700',
+    },
+    {
+      id: 'all',
+      label: 'All conversations',
+      shortLabel: 'All',
+      icon: MessageSquareIcon,
       activeClass: 'border-slate-300 bg-slate-100 text-slate-800',
+      inactiveClass: 'border-slate-200 bg-slate-50/60 text-slate-600 hover:bg-slate-100',
       badgeClass: 'bg-slate-200 text-slate-700',
     },
     {
-      id: 'hot',
-      label: 'Hot leads',
-      shortLabel: 'Hot',
-      icon: FlameIcon,
-      activeClass: 'border-rose-200 bg-rose-50 text-rose-800',
-      badgeClass: 'bg-rose-100 text-rose-700',
-    },
-    {
-      id: 'warm',
-      label: 'Warm leads',
-      shortLabel: 'Warm',
-      icon: SunMediumIcon,
-      activeClass: 'border-amber-200 bg-amber-50 text-amber-800',
-      badgeClass: 'bg-amber-100 text-amber-700',
-    },
-    {
-      id: 'cold',
-      label: 'Cold leads',
-      shortLabel: 'Cold',
-      icon: SnowflakeIcon,
-      activeClass: 'border-sky-200 bg-sky-50 text-sky-800',
-      badgeClass: 'bg-sky-100 text-sky-700',
+      id: 'closed',
+      label: 'Closed',
+      shortLabel: 'Closed',
+      icon: ArchiveIcon,
+      activeClass: 'border-slate-300 bg-slate-100 text-slate-800',
+      inactiveClass: 'border-slate-200 bg-slate-50/60 text-slate-600 hover:bg-slate-100',
+      badgeClass: 'bg-slate-200 text-slate-700',
     },
     {
       id: 'archived',
@@ -97,16 +88,10 @@ const FILTERS: Array<{
       shortLabel: 'Archived',
       icon: ArchiveIcon,
       activeClass: 'border-violet-200 bg-violet-50 text-violet-800',
+      inactiveClass: 'border-violet-100 bg-violet-50/40 text-violet-700 hover:bg-violet-50',
       badgeClass: 'bg-violet-100 text-violet-700',
     },
   ]
-
-const CATEGORY_LABEL: Record<LeadCategory, string> = {
-  hot: 'Hot',
-  warm: 'Warm',
-  cold: 'Cold',
-  unassigned: 'Unassigned',
-}
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean)
@@ -115,17 +100,9 @@ function getInitials(name: string) {
   return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
 }
 
-function categoryChipClass(category: LeadCategory) {
-  switch (category) {
-    case 'hot':
-      return 'bg-rose-50 text-rose-700 border-rose-200'
-    case 'warm':
-      return 'bg-amber-50 text-amber-700 border-amber-200'
-    case 'cold':
-      return 'bg-sky-50 text-sky-700 border-sky-200'
-    default:
-      return 'bg-slate-50 text-slate-600 border-slate-200'
-  }
+type ConversationState = {
+  status: 'open' | 'closed'
+  isArchived: boolean
 }
 
 export default function ConversationShell(props: {
@@ -135,55 +112,109 @@ export default function ConversationShell(props: {
   const { chats, children } = props
   const router = useRouter()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const activeConversationId = pathname?.split('/').filter(Boolean).at(-1)
   const { notifications, markConversationRead } =
     useDashboardNotifications()
 
   const [searchQuery, setSearchQuery] = useState('')
-  const [activeFilter, setActiveFilter] = useState<ChatFilter>('unassigned')
+  const requestedType = searchParams.get('type')
+  const hasServerFilter =
+    requestedType === 'open' ||
+    requestedType === 'closed' ||
+    requestedType === 'archived'
+  const activeFilter: ChatFilter =
+    requestedType === 'open' ||
+    requestedType === 'closed' ||
+    requestedType === 'archived'
+      ? requestedType
+      : 'all'
+  const [loadedChats, setLoadedChats] = useState(chats)
+  const [loadedFilter, setLoadedFilter] = useState<ChatFilter | null>(
+    hasServerFilter ? null : 'all',
+  )
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
-  const [chatMeta, setChatMeta] = useState<Record<string, ChatMeta>>({})
+  const [conversationState, setConversationState] = useState<
+    Record<string, ConversationState>
+  >({})
+  const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set())
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   const [pendingDeleteIds, setPendingDeleteIds] = useState<string[]>([])
 
-  const getMeta = (id: string): ChatMeta =>
-    chatMeta[id] ?? { category: 'unassigned', archived: false }
+  useEffect(() => {
+    if (!hasServerFilter) {
+      return
+    }
+
+    let cancelled = false
+    void clientApiAxios
+      .get<Chats[]>(`/api/dashboard/conversations?type=${activeFilter}`)
+      .then(({ data }) => {
+        if (!cancelled) {
+          setLoadedChats(data)
+          setLoadedFilter(activeFilter)
+        }
+      })
+      .catch(error => {
+        if (!cancelled) {
+          setLoadedFilter(activeFilter)
+          toast.error('Could not load conversations')
+        }
+        console.error('Failed to load filtered conversations', error)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeFilter, chats, hasServerFilter])
+
+  const getState = (chat: Chats): ConversationState =>
+    conversationState[chat.id] ?? {
+      status: chat.status === 'closed' ? 'closed' : 'open',
+      isArchived: chat.isArchived,
+    }
 
   const visibleBaseChats = useMemo(
-    () => chats.filter(chat => !deletedIds.has(chat.id)),
-    [chats, deletedIds]
+    () =>
+      (hasServerFilter ? loadedChats : chats).filter(
+        chat => !deletedIds.has(chat.id),
+      ),
+    [chats, deletedIds, hasServerFilter, loadedChats],
   )
 
   const counts = useMemo(() => {
     const result: Record<ChatFilter, number> = {
-      unassigned: 0,
-      hot: 0,
-      warm: 0,
-      cold: 0,
+      all: visibleBaseChats.length,
+      open: 0,
+      closed: 0,
       archived: 0,
     }
     for (const chat of visibleBaseChats) {
-      const meta = getMeta(chat.id)
-      if (meta.archived) {
+      const state = getState(chat)
+      if (state.isArchived) {
         result.archived += 1
+      } else if (state.status === 'closed') {
+        result.closed += 1
       } else {
-        result[meta.category] += 1
+        result.open += 1
       }
     }
     return result
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visibleBaseChats, chatMeta])
+  }, [visibleBaseChats, conversationState])
 
   const filteredChats = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
     return visibleBaseChats.filter(chat => {
-      const meta = getMeta(chat.id)
+      const state = getState(chat)
       const matchesFilter =
-        activeFilter === 'archived'
-          ? meta.archived
-          : !meta.archived && meta.category === activeFilter
+        activeFilter === 'all'
+          ? true
+          : activeFilter === 'archived'
+            ? state.isArchived
+            : !state.isArchived && state.status === activeFilter
 
       if (!matchesFilter) return false
       if (!query) return true
@@ -193,7 +224,8 @@ export default function ConversationShell(props: {
         chat.email,
         chat.phone,
         chat.highlightSnippet,
-        CATEGORY_LABEL[meta.category],
+        state.status,
+        state.isArchived ? 'archived' : '',
       ]
         .filter(Boolean)
         .join(' ')
@@ -201,11 +233,13 @@ export default function ConversationShell(props: {
       return haystack.includes(query)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visibleBaseChats, chatMeta, activeFilter, searchQuery])
+  }, [visibleBaseChats, conversationState, activeFilter, searchQuery])
 
   const allVisibleSelected =
     filteredChats.length > 0 &&
     filteredChats.every(chat => selectedIds.has(chat.id))
+  const isLoadingFilteredChats =
+    hasServerFilter && loadedFilter !== activeFilter
 
   const clearSelection = () => setSelectedIds(new Set())
 
@@ -239,43 +273,87 @@ export default function ConversationShell(props: {
     }
   }
 
-  const updateChats = (ids: string[], patch: Partial<ChatMeta>, message: string) => {
-    setChatMeta(prev => {
-      const next = { ...prev }
+  const updateConversationState = async (
+    ids: string[],
+    patch: Partial<ConversationState>,
+    message: string,
+  ) => {
+    if (ids.length === 0) return
+
+    const previous = new Map(
+      ids.map(id => {
+        const chat = chats.find(item => item.id === id)
+        return [
+          id,
+          chat
+            ? getState(chat)
+            : ({ status: 'open', isArchived: false } satisfies ConversationState),
+        ]
+      }),
+    )
+    setUpdatingIds(current => new Set([...current, ...ids]))
+    setConversationState(current => {
+      const next = { ...current }
       for (const id of ids) {
-        next[id] = { ...getMeta(id), ...patch }
+        const chat = chats.find(item => item.id === id)
+        if (!chat) continue
+        next[id] = { ...getState(chat), ...patch }
       }
       return next
     })
-    toast.success(message)
-    clearSelection()
+
+    try {
+      await Promise.all(
+        ids.map(id =>
+          clientApiAxios.patch(`/api/dashboard/conversations/${id}`, patch),
+        ),
+      )
+      toast.success(message)
+      clearSelection()
+    } catch (error) {
+      setConversationState(current => {
+        const next = { ...current }
+        for (const [id, state] of previous) next[id] = state
+        return next
+      })
+      toast.error('Could not update the selected conversations')
+      console.error('Failed to update conversations', error)
+    } finally {
+      setUpdatingIds(current => {
+        const next = new Set(current)
+        ids.forEach(id => next.delete(id))
+        return next
+      })
+    }
   }
 
-  const setCategory = (ids: string[], category: LeadCategory) => {
-    updateChats(
+  const closeChats = (ids: string[]) =>
+    void updateConversationState(
       ids,
-      { category, archived: false },
-      ids.length === 1
-        ? `Moved to ${CATEGORY_LABEL[category]}`
-        : `${ids.length} chats moved to ${CATEGORY_LABEL[category]}`
+      { status: 'closed' },
+      ids.length === 1 ? 'Conversation closed' : `${ids.length} conversations closed`,
     )
-  }
 
-  const archiveChats = (ids: string[]) => {
-    updateChats(
+  const reopenChats = (ids: string[]) =>
+    void updateConversationState(
       ids,
-      { archived: true },
-      ids.length === 1 ? 'Chat archived' : `${ids.length} chats archived`
+      { status: 'open' },
+      ids.length === 1 ? 'Conversation reopened' : `${ids.length} conversations reopened`,
     )
-  }
 
-  const unarchiveChats = (ids: string[]) => {
-    updateChats(
+  const archiveChats = (ids: string[]) =>
+    void updateConversationState(
       ids,
-      { archived: false },
-      ids.length === 1 ? 'Chat restored' : `${ids.length} chats restored`
+      { isArchived: true },
+      ids.length === 1 ? 'Conversation archived' : `${ids.length} conversations archived`,
     )
-  }
+
+  const unarchiveChats = (ids: string[]) =>
+    void updateConversationState(
+      ids,
+      { isArchived: false },
+      ids.length === 1 ? 'Conversation restored' : `${ids.length} conversations restored`,
+    )
 
   const requestDelete = (ids: string[]) => {
     if (ids.length === 0) return
@@ -363,24 +441,21 @@ export default function ConversationShell(props: {
                   key={filter.id}
                   type='button'
                   onClick={() => {
-                    setActiveFilter(filter.id)
+                    const params = new URLSearchParams(searchParams.toString())
+                    if (filter.id === 'all') params.delete('type')
+                    else params.set('type', filter.id)
+                    const query = params.toString()
+                    router.push(query ? `${pathname}?${query}` : pathname)
                     clearSelection()
                   }}
                   className={cn(
-                    'inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
+                    'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
                     isActive
                       ? filter.activeClass
-                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                      : filter.inactiveClass,
                   )}>
                   <Icon className='size-3.5' />
                   <span>{filter.shortLabel}</span>
-                  <span
-                    className={cn(
-                      'rounded-md px-1.5 py-0.5 text-[10px] font-semibold tabular-nums',
-                      isActive ? filter.badgeClass : 'bg-slate-100 text-slate-500'
-                    )}>
-                    {counts[filter.id]}
-                  </span>
                 </button>
               )
             })}
@@ -439,25 +514,14 @@ export default function ConversationShell(props: {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align='start' className='w-44'>
                   <DropdownMenuLabel className='text-xs'>
-                    Lead category
+                    Conversation status
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setCategory(selectedList, 'hot')}>
-                    <FlameIcon className='size-3.5 text-rose-500' />
-                    Hot leads
+                  <DropdownMenuItem onClick={() => closeChats(selectedList)}>
+                    Close conversations
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setCategory(selectedList, 'warm')}>
-                    <SunMediumIcon className='size-3.5 text-amber-500' />
-                    Warm leads
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setCategory(selectedList, 'cold')}>
-                    <SnowflakeIcon className='size-3.5 text-sky-500' />
-                    Cold leads
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setCategory(selectedList, 'unassigned')}>
-                    <InboxIcon className='size-3.5 text-slate-500' />
-                    Unassigned
+                  <DropdownMenuItem onClick={() => reopenChats(selectedList)}>
+                    Reopen conversations
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -467,20 +531,51 @@ export default function ConversationShell(props: {
                   type='button'
                   variant='outline'
                   size='sm'
+                  disabled={selectedList.some(id => updatingIds.has(id))}
                   className='h-7 rounded-md border-slate-200 bg-white text-xs'
                   onClick={() => unarchiveChats(selectedList)}>
-                  <ArchiveRestoreIcon className='mr-1 size-3.5' />
-                  Unarchive
+                  {selectedList.some(id => updatingIds.has(id)) ? (
+                    <LoaderCircleIcon className='mr-1 size-3.5 animate-spin' />
+                  ) : (
+                    <ArchiveRestoreIcon className='mr-1 size-3.5' />
+                  )}
+                  {selectedList.some(id => updatingIds.has(id))
+                    ? 'Restoring…'
+                    : 'Unarchive'}
                 </Button>
               ) : (
                 <Button
                   type='button'
                   variant='outline'
                   size='sm'
+                  disabled={selectedList.some(id => updatingIds.has(id))}
                   className='h-7 rounded-md border-slate-200 bg-white text-xs'
                   onClick={() => archiveChats(selectedList)}>
-                  <ArchiveIcon className='mr-1 size-3.5' />
-                  Archive
+                  {selectedList.some(id => updatingIds.has(id)) ? (
+                    <LoaderCircleIcon className='mr-1 size-3.5 animate-spin' />
+                  ) : (
+                    <ArchiveIcon className='mr-1 size-3.5' />
+                  )}
+                  {selectedList.some(id => updatingIds.has(id))
+                    ? 'Archiving…'
+                    : 'Archive'}
+                </Button>
+              )}
+
+              {activeFilter !== 'archived' && (
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  disabled={selectedList.some(id => updatingIds.has(id))}
+                  className='h-7 rounded-md border-slate-200 bg-white text-xs'
+                  onClick={() => closeChats(selectedList)}>
+                  {selectedList.some(id => updatingIds.has(id)) && (
+                    <LoaderCircleIcon className='mr-1 size-3.5 animate-spin' />
+                  )}
+                  {selectedList.some(id => updatingIds.has(id))
+                    ? 'Closing…'
+                    : 'Close'}
                 </Button>
               )}
 
@@ -498,7 +593,25 @@ export default function ConversationShell(props: {
         </div>
 
         <nav className='mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto px-2 pb-2 no-scrollbar'>
-          {filteredChats.length === 0 ? (
+          {isLoadingFilteredChats ? (
+            <div className='space-y-2 px-1 py-2' aria-label='Loading conversations'>
+              {[0, 1, 2, 3].map(item => (
+                <div
+                  key={item}
+                  className='flex animate-pulse items-center gap-2 rounded-lg border border-slate-100 bg-white p-2'>
+                  <div className='size-8 shrink-0 rounded-lg bg-slate-200' />
+                  <div className='min-w-0 flex-1 space-y-2'>
+                    <div className='h-2.5 w-2/5 rounded-full bg-slate-200' />
+                    <div className='h-2 w-3/5 rounded-full bg-slate-100' />
+                  </div>
+                </div>
+              ))}
+              <div className='flex items-center justify-center gap-1.5 py-2 text-[11px] text-slate-400'>
+                <LoaderCircleIcon className='size-3 animate-spin text-sky-600' />
+                Loading conversations
+              </div>
+            </div>
+          ) : filteredChats.length === 0 ? (
             <div className='flex flex-col items-center justify-center px-4 py-12 text-center'>
               <div className='mb-3 flex size-10 items-center justify-center rounded-full bg-slate-100 text-slate-400'>
                 <MessageSquareIcon className='size-4' />
@@ -519,8 +632,9 @@ export default function ConversationShell(props: {
           ) : (
             filteredChats.map(chat => {
               const isActive = activeConversationId === chat.id
-              const meta = getMeta(chat.id)
+              const state = getState(chat)
               const isSelected = selectedIds.has(chat.id)
+              const isUpdating = updatingIds.has(chat.id)
               const hasUnreadAgentRequest = notifications.some(
                 notification =>
                   notification.type === 'handover_request' &&
@@ -600,18 +714,17 @@ export default function ConversationShell(props: {
                           {chat.email}
                         </p>
                         <div className='mt-1 flex items-center gap-1'>
-                          {!meta.archived && (
-                            <span
-                              className={cn(
-                                'inline-flex rounded-md border px-1 py-0.5 text-[10px] font-medium',
-                                categoryChipClass(meta.category)
-                              )}>
-                              {CATEGORY_LABEL[meta.category]}
-                            </span>
-                          )}
-                          {meta.archived && (
+                          {state.isArchived ? (
                             <span className='inline-flex rounded-md border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[10px] font-medium text-violet-700'>
                               Archived
+                            </span>
+                          ) : state.status === 'closed' ? (
+                            <span className='inline-flex rounded-md border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600'>
+                              Closed
+                            </span>
+                          ) : (
+                            <span className='inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700'>
+                              Open
                             </span>
                           )}
                           {hasAgentRequest && (
@@ -635,46 +748,51 @@ export default function ConversationShell(props: {
                           type='button'
                           variant='ghost'
                           size='icon'
+                          disabled={isUpdating}
                           className='size-7 shrink-0 rounded-md opacity-70 hover:bg-slate-100 hover:opacity-100'
                           onClick={e => e.stopPropagation()}>
-                          <MoreVerticalIcon className='size-3.5' />
+                          {isUpdating ? (
+                            <LoaderCircleIcon className='size-3.5 animate-spin' />
+                          ) : (
+                            <MoreVerticalIcon className='size-3.5' />
+                          )}
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align='end' className='w-48'>
                         <DropdownMenuLabel className='text-xs'>
-                          Categorize
+                          Conversation status
                         </DropdownMenuLabel>
                         <DropdownMenuItem
-                          onClick={() => setCategory([chat.id], 'hot')}>
-                          <FlameIcon className='size-3.5 text-rose-500' />
-                          Hot lead
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => setCategory([chat.id], 'warm')}>
-                          <SunMediumIcon className='size-3.5 text-amber-500' />
-                          Warm lead
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => setCategory([chat.id], 'cold')}>
-                          <SnowflakeIcon className='size-3.5 text-sky-500' />
-                          Cold lead
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => setCategory([chat.id], 'unassigned')}>
-                          <InboxIcon className='size-3.5 text-slate-500' />
-                          Unassigned
+                          onClick={() =>
+                            state.status === 'closed'
+                              ? reopenChats([chat.id])
+                              : closeChats([chat.id])
+                          }>
+                          {state.status === 'closed'
+                            ? 'Reopen conversation'
+                            : 'Close conversation'}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        {meta.archived ? (
+                        {state.isArchived ? (
                           <DropdownMenuItem
+                            disabled={isUpdating}
                             onClick={() => unarchiveChats([chat.id])}>
-                            <ArchiveRestoreIcon className='size-3.5' />
+                            {isUpdating ? (
+                              <LoaderCircleIcon className='size-3.5 animate-spin' />
+                            ) : (
+                              <ArchiveRestoreIcon className='size-3.5' />
+                            )}
                             Unarchive
                           </DropdownMenuItem>
                         ) : (
                           <DropdownMenuItem
+                            disabled={isUpdating}
                             onClick={() => archiveChats([chat.id])}>
-                            <ArchiveIcon className='size-3.5' />
+                            {isUpdating ? (
+                              <LoaderCircleIcon className='size-3.5 animate-spin' />
+                            ) : (
+                              <ArchiveIcon className='size-3.5' />
+                            )}
                             Archive
                           </DropdownMenuItem>
                         )}

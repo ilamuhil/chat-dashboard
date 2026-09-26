@@ -32,6 +32,7 @@ type ChatInterfaceProps = {
   initialMode: string
   initialHandOverStatus: string
   initialStatus: string
+  initialLoadError?: string | null
 }
 
 const conversationEndedTypes = [
@@ -62,10 +63,13 @@ export default function ChatInterface({
   initialMode,
   initialHandOverStatus,
   initialStatus,
+  initialLoadError = null,
 }: ChatInterfaceProps) {
   const [expandedChat, setExpandedChat] = React.useState(false)
   const [isJoining, setIsJoining] = React.useState(false)
-  const [socketError, setSocketError] = React.useState<string | null>(null)
+  const [socketError, setSocketError] = React.useState<string | null>(
+    initialLoadError,
+  )
   const initiallyClosed = initialStatus !== 'open'
 
   const [isJoined, setIsJoined] = React.useState(

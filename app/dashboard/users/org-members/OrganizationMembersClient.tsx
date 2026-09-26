@@ -223,7 +223,7 @@ export default function OrganizationMembersClient({
                   Invite user
                 </Button>
               </DialogTrigger>
-              <DialogContent className='min-h-[430px] rounded-2xl border-slate-200 bg-white p-7 shadow-2xl sm:max-w-md'>
+              <DialogContent className='min-h-107.5 rounded-2xl border-slate-200 bg-white p-7 shadow-2xl sm:max-w-md'>
                 <DialogHeader className='border-b border-slate-100 pb-4 pr-6'>
                   <DialogTitle>Invite organization member</DialogTitle>
                   <DialogDescription>

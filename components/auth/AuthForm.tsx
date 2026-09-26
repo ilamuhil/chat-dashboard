@@ -8,6 +8,7 @@ import { OtpInput } from "@/components/auth/OtpInput";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import {
+  ArrowLeft,
   ArrowRight,
   Bot,
   Check,
@@ -293,14 +294,14 @@ export default function AuthForm(props: Props) {
           <div className="absolute -right-24 -top-24 size-72 rounded-full bg-blue-500/20 blur-3xl" />
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-size-[44px_44px] mask-[linear-gradient(to_bottom,black,transparent_85%)]" />
 
-          <div className="relative flex items-center gap-3">
+          <Link href="/" className="relative flex w-fit items-center gap-3">
             <span className="flex size-10 items-center justify-center rounded-xl bg-sky-500 shadow-lg shadow-sky-500/20">
               <Bot className="size-5" />
             </span>
             <span className="text-lg font-semibold tracking-tight">
               Chat Dashboard
             </span>
-          </div>
+          </Link>
 
           <div className="relative max-w-lg">
             <div className="mb-6 flex size-14 items-center justify-center rounded-2xl border border-white/10 bg-white/10 backdrop-blur">
@@ -343,14 +344,22 @@ export default function AuthForm(props: Props) {
             onSubmit={onSubmit}
             className="w-full max-w-110 animate-in fade-in slide-in-from-bottom-2 duration-500"
           >
-            <div className="mb-10 flex items-center gap-3 lg:hidden">
+            <Link
+              href="/"
+              className="mb-6 inline-flex items-center gap-2 rounded-lg px-1 py-1 text-sm font-medium text-slate-500 transition-colors hover:text-sky-800"
+            >
+              <ArrowLeft className="size-4" />
+              Back to website
+            </Link>
+
+            <Link href="/" className="mb-10 flex w-fit items-center gap-3 lg:hidden">
               <span className="flex size-9 items-center justify-center rounded-xl bg-slate-950 text-white">
                 <Bot className="size-4.5" />
               </span>
               <span className="font-semibold tracking-tight text-slate-900">
                 Chat Dashboard
               </span>
-            </div>
+            </Link>
 
             <div className="mb-8">
               <div className="mb-4 flex size-11 items-center justify-center rounded-2xl border border-sky-100 bg-sky-50 text-sky-600">
@@ -555,13 +564,19 @@ export default function AuthForm(props: Props) {
                     className="text-xs leading-5 font-normal text-slate-500"
                   >
                     I agree to the{" "}
-                    <span className="font-medium text-slate-700">
+                    <Link
+                      href="/terms"
+                      className="font-medium text-sky-700 underline-offset-2 hover:underline"
+                    >
                       Terms of Service
-                    </span>{" "}
+                    </Link>{" "}
                     and{" "}
-                    <span className="font-medium text-slate-700">
+                    <Link
+                      href="/privacy"
+                      className="font-medium text-sky-700 underline-offset-2 hover:underline"
+                    >
                       Privacy Policy
-                    </span>
+                    </Link>
                     .
                   </Label>
                 </div>

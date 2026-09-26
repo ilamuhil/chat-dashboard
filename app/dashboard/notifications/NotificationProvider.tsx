@@ -79,7 +79,7 @@ export function NotificationProvider({
 
           return sortNotifications(
             Array.from(byId.values()),
-          ).slice(0, 50)
+          )
         })
       } catch (error) {
         console.error(
@@ -114,7 +114,10 @@ export function NotificationProvider({
           )
         }
 
-        return [notification, ...current].slice(0, 50)
+        return sortNotifications([
+          notification,
+          ...current,
+        ])
       })
     },
     [],

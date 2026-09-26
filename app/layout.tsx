@@ -15,24 +15,24 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env.APP_URL || "http://localhost:3000"
+    process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:4000"
   ),
 
   title: {
-    default: "AI Chatbot Dashboard | Manage & Embed Business Chatbots",
-    template: "%s | AI Chatbot Dashboard",
+    default: "AI Chat Bot | Admissions Chatbot for Academic Institutes",
+    template: "%s | AI Chat Bot",
   },
 
   description:
-    "Manage, configure, and deploy embeddable AI chatbots for customer support, lead capture, and business automation.",
+    "Build an AI admissions chatbot that answers student enquiries from approved institute content, captures leads, and connects applicants with counsellors.",
 
   keywords: [
-    "AI chatbot dashboard",
-    "business chatbot",
-    "embeddable chatbot",
-    "customer support automation",
-    "chatbot management platform",
-    "AI customer support",
+    "AI admissions chatbot",
+    "college admission chatbot",
+    "education chatbot",
+    "admissions automation",
+    "student enquiry chatbot",
+    "admissions CRM",
   ],
 
   icons: {
@@ -48,31 +48,28 @@ export const metadata: Metadata = {
   manifest: "/favicon/site.webmanifest",
 
   openGraph: {
-    title: "AI Chatbot Dashboard",
+    title: "AI Chat Bot for Admissions Teams",
     description:
-      "A dashboard to manage embeddable AI chatbots for customer support, automation, and lead generation.",
-    url: "https://chat-dashboard.com",
-    siteName: "AI Chatbot Dashboard",
+      "Grounded admissions answers, lead capture, and counsellor handoff for academic institutes.",
+    siteName: "AI Chat Bot",
     locale: "en_US",
     type: "website",
-    // REMOVE this if you don’t have the file yet
-    // images: [
-    //   {
-    //     url: "/og-image.png",
-    //     width: 1200,
-    //     height: 630,
-    //     alt: "AI Chatbot Dashboard Preview",
-    //   },
-    // ],
+    images: [
+      {
+        url: "/marketing/admissions-ai-hero.png",
+        width: 1536,
+        height: 864,
+        alt: "AI admissions chatbot for academic institutes",
+      },
+    ],
   },
 
   twitter: {
     card: "summary_large_image",
-    title: "AI Chatbot Dashboard",
+    title: "AI Chat Bot for Admissions Teams",
     description:
-      "Manage and deploy embeddable AI chatbots for modern businesses.",
-    // REMOVE this if you don’t have the file yet
-    // images: ["/og-image.png"],
+      "Grounded admissions answers, lead capture, and counsellor handoff for academic institutes.",
+    images: ["/marketing/admissions-ai-hero.png"],
   },
 };
 

@@ -319,6 +319,7 @@ model ConversationsMeta {
   userName           String?   @map("user_name") @db.Text
   userEmail          String?   @map("user_email") @db.Text
   status             String    @default("open") @db.Text //! open, closed
+  isArchived         Boolean   @default(false) @map("is_archived")
   handOverStatus     String?   @default("none") @map("handover_status") @db.Text //! none, requested, accepted, timed_out
   closedBy           String?   @map("closed_by") @db.Text //! visitor | support_agent | system | admin (when the bot is deleted or org is disabled or manual cleanups are necessary)
   closedAt           DateTime? @map("closed_at")

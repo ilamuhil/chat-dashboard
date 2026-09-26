@@ -4,7 +4,11 @@ import { requireAuthUserId } from '@/lib/auth-server'
 import { resolveCurrentOrganizationId } from '@/lib/current-organization'
 import { MessageSquareIcon } from 'lucide-react'
 
-export default async function ConversationsPage() {
+export default async function ConversationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ type?: string }>
+}) {
   const userId = await requireAuthUserId()
   const organizationId = await resolveCurrentOrganizationId({ userId })
   if (!organizationId) {
@@ -38,5 +42,12 @@ export default async function ConversationsPage() {
     )
   }
 
-  return redirect(`/dashboard/users/conversations/${conversation.id}`)
+  const type =
+    searchParams && (await searchParams).type
+  const query =
+    type === 'open' || type === 'closed' || type === 'archived'
+      ? `?type=${type}`
+      : ''
+
+  return redirect(`/dashboard/users/conversations/${conversation.id}${query}`)
 }
