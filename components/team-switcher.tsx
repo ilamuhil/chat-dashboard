@@ -77,7 +77,7 @@ export function TeamSwitcher({ teams }: { teams: Team[] }) {
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size='lg'
-              className='h-12 rounded-xl border border-slate-200/80 bg-white px-2.5 shadow-sm transition-colors hover:bg-sky-50/60 data-[state=open]:bg-sky-50/80 data-[state=open]:ring-1 data-[state=open]:ring-sky-200/70'>
+              className='h-12 rounded-xl border border-slate-200/80 bg-white px-2.5 shadow-sm transition-colors hover:bg-sky-50/60 data-[state=open]:bg-sky-50/80 data-[state=open]:ring-1 data-[state=open]:ring-sky-200/70 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-sky-500/15 dark:data-[state=open]:bg-sky-500/15 dark:data-[state=open]:ring-sky-400/25'>
               <div className='flex aspect-square size-8 items-center justify-center rounded-lg bg-linear-to-br from-sky-500 to-slate-700 text-white shadow-sm'>
                 <activeTeam.logo className='size-4' />
               </div>

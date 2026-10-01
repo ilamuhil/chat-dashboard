@@ -75,13 +75,13 @@ const ResourceContainer = (props: Props) => {
           {props.resources.map(resource => (
             <div
               key={resource.id}
-              className='group flex min-w-0 items-center gap-3 px-3 py-2.5 transition-colors hover:bg-sky-50/40'>
+              className='group flex min-w-0 items-center gap-3 px-3 py-2.5 transition-colors hover:bg-sky-50/40 dark:hover:bg-sky-500/10'>
               <div
                 className={cn(
                   'flex size-8 shrink-0 items-center justify-center rounded-lg ring-1',
                   resource.type === 'url'
-                    ? 'bg-sky-50 text-sky-700 ring-sky-200/70'
-                    : 'bg-slate-50 text-slate-600 ring-slate-200/70'
+                    ? 'bg-sky-50 text-sky-700 ring-sky-200/70 dark:bg-sky-500/15 dark:text-sky-200 dark:ring-sky-400/25'
+                    : 'bg-slate-50 text-slate-600 ring-slate-200/70 dark:bg-slate-800 dark:ring-slate-700'
                 )}>
                 {resource.type === 'url' ? (
                   <LinkIcon className='size-3.5' />
@@ -115,7 +115,7 @@ const ResourceContainer = (props: Props) => {
                       e.stopPropagation()
                       setOpenDialog(resource.value)
                     }}
-                    className='size-7 rounded-md text-rose-500 hover:bg-rose-50 hover:text-rose-600'>
+                    className='size-7 rounded-md text-rose-500 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/15 dark:hover:text-rose-200'>
                     <InfoIcon className='size-3.5' />
                   </Button>
                 )}
@@ -129,7 +129,7 @@ const ResourceContainer = (props: Props) => {
                     e.stopPropagation()
                     resource.onDelete()
                   }}
-                  className='size-7 rounded-md text-slate-400 opacity-70 transition-opacity group-hover:opacity-100 hover:bg-rose-50 hover:text-rose-600'>
+                  className='size-7 rounded-md text-slate-400 opacity-70 transition-opacity group-hover:opacity-100 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/15 dark:hover:text-rose-200'>
                   <TrashIcon className='size-3.5' />
                 </Button>
               </div>

@@ -27,6 +27,10 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import {
+  dashboardDangerButtonClass,
+  dashboardOutlineButtonClass,
+} from '@/lib/dashboard-buttons'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { clientApiAxios } from '@/lib/axios-client'
@@ -60,9 +64,11 @@ const FILTERS: Array<{
       label: 'Open',
       shortLabel: 'Open',
       icon: MessageCircleIcon,
-      activeClass: 'border-sky-200 bg-sky-50 text-sky-800',
-      inactiveClass: 'border-sky-100 bg-sky-50/40 text-sky-700 hover:bg-sky-50',
-      badgeClass: 'bg-sky-100 text-sky-700',
+      activeClass:
+        'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-400/30 dark:bg-sky-500/15 dark:text-sky-200',
+      inactiveClass:
+        'border-sky-100 bg-sky-50/40 text-sky-700 hover:bg-sky-50 dark:border-sky-400/20 dark:bg-sky-500/10 dark:text-sky-300 dark:hover:bg-sky-500/20',
+      badgeClass: 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200',
     },
     {
       id: 'all',
@@ -87,9 +93,12 @@ const FILTERS: Array<{
       label: 'Archived',
       shortLabel: 'Archived',
       icon: ArchiveIcon,
-      activeClass: 'border-violet-200 bg-violet-50 text-violet-800',
-      inactiveClass: 'border-violet-100 bg-violet-50/40 text-violet-700 hover:bg-violet-50',
-      badgeClass: 'bg-violet-100 text-violet-700',
+      activeClass:
+        'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-400/30 dark:bg-violet-500/15 dark:text-violet-200',
+      inactiveClass:
+        'border-violet-100 bg-violet-50/40 text-violet-700 hover:bg-violet-50 dark:border-violet-400/20 dark:bg-violet-500/10 dark:text-violet-300 dark:hover:bg-violet-500/20',
+      badgeClass:
+        'bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-200',
     },
   ]
 
@@ -399,7 +408,7 @@ export default function ConversationShell(props: {
         onConfirm={confirmDelete}
       />
 
-      <aside className='dashboard-surface flex h-full min-h-0 flex-col overflow-hidden rounded-xl'>
+      <aside className='dashboard-surface flex h-full min-h-0 flex-col overflow-hidden rounded-xl dark:border-slate-700 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900'>
         <header className='flex shrink-0 items-center justify-between gap-2 border-b border-slate-100 px-4 py-3'>
           <div>
             <h2 className='text-sm font-semibold tracking-tight text-foreground'>
@@ -508,7 +517,10 @@ export default function ConversationShell(props: {
                     type='button'
                     variant='outline'
                     size='sm'
-                    className='h-7 rounded-md border-slate-200 bg-white text-xs'>
+                    className={cn(
+                      dashboardOutlineButtonClass,
+                      'h-7 rounded-md text-xs',
+                    )}>
                     Move to
                   </Button>
                 </DropdownMenuTrigger>
@@ -532,7 +544,10 @@ export default function ConversationShell(props: {
                   variant='outline'
                   size='sm'
                   disabled={selectedList.some(id => updatingIds.has(id))}
-                  className='h-7 rounded-md border-slate-200 bg-white text-xs'
+                  className={cn(
+                    dashboardOutlineButtonClass,
+                    'h-7 rounded-md text-xs',
+                  )}
                   onClick={() => unarchiveChats(selectedList)}>
                   {selectedList.some(id => updatingIds.has(id)) ? (
                     <LoaderCircleIcon className='mr-1 size-3.5 animate-spin' />
@@ -549,7 +564,10 @@ export default function ConversationShell(props: {
                   variant='outline'
                   size='sm'
                   disabled={selectedList.some(id => updatingIds.has(id))}
-                  className='h-7 rounded-md border-slate-200 bg-white text-xs'
+                  className={cn(
+                    dashboardOutlineButtonClass,
+                    'h-7 rounded-md text-xs',
+                  )}
                   onClick={() => archiveChats(selectedList)}>
                   {selectedList.some(id => updatingIds.has(id)) ? (
                     <LoaderCircleIcon className='mr-1 size-3.5 animate-spin' />
@@ -568,7 +586,10 @@ export default function ConversationShell(props: {
                   variant='outline'
                   size='sm'
                   disabled={selectedList.some(id => updatingIds.has(id))}
-                  className='h-7 rounded-md border-slate-200 bg-white text-xs'
+                  className={cn(
+                    dashboardOutlineButtonClass,
+                    'h-7 rounded-md text-xs',
+                  )}
                   onClick={() => closeChats(selectedList)}>
                   {selectedList.some(id => updatingIds.has(id)) && (
                     <LoaderCircleIcon className='mr-1 size-3.5 animate-spin' />
@@ -583,7 +604,10 @@ export default function ConversationShell(props: {
                 type='button'
                 variant='outline'
                 size='sm'
-                className='h-7 rounded-md border-rose-200 bg-white text-xs text-rose-600 hover:bg-rose-50'
+                className={cn(
+                  dashboardDangerButtonClass,
+                  'h-7 rounded-md text-xs',
+                )}
                 onClick={() => requestDelete(selectedList)}>
                 <Trash2Icon className='mr-1 size-3.5' />
                 Delete
@@ -654,9 +678,10 @@ export default function ConversationShell(props: {
                   className={cn(
                     'group relative flex w-full items-start gap-1.5 rounded-lg border p-2 transition-all duration-200',
                     isActive
-                      ? 'border-sky-300 bg-sky-50 shadow-sm ring-1 ring-sky-200/70'
-                      : 'border-transparent bg-slate-50/80 hover:border-slate-200 hover:bg-white hover:shadow-sm',
-                    isSelected && 'border-sky-300 bg-sky-50/70'
+                      ? 'border-sky-300 bg-sky-50 shadow-sm ring-1 ring-sky-200/70 dark:border-sky-400/40 dark:bg-sky-950 dark:ring-sky-400/25'
+                      : 'border-transparent bg-slate-50/80 hover:border-slate-200 hover:bg-white hover:shadow-sm dark:bg-slate-800/90 dark:hover:border-slate-600 dark:hover:bg-slate-800',
+                    isSelected &&
+                      'border-sky-300 bg-sky-50/70 dark:border-sky-400/40 dark:bg-sky-950'
                   )}>
                   {selectionMode && (
                     <div className='pt-2'>
@@ -685,8 +710,8 @@ export default function ConversationShell(props: {
                         className={cn(
                           'flex size-8 shrink-0 items-center justify-center rounded-lg text-[11px] font-semibold text-white shadow-sm',
                           isActive
-                            ? 'bg-linear-to-br from-sky-500 to-slate-700'
-                            : 'bg-linear-to-br from-slate-500 to-slate-700'
+                            ? 'bg-linear-to-br from-sky-500 to-slate-700 dark:from-sky-500 dark:to-sky-800'
+                            : 'bg-linear-to-br from-slate-500 to-slate-700 dark:from-slate-700 dark:to-slate-900'
                         )}>
                         {getInitials(chat.name)}
                       </div>
@@ -701,7 +726,7 @@ export default function ConversationShell(props: {
                               className={cn(
                                 'shrink-0 text-[11px]',
                                 isActive
-                                  ? 'font-medium text-sky-700'
+                                  ? 'font-medium text-sky-700 dark:text-sky-200'
                                   : 'text-muted-foreground'
                               )}>
                               {formatDistanceToNow(new Date(chat.lastMessageAt), {
@@ -715,20 +740,20 @@ export default function ConversationShell(props: {
                         </p>
                         <div className='mt-1 flex items-center gap-1'>
                           {state.isArchived ? (
-                            <span className='inline-flex rounded-md border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[10px] font-medium text-violet-700'>
+                            <span className='inline-flex rounded-md border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[10px] font-medium text-violet-700 dark:border-violet-400/30 dark:bg-violet-500/15 dark:text-violet-200'>
                               Archived
                             </span>
                           ) : state.status === 'closed' ? (
-                            <span className='inline-flex rounded-md border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600'>
+                            <span className='inline-flex rounded-md border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400'>
                               Closed
                             </span>
                           ) : (
-                            <span className='inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700'>
+                            <span className='inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-500/15 dark:text-emerald-200'>
                               Open
                             </span>
                           )}
                           {hasAgentRequest && (
-                            <span className='inline-flex shrink-0 items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700'>
+                            <span className='inline-flex shrink-0 items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:border-amber-400/30 dark:bg-amber-500/15 dark:text-amber-200'>
                               <span className='size-1.5 rounded-full bg-amber-500' />
                               Agent request
                             </span>

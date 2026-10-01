@@ -108,7 +108,7 @@ export function AppSidebar({
   return (
     <Sidebar
       collapsible='icon'
-      className='border-r border-slate-200/80 bg-linear-to-b from-white via-slate-50/80 to-sky-50/40'
+      className='border-r border-slate-200/80 bg-linear-to-b from-white via-slate-50/80 to-sky-50/40 dark:to-slate-900/40'
       {...props}>
       <SidebarHeader className='gap-2 px-2 py-3'>
         <TeamSwitcher teams={orgsForSwitcher} />

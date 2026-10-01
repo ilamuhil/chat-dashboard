@@ -1,10 +1,12 @@
 'use client'
 
+import { useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
-import { Bell, CheckCheck, UserRoundPlus } from 'lucide-react'
+import { Bell, CheckCheck, Trash2, UserRoundPlus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 import { Button } from '@/components/ui/button'
+import ConfirmationDialog from '@/components/ui/ConfirmationDialog'
 import { useDashboardNotifications } from '@/app/dashboard/notifications/NotificationProvider'
 
 function getNotificationRoute(
@@ -24,59 +26,101 @@ function getNotificationRoute(
 
 function NotificationTypeIcon({ type }: { type: string }) {
   return type === 'lead_captured' ? (
-    <UserRoundPlus className='size-4' aria-hidden='true' />
+    <UserRoundPlus className='size-3' aria-hidden='true' />
   ) : (
-    <Bell className='size-4' aria-hidden='true' />
+    <Bell className='size-3' aria-hidden='true' />
   )
 }
 
 export default function DashboardNotificationsPage() {
   const router = useRouter()
-  const { notifications, unreadCount, markRead, markAllRead } =
-    useDashboardNotifications()
+  const {
+    notifications,
+    unreadCount,
+    markRead,
+    markAllRead,
+    deleteNotification,
+    clearAll,
+  } = useDashboardNotifications()
+  const [clearOpen, setClearOpen] = useState(false)
+  const [clearing, setClearing] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const handleClearAll = async () => {
+    setClearing(true)
+    try {
+      await clearAll()
+      setClearOpen(false)
+    } finally {
+      setClearing(false)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id)
+    try {
+      await deleteNotification(id)
+    } catch {
+      // The provider restores the item if the request fails.
+    } finally {
+      setDeletingId(current => (current === id ? null : current))
+    }
+  }
 
   return (
-    <div className='mx-auto w-full max-w-3xl'>
-      <div className='flex items-end justify-between gap-4'>
+    <div className='mx-auto flex h-full min-h-0 w-full max-w-2xl flex-col'>
+      <div className='flex shrink-0 items-center justify-between gap-3'>
         <div>
-          <p className='text-xs font-semibold uppercase tracking-[0.14em] text-sky-700'>
-            Activity
-          </p>
-          <h1 className='mt-1 text-2xl font-semibold tracking-tight text-slate-950'>
+          <h1 className='text-sm font-medium text-slate-900'>
             Notifications
           </h1>
-          <p className='mt-1 text-sm text-slate-500'>
-            Stay up to date with activity across your organization.
+          <p className='mt-0.5 text-xs text-slate-500'>
+            {notifications.length === 0
+              ? 'No activity yet'
+              : unreadCount > 0
+                ? `${unreadCount} unread`
+                : `${notifications.length} notification${notifications.length === 1 ? '' : 's'}`}
           </p>
         </div>
-        {unreadCount > 0 && (
-          <Button
-            type='button'
-            variant='outline'
-            size='sm'
-            className='shrink-0 rounded-lg border-slate-200 bg-white text-xs'
-            onClick={() => void markAllRead()}>
-            <CheckCheck className='mr-1.5 size-3.5' aria-hidden='true' />
-            Mark all read
-          </Button>
+        {notifications.length > 0 && (
+          <div className='flex shrink-0 items-center gap-1'>
+            {unreadCount > 0 && (
+              <Button
+                type='button'
+                variant='ghost'
+                size='sm'
+                className='h-7 px-2 text-xs font-normal text-slate-600'
+                onClick={() => void markAllRead()}>
+                <CheckCheck className='size-3.5' aria-hidden='true' />
+                Mark all read
+              </Button>
+            )}
+            <Button
+              type='button'
+              variant='ghost'
+              size='sm'
+              className='h-7 px-2 text-xs font-normal text-slate-500 hover:bg-rose-50 hover:text-rose-700'
+              onClick={() => setClearOpen(true)}>
+              <Trash2 className='size-3.5' aria-hidden='true' />
+              Clear all
+            </Button>
+          </div>
         )}
       </div>
 
-      <div className='mt-6 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm'>
+      <div className='mt-3 min-h-0 flex-1 overflow-y-auto rounded-lg border border-slate-200 bg-white no-scrollbar'>
         {notifications.length === 0 ? (
-          <div className='px-6 py-16 text-center'>
-            <div className='mx-auto flex size-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-400 ring-1 ring-slate-200'>
-              <Bell className='size-5' aria-hidden='true' />
-            </div>
-            <h2 className='mt-4 text-sm font-semibold text-slate-900'>
-              You&apos;re all caught up
-            </h2>
-            <p className='mt-1 text-sm text-slate-500'>
-              New organization activity will appear here.
+          <div className='px-4 py-10 text-center'>
+            <Bell
+              className='mx-auto size-4 text-slate-300'
+              aria-hidden='true'
+            />
+            <p className='mt-2 text-xs text-slate-500'>
+              You&apos;re all caught up. New activity will show up here.
             </p>
           </div>
         ) : (
-          <div className='divide-y divide-slate-100'>
+          <ul className='divide-y divide-slate-100'>
             {notifications.map(notification => {
               const route = getNotificationRoute(
                 notification.type,
@@ -85,41 +129,65 @@ export default function DashboardNotificationsPage() {
               const isUnread = notification.readAt === null
 
               return (
-                <button
+                <li
                   key={notification.id}
-                  type='button'
-                  className='flex w-full items-start gap-3 px-5 py-4 text-left transition-colors hover:bg-slate-50'
-                  onClick={() => {
-                    void markRead(notification.id)
-                    if (route) router.push(route)
-                  }}>
-                  <span className='mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-sky-50 text-sky-700 ring-1 ring-sky-100'>
+                  className='group flex items-start gap-2 px-3 py-2 hover:bg-slate-50/80'>
+                  <span className='mt-0.5 grid size-6 shrink-0 place-items-center rounded-md bg-slate-100 text-slate-500'>
                     <NotificationTypeIcon type={notification.type} />
                   </span>
-                  <span className='min-w-0 flex-1'>
-                    <span className='flex items-start justify-between gap-3'>
-                      <span className='font-medium text-slate-900'>
+                  <button
+                    type='button'
+                    className='min-w-0 flex-1 text-left'
+                    onClick={() => {
+                      void markRead(notification.id)
+                      if (route) router.push(route)
+                    }}>
+                    <span className='flex items-baseline gap-2'>
+                      <span
+                        className={`min-w-0 truncate text-[13px] leading-5 text-slate-800 ${isUnread ? 'font-medium' : 'font-normal'}`}>
                         {notification.title}
                       </span>
                       {isUnread && (
-                        <span className='mt-1.5 size-2 shrink-0 rounded-full bg-sky-600' />
+                        <span className='size-1.5 shrink-0 rounded-full bg-sky-500' />
                       )}
+                      <span className='ml-auto shrink-0 text-[11px] text-slate-400'>
+                        {formatDistanceToNow(
+                          new Date(notification.createdAt),
+                          { addSuffix: true },
+                        )}
+                      </span>
                     </span>
-                    <span className='mt-1 block text-sm leading-6 text-slate-600'>
+                    <span className='mt-0.5 block truncate text-xs leading-4 text-slate-500'>
                       {notification.body}
                     </span>
-                    <span className='mt-2 block text-xs text-slate-400'>
-                      {formatDistanceToNow(new Date(notification.createdAt), {
-                        addSuffix: true,
-                      })}
-                    </span>
-                  </span>
-                </button>
+                  </button>
+                  <button
+                    type='button'
+                    aria-label='Delete notification'
+                    disabled={deletingId === notification.id}
+                    className='mt-0.5 grid size-6 shrink-0 place-items-center rounded-md text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40'
+                    onClick={() => void handleDelete(notification.id)}>
+                    <Trash2 className='size-3.5' aria-hidden='true' />
+                  </button>
+                </li>
               )
             })}
-          </div>
+          </ul>
         )}
       </div>
+
+      <ConfirmationDialog
+        open={clearOpen}
+        setOpen={setClearOpen}
+        title='Clear all notifications?'
+        description='This removes every notification for you. Other people in the organization keep theirs.'
+        confirmLabel='Clear all'
+        pendingLabel='Clearing…'
+        isPending={clearing}
+        keepOpenUntilComplete
+        confirmClassName='bg-rose-600 text-white hover:bg-rose-700'
+        onConfirm={handleClearAll}
+      />
     </div>
   )
 }

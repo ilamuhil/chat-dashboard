@@ -77,15 +77,18 @@ export function NavMain({
                     }}
                     className={cn(
                       'h-9 cursor-pointer rounded-lg px-2.5 text-slate-600 transition-colors',
-                      'hover:bg-sky-50 hover:text-slate-900',
+                      'hover:bg-sky-50 hover:text-slate-900 dark:hover:bg-sky-500/15 dark:hover:text-sky-100',
                       'data-[active=true]:bg-sky-50 data-[active=true]:font-medium data-[active=true]:text-sky-900 data-[active=true]:shadow-none',
-                      'data-[active=true]:ring-1 data-[active=true]:ring-sky-200/70'
+                      'dark:data-[active=true]:bg-sky-500/15 dark:data-[active=true]:text-sky-100',
+                      'data-[active=true]:ring-1 data-[active=true]:ring-sky-200/70 dark:data-[active=true]:ring-sky-400/30'
                     )}>
                     {item.icon && (
                       <item.icon
                         className={cn(
                           'size-4',
-                          isParentActive ? 'text-sky-700' : 'text-slate-500'
+                          isParentActive
+                            ? 'text-sky-700 dark:text-sky-300'
+                            : 'text-slate-500'
                         )}
                       />
                     )}
@@ -109,8 +112,9 @@ export function NavMain({
                               isActive={isSubActive}
                               className={cn(
                                 'h-8 rounded-md px-2.5 text-slate-600',
-                                'hover:bg-sky-50 hover:text-slate-900',
-                                'data-[active=true]:bg-sky-50 data-[active=true]:font-medium data-[active=true]:text-sky-900'
+                                'hover:bg-sky-50 hover:text-slate-900 dark:hover:bg-sky-500/15 dark:hover:text-sky-100',
+                                'data-[active=true]:bg-sky-50 data-[active=true]:font-medium data-[active=true]:text-sky-900',
+                                'dark:data-[active=true]:bg-sky-500/15 dark:data-[active=true]:text-sky-100'
                               )}>
                               <Link href={subItem.url}>
                                 <span>{subItem.title}</span>

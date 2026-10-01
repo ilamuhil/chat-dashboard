@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
+import { dashboardButtonClass } from '@/lib/dashboard-buttons'
 import { cn } from '@/lib/utils'
 import { Message } from './types'
 import { renderChatMarkdown } from './markdown'
@@ -218,7 +219,7 @@ export default function ChatWindow(props: ChatWindowProps) {
                   : 'chat-message-bubble--assistant-tail'),
               'min-w-0 px-3.5 py-2.5 text-[13px] shadow-sm',
               visualRole === 'user'
-                ? 'bg-[#e9e9eb] text-slate-900'
+                ? 'bg-[#e9e9eb] text-[#1e293b]'
                 : 'bg-sky-700 text-white'
             )}>
             <div
@@ -243,14 +244,14 @@ export default function ChatWindow(props: ChatWindowProps) {
   return (
     <div
       className={cn(
-        'flex h-full min-h-0 flex-col bg-linear-to-b from-slate-50/90 via-white to-sky-50/30',
+        'flex h-full min-h-0 flex-col bg-linear-to-b from-slate-50/90 via-white to-sky-50/30 dark:to-slate-900/40',
         props.expanded ? 'fixed inset-0 z-50 h-dvh w-dvw' : ''
       )}>
       <div className='mb-0 min-h-0 flex-1 overflow-y-auto px-4 py-4 no-scrollbar'>
         {props.connectionError && (
           <div
             role='alert'
-            className='mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700'>
+            className='mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-400/25 dark:bg-rose-500/15 dark:text-rose-200'>
             {props.connectionError}
           </div>
         )}
@@ -318,7 +319,7 @@ export default function ChatWindow(props: ChatWindowProps) {
               !props.onSendMessage
             }
             onClick={sendDraft}
-            className='size-9 rounded-lg bg-linear-to-r from-slate-800 to-sky-800 shadow-sm hover:from-slate-900 hover:to-sky-900'>
+            className={cn(dashboardButtonClass, 'size-9 rounded-lg')}>
             <SendIcon className='size-4' />
           </Button>
         </div>

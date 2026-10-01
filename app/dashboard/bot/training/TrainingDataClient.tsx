@@ -11,6 +11,10 @@ import {
   Link2Icon,
   PlusIcon,
 } from 'lucide-react'
+import {
+  dashboardButtonClass,
+  dashboardOutlineButtonClass,
+} from '@/lib/dashboard-buttons'
 import { cn } from '@/lib/utils'
 import ResourceContainer from './ResourceContainer'
 import { Bot } from '../interactions/action'
@@ -352,7 +356,10 @@ export default function TrainingDataClient({ bots }: Props) {
             variant='outline'
             type='button'
             size='sm'
-            className='h-9 shrink-0 gap-1.5 rounded-lg border-slate-200 bg-white px-3 text-xs font-medium shadow-sm'
+            className={cn(
+              dashboardOutlineButtonClass,
+              'h-9 shrink-0 gap-1.5 rounded-lg px-3 text-xs font-medium',
+            )}
             onClick={() => setSelectedBot(null)}>
             <ArrowLeftIcon className='size-3.5' />
             Back
@@ -388,7 +395,10 @@ export default function TrainingDataClient({ bots }: Props) {
               disabled={!url.trim() || isUrlAdditionPending}
               variant='outline'
               size='sm'
-              className='h-9 rounded-l-none border-l-0 border-slate-200 bg-slate-50 px-3 shadow-sm hover:bg-sky-50'
+              className={cn(
+                dashboardOutlineButtonClass,
+                'h-9 rounded-l-none border-l-0 px-3',
+              )}
               onClick={() => addUrl()}>
               {isUrlAdditionPending ? (
                 <Loader2 className='size-4 animate-spin' />
@@ -414,17 +424,17 @@ export default function TrainingDataClient({ bots }: Props) {
         />
         <div
           className={cn(
-            'group relative overflow-hidden rounded-xl border border-dashed border-slate-300 bg-linear-to-b from-slate-50 via-white to-sky-50/40 px-6 py-8 text-center transition-all duration-300',
+            'group relative overflow-hidden rounded-xl border border-dashed border-slate-300 bg-linear-to-b from-slate-50 via-white to-sky-50/40 px-6 py-8 text-center transition-all duration-300 dark:border-slate-600 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800',
             isFileUploading
               ? 'cursor-not-allowed opacity-60'
-              : 'cursor-pointer hover:border-sky-300 hover:from-sky-50/60 hover:to-white hover:shadow-sm'
+              : 'cursor-pointer hover:border-sky-300 hover:from-sky-50/60 hover:via-white hover:to-white hover:shadow-sm dark:hover:border-sky-400/50 dark:hover:from-slate-800 dark:hover:via-slate-800 dark:hover:to-slate-900'
           )}
           onClick={() => {
             if (isFileUploading) return
             document.getElementById('file-input')?.click()
           }}>
           <div className='pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-sky-300/50 to-transparent' />
-          <div className='mx-auto mb-3 flex size-11 items-center justify-center rounded-full bg-linear-to-br from-sky-100 to-slate-100 text-sky-700 shadow-sm ring-1 ring-sky-200/60 transition-transform duration-200 group-hover:scale-105'>
+          <div className='mx-auto mb-3 flex size-11 items-center justify-center rounded-full bg-linear-to-br from-sky-100 to-slate-100 text-sky-700 shadow-sm ring-1 ring-sky-200/60 transition-transform duration-200 group-hover:scale-105 dark:from-sky-500/20 dark:to-slate-800 dark:text-sky-200 dark:ring-sky-400/30'>
             {isFileUploading ? (
               <Loader2 className='size-5 animate-spin' />
             ) : (
@@ -472,11 +482,11 @@ export default function TrainingDataClient({ bots }: Props) {
           className={cn(
             'relative overflow-hidden rounded-xl border p-5 shadow-sm',
             progressTone === 'active' &&
-              'border-amber-200/80 bg-linear-to-br from-amber-50/90 via-white to-orange-50/50',
+              'border-amber-200/80 bg-linear-to-br from-amber-50/90 via-white to-orange-50/50 dark:border-amber-400/25 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800',
             progressTone === 'complete' &&
-              'border-emerald-200/80 bg-linear-to-br from-emerald-50/90 via-white to-teal-50/40',
+              'border-emerald-200/80 bg-linear-to-br from-emerald-50/90 via-white to-teal-50/40 dark:border-emerald-400/25 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800',
             progressTone === 'idle' &&
-              'border-slate-200/80 bg-linear-to-br from-slate-50 via-white to-sky-50/40'
+              'border-slate-200/80 bg-linear-to-br from-slate-50 via-white to-sky-50/40 dark:border-slate-700 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800'
           )}>
           <div
             className={cn(
@@ -501,7 +511,7 @@ export default function TrainingDataClient({ bots }: Props) {
               </p>
             </div>
             {isFetchingTrainingSources && (
-              <span className='inline-flex items-center gap-1.5 rounded-full bg-white/80 px-2 py-1 text-[11px] font-medium text-muted-foreground shadow-sm ring-1 ring-slate-200/70'>
+              <span className='inline-flex items-center gap-1.5 rounded-full bg-white/80 px-2 py-1 text-[11px] font-medium text-muted-foreground shadow-sm ring-1 ring-slate-200/70 dark:bg-slate-800 dark:ring-slate-700'>
                 <Loader2 className='size-3 animate-spin' />
                 Syncing
               </span>
@@ -516,8 +526,8 @@ export default function TrainingDataClient({ bots }: Props) {
               <span
                 className={cn(
                   'text-2xl font-semibold tracking-tight tabular-nums',
-                  progressTone === 'active' && 'text-amber-700',
-                  progressTone === 'complete' && 'text-emerald-700',
+                  progressTone === 'active' && 'text-amber-700 dark:text-amber-200',
+                  progressTone === 'complete' && 'text-emerald-700 dark:text-emerald-200',
                   progressTone === 'idle' && 'text-slate-800'
                 )}>
                 {progress}
@@ -530,9 +540,9 @@ export default function TrainingDataClient({ bots }: Props) {
             <div
               className={cn(
                 'relative h-3 w-full overflow-hidden rounded-full',
-                progressTone === 'active' && 'bg-amber-100/80',
-                progressTone === 'complete' && 'bg-emerald-100/80',
-                progressTone === 'idle' && 'bg-slate-200/80'
+                progressTone === 'active' && 'bg-amber-100/80 dark:bg-amber-500/15',
+                progressTone === 'complete' && 'bg-emerald-100/80 dark:bg-emerald-500/15',
+                progressTone === 'idle' && 'bg-slate-200/80 dark:bg-slate-800'
               )}>
               <div
                 className={cn(
@@ -563,12 +573,12 @@ export default function TrainingDataClient({ bots }: Props) {
                 {
                   label: 'Success',
                   value: trainedSourcesCount,
-                  valueClass: 'text-emerald-600',
+                  valueClass: 'text-emerald-600 dark:text-emerald-300',
                 },
                 {
                   label: 'Failed',
                   value: failedSourcesCount,
-                  valueClass: 'text-rose-600',
+                  valueClass: 'text-rose-600 dark:text-rose-300',
                 },
                 {
                   label: 'Processed',
@@ -578,7 +588,7 @@ export default function TrainingDataClient({ bots }: Props) {
               ].map(stat => (
                 <div
                   key={stat.label}
-                  className='rounded-lg border border-white/70 bg-white/70 px-3 py-2.5 shadow-sm backdrop-blur-sm'>
+                  className='rounded-lg border border-white/70 bg-white/70 px-3 py-2.5 shadow-sm backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80'>
                   <p className='text-[11px] font-medium text-muted-foreground'>
                     {stat.label}
                   </p>
@@ -631,7 +641,10 @@ export default function TrainingDataClient({ bots }: Props) {
 
           <Button
             type='button'
-            className='h-10 w-full rounded-lg bg-linear-to-r from-slate-800 to-sky-800 text-sm font-medium shadow-sm transition-all duration-200 hover:from-slate-900 hover:to-sky-900 disabled:from-slate-300 disabled:to-slate-300'
+            className={cn(
+              dashboardButtonClass,
+              'h-10 w-full rounded-lg text-sm font-medium transition-all duration-200',
+            )}
             disabled={
               isPendingTraining ||
               hasActiveSources ||

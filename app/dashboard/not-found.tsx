@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import { dashboardButtonClass } from '@/lib/dashboard-buttons'
+import { cn } from '@/lib/utils'
 import { ArrowLeftIcon, MessageSquareWarningIcon } from 'lucide-react'
 
 export default function DashboardNotFound() {
@@ -20,7 +22,10 @@ export default function DashboardNotFound() {
         </p>
         <Link
           href='/dashboard/users/conversations'
-          className='mt-6 inline-flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-sky-700'>
+          className={cn(
+            dashboardButtonClass,
+            'mt-6 inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors',
+          )}>
           <ArrowLeftIcon className='size-4' aria-hidden='true' />
           Back to conversations
         </Link>

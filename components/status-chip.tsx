@@ -32,61 +32,74 @@ const STATUS_STYLES: Record<
   },
   created: {
     label: "created",
-    className: "bg-sky-50 text-sky-700 ring-sky-200",
+    className:
+      "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-500/15 dark:text-sky-200 dark:ring-sky-400/30",
     dotClassName: "bg-sky-400",
   },
   upload_failed: {
     label: "upload failed",
-    className: "bg-rose-50 text-rose-700 ring-rose-200",
+    className:
+      "bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-500/15 dark:text-rose-200 dark:ring-rose-400/30",
   },
   uploaded: {
     label: "uploaded",
-    className: "bg-sky-50 text-sky-700 ring-sky-200",
+    className:
+      "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-500/15 dark:text-sky-200 dark:ring-sky-400/30",
     dotClassName: "bg-sky-400",
   },
   queued: {
     label: "queued",
-    className: "bg-indigo-50 text-indigo-700 ring-indigo-200",
+    className:
+      "bg-indigo-50 text-indigo-700 ring-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-200 dark:ring-indigo-400/30",
     dotClassName: "bg-indigo-400",
   },
   queued_for_training: {
     label: "queued",
-    className: "bg-indigo-50 text-indigo-700 ring-indigo-200",
+    className:
+      "bg-indigo-50 text-indigo-700 ring-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-200 dark:ring-indigo-400/30",
     dotClassName: "bg-indigo-400",
   },
   processing: {
     label: "processing",
-    className: "bg-amber-50 text-amber-700 ring-amber-200",
+    className:
+      "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-200 dark:ring-amber-400/30",
     dotClassName: "bg-amber-400",
   },
   processed: {
     label: "processed",
-    className: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+    className:
+      "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/30",
   },
   processing_failed: {
     label: "processing failed",
-    className: "bg-rose-50 text-rose-700 ring-rose-200",
+    className:
+      "bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-500/15 dark:text-rose-200 dark:ring-rose-400/30",
   },
   training: {
     label: "training",
-    className: "bg-amber-50 text-amber-700 ring-amber-200",
+    className:
+      "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-200 dark:ring-amber-400/30",
     dotClassName: "bg-amber-400",
   },
   trained: {
     label: "trained",
-    className: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+    className:
+      "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/30",
   },
   training_failed: {
     label: "training failed",
-    className: "bg-rose-50 text-rose-700 ring-rose-200",
+    className:
+      "bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-500/15 dark:text-rose-200 dark:ring-rose-400/30",
   },
   completed: {
     label: "completed",
-    className: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+    className:
+      "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/30",
   },
   partially_completed: {
     label: "partially completed",
-    className: "bg-amber-50 text-amber-700 ring-amber-200",
+    className:
+      "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-200 dark:ring-amber-400/30",
   },
   cleanup_completed: {
     label: "cleanup completed",
@@ -94,7 +107,8 @@ const STATUS_STYLES: Record<
   },
   failed: {
     label: "failed",
-    className: "bg-rose-50 text-rose-700 ring-rose-200",
+    className:
+      "bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-500/15 dark:text-rose-200 dark:ring-rose-400/30",
   },
   unknown: {
     label: "unknown",

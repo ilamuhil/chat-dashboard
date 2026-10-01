@@ -20,6 +20,7 @@ import {
   deleteOrganizationLogo,
   getOrganizationLogoUrl,
 } from './action'
+import { dashboardDangerButtonClass, dashboardOutlineButtonClass } from '@/lib/dashboard-buttons'
 import { cn } from '@/lib/utils'
 import { Spinner } from '@/components/ui/spinner'
 
@@ -280,7 +281,10 @@ export function ImageUploadDialog({
             type='button'
             variant='outline'
             size='icon'
-            className='size-9 rounded-lg border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700'
+            className={cn(
+              dashboardDangerButtonClass,
+              'size-9 rounded-lg px-0',
+            )}
             onClick={handleDelete}
             disabled={
               (!selectedFile && !uploadedUrl) ||
@@ -301,7 +305,7 @@ export function ImageUploadDialog({
             type='button'
             variant='outline'
             onClick={() => handleOpenChange(false)}
-            className='h-9 rounded-lg border-slate-200 text-xs'>
+            className={cn(dashboardOutlineButtonClass, 'h-9 rounded-lg text-xs')}>
             Done
           </Button>
         </DialogFooter>

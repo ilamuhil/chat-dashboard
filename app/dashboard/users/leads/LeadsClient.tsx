@@ -22,6 +22,12 @@ import {
   TableHead,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
+import {
+  dashboardButtonClass,
+  dashboardDangerButtonClass,
+  dashboardOutlineButtonClass,
+} from '@/lib/dashboard-buttons'
+import { cn } from '@/lib/utils'
 import ConfirmationDialog from '@/components/ui/ConfirmationDialog'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -334,7 +340,11 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
             if (!isCreating) setAddDialogOpen(open)
           }}>
           <DialogTrigger asChild>
-            <Button className='h-9 rounded-lg bg-sky-700 px-3 text-xs hover:bg-sky-800'>
+            <Button
+              className={cn(
+                dashboardButtonClass,
+                'h-9 rounded-lg px-3 text-xs',
+              )}>
               <PlusIcon className='mr-1.5 size-4' />
               Add lead
             </Button>
@@ -448,7 +458,7 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className='flex items-center justify-between rounded-lg border border-slate-200 px-3 py-3 sm:col-span-2'>
+                <div className='flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 sm:col-span-2 dark:border-slate-700 dark:bg-slate-800'>
                   <div className='space-y-0.5'>
                     <Label htmlFor='lead-consent' className='text-xs'>
                       Consent to contact
@@ -476,7 +486,7 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
                 <Button
                   type='submit'
                   disabled={isCreating}
-                  className='bg-sky-700 hover:bg-sky-800'>
+                  className={dashboardButtonClass}>
                   {isCreating && (
                     <Loader2Icon className='mr-2 size-4 animate-spin' />
                   )}
@@ -571,7 +581,10 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
               </Select>
               <Button
                 variant='outline'
-                className='h-9 rounded-lg border-slate-200 px-3 text-xs'>
+                className={cn(
+                  dashboardOutlineButtonClass,
+                  'h-9 rounded-lg px-3 text-xs',
+                )}>
                 Export
               </Button>
             </div>
@@ -596,7 +609,10 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
                       } from the active lead list.`,
                     )
                   }
-                  className='h-7 border-rose-200 bg-white text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700'>
+                  className={cn(
+                    dashboardDangerButtonClass,
+                    'h-7 text-xs',
+                  )}>
                   <Trash2Icon className='mr-1.5 size-3.5' />
                   Delete selected
                 </Button>
@@ -604,7 +620,7 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
                   variant='ghost'
                   size='sm'
                   onClick={() => setSelectedLeads(new Set())}
-                  className='h-7 text-xs text-sky-800 hover:bg-sky-100 hover:text-sky-900'>
+                  className='h-7 text-xs text-sky-800 hover:bg-sky-100 hover:text-sky-900 dark:text-sky-200 dark:hover:bg-sky-500/15 dark:hover:text-sky-100'>
                   Clear
                 </Button>
               </div>
@@ -707,7 +723,7 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
                             variant='ghost'
                             size='icon'
                             aria-label={`Actions for ${lead.name || 'lead'}`}
-                            className='size-8 rounded-md hover:bg-slate-100'>
+                            className='size-8 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800'>
                             <MoreVerticalIcon className='size-4 text-slate-500' />
                           </Button>
                         </DropdownMenuTrigger>
@@ -765,7 +781,10 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
                 <Button
                   variant='outline'
                   size='sm'
-                  className='h-8 rounded-lg border-slate-200 text-xs'
+                  className={cn(
+                    dashboardOutlineButtonClass,
+                    'h-8 rounded-lg text-xs',
+                  )}
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={safePage === 1}>
                   <ChevronLeftIcon className='size-4' />
@@ -783,7 +802,12 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
                         variant={safePage === page ? 'default' : 'outline'}
                         size='sm'
                         onClick={() => setCurrentPage(page)}
-                        className='size-8 rounded-lg p-0 text-xs'>
+                        className={cn(
+                          'size-8 rounded-lg p-0 text-xs',
+                          safePage === page
+                            ? dashboardButtonClass
+                            : dashboardOutlineButtonClass,
+                        )}>
                         {page}
                       </Button>
                     ))}
@@ -791,7 +815,10 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
                 <Button
                   variant='outline'
                   size='sm'
-                  className='h-8 rounded-lg border-slate-200 text-xs'
+                  className={cn(
+                    dashboardOutlineButtonClass,
+                    'h-8 rounded-lg text-xs',
+                  )}
                   onClick={() =>
                     setCurrentPage(prev => Math.min(totalPages, prev + 1))
                   }

@@ -22,6 +22,7 @@ const routeTitles: Record<string, string> = {
   '/dashboard/analytics': 'Analytics',
   '/dashboard/profile': 'Profile',
   '/dashboard/subscription': 'Subscription',
+  '/dashboard/notifications': 'Notifications',
 }
 
 // Map parent routes for breadcrumb hierarchy
@@ -44,6 +45,7 @@ const parentRoutes: Record<string, { title: string; url: string } | null> = {
   '/dashboard/analytics': null,
   '/dashboard/profile': null,
   '/dashboard/subscription': null,
+  '/dashboard/notifications': null,
 }
 
 export function DashboardBreadcrumb() {
@@ -85,7 +87,7 @@ export function DashboardBreadcrumb() {
         )}
         <BreadcrumbSeparator className='hidden text-slate-300 md:block' />
         <BreadcrumbItem>
-          <BreadcrumbPage className='rounded-md bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-900 ring-1 ring-sky-200/70'>
+          <BreadcrumbPage className='rounded-md bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-900 ring-1 ring-sky-200/70 dark:bg-sky-500/15 dark:text-sky-200 dark:ring-sky-400/30'>
             {currentTitle}
           </BreadcrumbPage>
         </BreadcrumbItem>

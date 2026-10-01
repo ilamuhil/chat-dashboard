@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -30,6 +31,8 @@ type NotificationContextValue = {
   ) => void
   markRead: (id: string) => Promise<void>
   markAllRead: () => Promise<void>
+  deleteNotification: (id: string) => Promise<void>
+  clearAll: () => Promise<void>
   markConversationRead: (
     conversationId: string,
   ) => Promise<void>
@@ -56,6 +59,8 @@ export function NotificationProvider({
   const [notifications, setNotifications] = useState<
     DashboardNotification[]
   >([])
+  const removedIdsRef = useRef(new Set<string>())
+  const clearedRef = useRef(false)
 
   useEffect(() => {
     const fetchNotifications = async () => {
@@ -65,6 +70,8 @@ export function NotificationProvider({
         >('/api/notifications')
 
         setNotifications(current => {
+          if (clearedRef.current) return current
+
           const byId = new Map(
             current.map(notification => [
               notification.id,
@@ -72,7 +79,14 @@ export function NotificationProvider({
             ]),
           )
 
+          for (const id of removedIdsRef.current) {
+            byId.delete(id)
+          }
+
           for (const notification of data ?? []) {
+            if (removedIdsRef.current.has(notification.id)) {
+              continue
+            }
             // Database response is authoritative.
             byId.set(notification.id, notification)
           }
@@ -175,6 +189,59 @@ export function NotificationProvider({
     }
   }, [])
 
+  const deleteNotification = useCallback(async (id: string) => {
+    if (!id) return
+
+    removedIdsRef.current.add(id)
+    let removed: DashboardNotification | undefined
+
+    setNotifications(current => {
+      removed = current.find(item => item.id === id)
+      return current.filter(item => item.id !== id)
+    })
+
+    try {
+      await clientApiAxios.delete(`/api/notifications/${id}`)
+    } catch (error) {
+      removedIdsRef.current.delete(id)
+      if (removed) {
+        const restored = removed
+        setNotifications(current =>
+          current.some(item => item.id === id)
+            ? current
+            : sortNotifications([restored, ...current]),
+        )
+      }
+      console.error('Failed to delete notification', error)
+      throw error
+    }
+  }, [])
+
+  const clearAll = useCallback(async () => {
+    let snapshot: DashboardNotification[] = []
+
+    setNotifications(current => {
+      snapshot = current
+      for (const notification of current) {
+        removedIdsRef.current.add(notification.id)
+      }
+      return []
+    })
+    clearedRef.current = true
+
+    try {
+      await clientApiAxios.delete('/api/notifications')
+    } catch (error) {
+      clearedRef.current = false
+      for (const notification of snapshot) {
+        removedIdsRef.current.delete(notification.id)
+      }
+      setNotifications(snapshot)
+      console.error('Failed to clear notifications', error)
+      throw error
+    }
+  }, [])
+
   const markConversationRead = useCallback(
     async (conversationId: string) => {
       const matching = notifications.filter(
@@ -202,6 +269,8 @@ export function NotificationProvider({
       addNotification,
       markRead,
       markAllRead,
+      deleteNotification,
+      clearAll,
       markConversationRead,
     }),
     [
@@ -209,6 +278,8 @@ export function NotificationProvider({
       addNotification,
       markRead,
       markAllRead,
+      deleteNotification,
+      clearAll,
       markConversationRead,
     ],
   )

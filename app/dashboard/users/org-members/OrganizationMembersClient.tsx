@@ -5,6 +5,11 @@ import { Loader2, UserPlusIcon, Trash2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import {
+  dashboardButtonClass,
+  dashboardOutlineButtonClass,
+} from '@/lib/dashboard-buttons'
+import { cn } from '@/lib/utils'
 import ConfirmationDialog from '@/components/ui/ConfirmationDialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -218,7 +223,10 @@ export default function OrganizationMembersClient({
                 if (!isInviting) setInviteOpen(open)
               }}>
               <DialogTrigger asChild>
-                <Button type='button' size='sm' className='h-8 bg-sky-700 text-xs hover:bg-sky-800'>
+                <Button
+                  type='button'
+                  size='sm'
+                  className={cn(dashboardButtonClass, 'h-8 text-xs')}>
                   <UserPlusIcon className='mr-1.5 size-3.5' />
                   Invite user
                 </Button>
@@ -267,10 +275,17 @@ export default function OrganizationMembersClient({
                     </Select>
                   </div>
                   <div className='mt-auto flex justify-end gap-2 border-t border-slate-100 pt-5'>
-                    <Button type='button' variant='outline' onClick={() => setInviteOpen(false)}>
+                    <Button
+                      type='button'
+                      variant='outline'
+                      className={dashboardOutlineButtonClass}
+                      onClick={() => setInviteOpen(false)}>
                       Cancel
                     </Button>
-                    <Button type='submit' disabled={isInviting} className='bg-sky-700 hover:bg-sky-800'>
+                    <Button
+                      type='submit'
+                      disabled={isInviting}
+                      className={dashboardButtonClass}>
                       {isInviting && <Loader2 className='mr-2 size-4 animate-spin' />}
                       {isInviting ? 'Sending…' : 'Send invitation'}
                     </Button>
@@ -407,7 +422,7 @@ export default function OrganizationMembersClient({
                             variant='ghost'
                             size='icon'
                             aria-label='Remove member'
-                            className='size-8 text-slate-300 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-rose-50 hover:text-rose-600 focus-visible:opacity-100'
+                            className='size-8 text-slate-300 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-rose-50 hover:text-rose-600 focus-visible:opacity-100 dark:text-slate-400 dark:hover:bg-rose-500/15 dark:hover:text-rose-200'
                             onClick={() => requestRemoveMember(member)}>
                             <Trash2Icon className='size-3.5' />
                           </Button>

@@ -18,6 +18,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
+import { dashboardButtonClass } from '@/lib/dashboard-buttons'
 import { cn } from '@/lib/utils'
 import { clientApiAxios } from '@/lib/axios-client'
 import { useDashboardNotifications } from '@/app/dashboard/notifications/NotificationProvider'
@@ -493,7 +494,10 @@ export default function ChatInterface({
                 size='sm'
                 onClick={() => void joinConversation()}
                 disabled={isSocketConnecting}
-                className='h-8 rounded-lg bg-sky-700 px-2.5 text-xs hover:bg-sky-800'>
+                className={cn(
+                  dashboardButtonClass,
+                  'h-8 rounded-lg px-2.5 text-xs',
+                )}>
                 {isSocketConnecting ? (
                   <LoaderCircleIcon className='mr-1.5 size-3.5 animate-spin' />
                 ) : (

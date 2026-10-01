@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import { dashboardButtonClass } from '@/lib/dashboard-buttons'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -73,7 +75,10 @@ export default async function BotApiPage() {
           </div>
           <Button
             asChild
-            className='mt-5 h-10 rounded-lg bg-linear-to-r from-slate-800 to-sky-800 px-4 text-sm font-medium shadow-sm hover:from-slate-900 hover:to-sky-900'>
+            className={cn(
+              dashboardButtonClass,
+              'mt-5 h-10 rounded-lg px-4 text-sm font-medium',
+            )}>
             <Link href='/dashboard/bot/interactions'>Create Bot</Link>
           </Button>
         </div>
@@ -198,7 +203,7 @@ export default async function BotApiPage() {
                               type='submit'
                               variant='ghost'
                               size='icon'
-                              className='size-8 rounded-md hover:bg-rose-50'>
+                              className='size-8 rounded-md hover:bg-rose-50 dark:hover:bg-rose-500/15'>
                               <TrashIcon className='size-3.5 text-rose-500' />
                             </Button>
                           </TooltipTrigger>

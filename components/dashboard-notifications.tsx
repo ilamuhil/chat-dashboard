@@ -60,7 +60,7 @@ export default function DashboardNotifications() {
               ? `${unreadCount} unread notifications`
               : 'Notifications'
           }
-          className='group relative size-10 rounded-xl border border-slate-200/80 bg-white text-slate-500 shadow-[0_2px_8px_rgba(15,23,42,0.06)] transition-all duration-200 hover:-translate-y-px hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700 hover:shadow-[0_5px_14px_rgba(14,165,233,0.14)] data-[state=open]:border-sky-200 data-[state=open]:bg-sky-50 data-[state=open]:text-sky-700'>
+          className='group relative size-10 rounded-xl border border-slate-200/80 bg-white text-slate-500 shadow-[0_2px_8px_rgba(15,23,42,0.06)] transition-all duration-200 hover:-translate-y-px hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700 hover:shadow-[0_5px_14px_rgba(14,165,233,0.14)] data-[state=open]:border-sky-200 data-[state=open]:bg-sky-50 data-[state=open]:text-sky-700 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-sky-400/40 dark:hover:bg-sky-500/15 dark:hover:text-sky-200 dark:data-[state=open]:border-sky-400/40 dark:data-[state=open]:bg-sky-500/15 dark:data-[state=open]:text-sky-200'>
           <span className='grid size-7 place-items-center rounded-lg bg-slate-50 transition-colors group-hover:bg-white group-data-[state=open]:bg-white'>
             {unreadCount > 0 ? (
               <BellRing className='size-[17px] stroke-[1.8]' />

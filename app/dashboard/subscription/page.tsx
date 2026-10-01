@@ -3,6 +3,11 @@ import { Check, CreditCardIcon, SparklesIcon } from 'lucide-react'
 import { format, formatDistanceToNow } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { DashboardPageHeader } from '@/components/dashboard-page-header'
+import {
+  dashboardButtonClass,
+  dashboardDangerButtonClass,
+  dashboardOutlineButtonClass,
+} from '@/lib/dashboard-buttons'
 
 type Plan = {
   id: 'base' | 'pro' | 'enterprise'
@@ -85,7 +90,7 @@ export default function SubscriptionPage() {
                 <h2 className='text-sm font-semibold tracking-tight text-foreground'>
                   Current plan
                 </h2>
-                <span className='rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800'>
+                <span className='rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:border-amber-400/25 dark:bg-amber-500/15 dark:text-amber-200'>
                   {currentPlan.name}
                 </span>
               </div>
@@ -105,7 +110,10 @@ export default function SubscriptionPage() {
           <Button
             variant='outline'
             size='sm'
-            className='h-9 shrink-0 rounded-lg border-rose-200 text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700'>
+            className={cn(
+              dashboardDangerButtonClass,
+              'h-9 shrink-0 rounded-lg text-xs',
+            )}>
             Cancel Subscription
           </Button>
         </div>
@@ -120,7 +128,7 @@ export default function SubscriptionPage() {
           ].map(feature => (
             <li
               key={feature}
-              className='flex items-start gap-2 rounded-lg border border-slate-200/70 bg-white/80 px-3 py-2.5 text-xs text-slate-700 shadow-sm'>
+              className='flex items-start gap-2 rounded-lg border border-slate-200/70 bg-white/80 px-3 py-2.5 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-800/80'>
               <Check className='mt-0.5 size-3.5 shrink-0 text-emerald-600' />
               <span>{feature}</span>
             </li>
@@ -158,9 +166,9 @@ export default function SubscriptionPage() {
                 className={cn(
                   'dashboard-surface relative flex h-full flex-col overflow-hidden rounded-xl p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm',
                   isCurrent
-                    ? 'border-emerald-200 bg-linear-to-br from-emerald-50/80 via-white to-sky-50/40 ring-1 ring-emerald-200/60'
-                    : 'hover:border-sky-200',
-                  isPopular && !isCurrent && 'border-sky-200'
+                    ? 'border-emerald-200 bg-linear-to-br from-emerald-50/80 via-white to-sky-50/40 ring-1 ring-emerald-200/60 dark:border-emerald-400/25 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 dark:ring-emerald-400/20'
+                    : 'hover:border-sky-200 dark:hover:border-sky-400/30',
+                  isPopular && !isCurrent && 'border-sky-200 dark:border-sky-400/30'
                 )}>
                 {isPopular && (
                   <div className='absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-sky-400/70 to-transparent' />
@@ -173,12 +181,12 @@ export default function SubscriptionPage() {
                         {plan.name}
                       </h3>
                       {isCurrent && (
-                        <span className='rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700'>
+                        <span className='rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-500/15 dark:text-emerald-200'>
                           Active
                         </span>
                       )}
                       {isPopular && !isCurrent && (
-                        <span className='inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium text-sky-700'>
+                        <span className='inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 dark:border-sky-400/30 dark:bg-sky-500/15 dark:text-sky-200'>
                           <SparklesIcon className='size-3' />
                           Popular
                         </span>
@@ -210,7 +218,7 @@ export default function SubscriptionPage() {
                     plan.limits.conversations,
                   ].map(feature => (
                     <li key={feature} className='flex items-start gap-2'>
-                      <span className='mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600'>
+                      <span className='mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300'>
                         <Check className='size-2.5' />
                       </span>
                       <span className='text-xs leading-relaxed text-slate-600'>
@@ -222,17 +230,15 @@ export default function SubscriptionPage() {
 
                 <Button
                   type='button'
-                  variant={isCurrent ? 'default' : 'outline'}
+                  variant={isDowngrade ? 'outline' : 'default'}
                   size='sm'
                   disabled={isCurrent}
                   className={cn(
                     'h-9 w-full rounded-lg text-xs font-medium shadow-sm',
                     isCurrent &&
-                      'bg-emerald-600 hover:bg-emerald-600 disabled:opacity-100',
-                    !isCurrent &&
-                      !isDowngrade &&
-                      'border-slate-200 bg-linear-to-r from-slate-800 to-sky-800 text-white hover:from-slate-900 hover:to-sky-900 hover:text-white',
-                    isDowngrade && 'border-slate-200'
+                      'bg-emerald-600 text-white hover:bg-emerald-600 disabled:opacity-100 dark:bg-emerald-500/20 dark:text-emerald-200 dark:hover:bg-emerald-500/20',
+                    !isCurrent && !isDowngrade && dashboardButtonClass,
+                    isDowngrade && dashboardOutlineButtonClass
                   )}>
                   {buttonText}
                 </Button>

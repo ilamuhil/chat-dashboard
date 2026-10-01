@@ -72,7 +72,7 @@ export function NavUser({ user }: { user: AppUser }) {
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size='lg'
-              className='h-12 rounded-xl border border-slate-200/80 bg-white px-2.5 shadow-sm transition-colors hover:bg-sky-50/60 data-[state=open]:bg-sky-50/80 data-[state=open]:ring-1 data-[state=open]:ring-sky-200/70'>
+              className='h-12 rounded-xl border border-slate-200/80 bg-white px-2.5 shadow-sm transition-colors hover:bg-sky-50/60 data-[state=open]:bg-sky-50/80 data-[state=open]:ring-1 data-[state=open]:ring-sky-200/70 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-sky-500/15 dark:data-[state=open]:bg-sky-500/15 dark:data-[state=open]:ring-sky-400/25'>
               <Avatar className='h-8 w-8 rounded-lg ring-1 ring-slate-200/80'>
                 <AvatarImage
                   src={user.avatarUrl ?? undefined}

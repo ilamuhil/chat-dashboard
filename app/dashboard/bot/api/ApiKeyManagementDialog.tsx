@@ -10,6 +10,11 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import {
+  dashboardButtonClass,
+  dashboardOutlineButtonClass,
+} from '@/lib/dashboard-buttons'
+import { cn } from '@/lib/utils'
 import { CopyIcon, KeyRoundIcon, ShieldAlertIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Label } from '@/components/ui/label'
@@ -129,13 +134,19 @@ const ApiKeyManagementDialog = (props: ApiKeyManagementDialogProps) => {
                   variant='outline'
                   onClick={handleClose}
                   disabled={isPending}
-                  className='h-9 rounded-lg border-slate-200 text-xs'>
+                  className={cn(
+                    dashboardOutlineButtonClass,
+                    'h-9 rounded-lg text-xs',
+                  )}>
                   Cancel
                 </Button>
                 <Button
                   type='submit'
                   disabled={isPending}
-                  className='h-9 rounded-lg bg-linear-to-r from-slate-800 to-sky-800 text-xs font-medium hover:from-slate-900 hover:to-sky-900'>
+                  className={cn(
+                    dashboardButtonClass,
+                    'h-9 rounded-lg text-xs font-medium',
+                  )}>
                   {isPending ? (
                     <span className='flex items-center gap-2'>
                       Generating… <Spinner />
@@ -166,7 +177,10 @@ const ApiKeyManagementDialog = (props: ApiKeyManagementDialogProps) => {
                   type='button'
                   variant='ghost'
                   size='icon'
-                  className='size-8 shrink-0 rounded-md bg-white hover:bg-sky-50'
+                  className={cn(
+                    dashboardOutlineButtonClass,
+                    'size-8 shrink-0 rounded-md px-0',
+                  )}
                   onClick={() => {
                     if (state.apiKey) {
                       navigator.clipboard.writeText(state.apiKey)
@@ -181,7 +195,10 @@ const ApiKeyManagementDialog = (props: ApiKeyManagementDialogProps) => {
                 <Button
                   type='button'
                   onClick={handleClose}
-                  className='h-9 w-full rounded-lg bg-linear-to-r from-slate-800 to-sky-800 text-xs font-medium hover:from-slate-900 hover:to-sky-900 sm:w-auto'>
+                  className={cn(
+                    dashboardButtonClass,
+                    'h-9 w-full rounded-lg text-xs font-medium sm:w-auto',
+                  )}>
                   Done
                 </Button>
               </DialogFooter>

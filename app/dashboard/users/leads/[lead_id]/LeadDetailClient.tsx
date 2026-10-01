@@ -49,6 +49,7 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { dashboardButtonClass } from '@/lib/dashboard-buttons'
 import { cn } from '@/lib/utils'
 
 type NullableString = string | null
@@ -250,8 +251,10 @@ async function readError(response: Response) {
   return data?.error || 'Something went wrong. Please try again.'
 }
 
-const actionButtonClass =
-  'h-9 shrink-0 gap-1.5 rounded-lg bg-linear-to-r from-slate-800 to-sky-800 px-3 text-xs font-medium text-white shadow-sm hover:from-slate-900 hover:to-sky-900'
+const actionButtonClass = cn(
+  dashboardButtonClass,
+  'h-9 shrink-0 gap-1.5 rounded-lg px-3 text-xs font-medium',
+)
 const actionIconButtonClass = cn(actionButtonClass, 'size-8 px-0')
 const copyButtonClass = cn(actionButtonClass, 'size-6 rounded-md px-0 shadow-none')
 
@@ -457,12 +460,21 @@ function statusClass(status: NullableString) {
   const base =
     'h-4 rounded px-1.5 py-0 text-[10px] font-semibold leading-none tracking-wide shadow-none'
   if (status === 'complete' || status === 'enrolled')
-    return cn(base, 'border-emerald-200/80 bg-emerald-50 text-emerald-700')
+    return cn(
+      base,
+      'border-emerald-200/80 bg-emerald-50 text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-500/15 dark:text-emerald-300',
+    )
   if (status === 'cancelled' || status === 'lost')
     return cn(base, 'border-slate-200 bg-slate-100 text-slate-600')
   if (status === 'pending')
-    return cn(base, 'border-amber-200/80 bg-amber-50 text-amber-700')
-  return cn(base, 'border-sky-200/80 bg-sky-50 text-sky-700')
+    return cn(
+      base,
+      'border-amber-200/80 bg-amber-50 text-amber-700 dark:border-amber-400/25 dark:bg-amber-500/15 dark:text-amber-200',
+    )
+  return cn(
+    base,
+    'border-sky-200/80 bg-sky-50 text-sky-700 dark:border-sky-400/25 dark:bg-sky-500/15 dark:text-sky-200',
+  )
 }
 
 function StatusBadge({
@@ -561,7 +573,7 @@ export default function LeadDetailClient({
         </div>
       </div>
 
-      <section className='overflow-hidden rounded-xl border border-sky-100 bg-linear-to-br from-sky-50 via-white to-indigo-50/60 p-4 shadow-sm'>
+      <section className='overflow-hidden rounded-xl border border-sky-100 bg-linear-to-br from-sky-50 via-white to-indigo-50/60 p-4 shadow-sm dark:border-slate-700 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800'>
         <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
           <div className='flex min-w-0 items-start gap-3'>
             <div className='flex size-10 shrink-0 items-center justify-center rounded-lg bg-sky-700 text-base font-semibold text-white shadow-sm'>
@@ -582,11 +594,11 @@ export default function LeadDetailClient({
                     className={cn(
                       'h-4 rounded px-1.5 py-0 text-[10px] font-semibold leading-none tracking-wide shadow-none',
                       lead.leadPriority === 'hot' &&
-                        'border-rose-200 bg-rose-50 text-rose-700',
+                        'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-400/25 dark:bg-rose-500/15 dark:text-rose-200',
                       lead.leadPriority === 'warm' &&
-                        'border-orange-200 bg-orange-50 text-orange-700',
+                        'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-400/25 dark:bg-orange-500/15 dark:text-orange-200',
                       lead.leadPriority === 'cold' &&
-                        'border-sky-200 bg-sky-50 text-sky-700',
+                        'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-400/25 dark:bg-sky-500/15 dark:text-sky-200',
                     )}>
                     {optionLabel(lead.leadPriority, priorities)} priority
                   </Badge>
@@ -1305,12 +1317,12 @@ function LeadEditDialog({
                 className={formControlClass}
               />
             </FormField>
-            <div className='flex items-center justify-between gap-4 rounded-lg border border-sky-100 bg-sky-50/60 px-3 py-2.5 sm:col-span-2'>
+            <div className='flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 sm:col-span-2 dark:border-slate-700 dark:bg-slate-800'>
               <div>
                 <Label htmlFor='edit-consent' className={formLabelClass}>
                   Consent to contact
                 </Label>
-                <p className='mt-0.5 text-[11px] text-slate-500'>
+                <p className='mt-0.5 text-[11px] text-slate-500 dark:text-slate-400'>
                   The lead has agreed to receive follow-up communication.
                 </p>
               </div>

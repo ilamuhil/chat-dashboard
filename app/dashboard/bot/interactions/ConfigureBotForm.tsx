@@ -14,6 +14,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { useActionState, useState, useEffect } from 'react'
+import { dashboardButtonClass } from '@/lib/dashboard-buttons'
 import { cn } from '@/lib/utils'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -429,7 +430,10 @@ const ConfigureBotForm = (props: BotProps) => {
         <Button
           type='submit'
           disabled={isPending}
-          className='h-10 w-full rounded-lg bg-linear-to-r from-slate-800 to-sky-800 px-6 text-sm font-medium shadow-sm transition-all duration-200 hover:from-slate-900 hover:to-sky-900 disabled:from-slate-300 disabled:to-slate-300 md:w-auto'>
+          className={cn(
+            dashboardButtonClass,
+            'h-10 w-full rounded-lg px-6 text-sm font-medium transition-all duration-200 md:w-auto',
+          )}>
           {isPending ? (
             <>
               Saving… <Spinner />

@@ -112,6 +112,56 @@
   --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.551 0.027 264.364);
+  color-scheme: dark;
+  --color-white: oklch(0.22 0.035 264);
+  --color-slate-50: oklch(0.17 0.028 264);
+  --color-slate-100: oklch(0.25 0.03 264);
+  --color-slate-200: oklch(0.33 0.024 264);
+  --color-slate-300: oklch(0.45 0.02 262);
+  --color-slate-400: oklch(0.68 0.02 257);
+  --color-slate-500: oklch(0.74 0.018 255);
+  --color-slate-600: oklch(0.8 0.014 255);
+  --dashboard-text-700: oklch(0.86 0.012 255);
+  --dashboard-text-800: oklch(0.91 0.01 252);
+  --dashboard-text-900: oklch(0.95 0.006 250);
+  --dashboard-text-950: oklch(0.98 0.003 247);
+}
+
+html.dark :is(.text-white, .hover\:text-white:hover) {
+  color: #fff;
+}
+
+html.dark .fill-white {
+  fill: #fff;
+}
+
+html.dark .stroke-white {
+  stroke: #fff;
+}
+
+html.dark :is(.text-slate-700, .hover\:text-slate-700:hover) {
+  color: var(--dashboard-text-700);
+}
+
+html.dark :is(.text-slate-800, .hover\:text-slate-800:hover) {
+  color: var(--dashboard-text-800);
+}
+
+html.dark :is(
+  .text-slate-900,
+  .hover\:text-slate-900:hover,
+  .group-hover\:text-slate-900:is(:where(.group):hover *)
+) {
+  color: var(--dashboard-text-900);
+}
+
+html.dark :is(.text-slate-950, .hover\:text-slate-950:hover) {
+  color: var(--dashboard-text-950);
+}
+
+html.dark .chat-message-bubble--user-tail::after,
+html.dark .chat-message-bubble--assistant-tail::after {
+  background: var(--color-slate-50);
 }
 
 @layer base {
@@ -146,7 +196,7 @@
     box-shadow: var(--shadow-default);
   }
   .dashboard-surface {
-    @apply border border-slate-200/80 bg-linear-to-br from-white via-white to-sky-50/40;
+    @apply border border-slate-200/80 bg-linear-to-br from-white via-white to-sky-50/40 dark:to-slate-900/40;
   }
 }
 

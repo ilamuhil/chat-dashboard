@@ -1,4 +1,6 @@
 import { Button } from '@/components/ui/button'
+import { dashboardButtonClass } from '@/lib/dashboard-buttons'
+import { cn } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
@@ -99,7 +101,10 @@ export default function OverviewPage() {
                     </TableCell>
                     <TableCell className='px-5 py-3'>{conversation.date}</TableCell>
                     <TableCell className='px-5 py-3'>
-                      <Button asChild size='sm' className='bg-sky-700 text-white'>
+                      <Button
+                        asChild
+                        size='sm'
+                        className={cn(dashboardButtonClass, 'text-xs')}>
                         <Link
                           href={`/dashboard/conversations/${conversation.id}`}
                           className='inline-flex items-center gap-1 text-sm'>

@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { dashboardButtonClass } from '@/lib/dashboard-buttons'
+import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import ConfigureBotForm from './ConfigureBotForm'
 import type { Bot } from './action'
@@ -130,7 +132,10 @@ export default function BotInteractionsClient({
         </div>
         <Button
           onClick={handleCreateNew}
-          className='mt-5 h-10 gap-2 rounded-lg bg-linear-to-r from-slate-800 to-sky-800 px-4 text-sm font-medium shadow-sm hover:from-slate-900 hover:to-sky-900'>
+          className={cn(
+            dashboardButtonClass,
+            'mt-5 h-10 gap-2 rounded-lg px-4 text-sm font-medium',
+          )}>
           <PlusIcon className='size-4' />
           Create New Bot
         </Button>
@@ -167,7 +172,10 @@ export default function BotInteractionsClient({
           <Button
             onClick={handleCreateNew}
             size='sm'
-            className='h-9 gap-1.5 rounded-lg bg-linear-to-r from-slate-800 to-sky-800 px-3 text-xs font-medium shadow-sm hover:from-slate-900 hover:to-sky-900'>
+            className={cn(
+              dashboardButtonClass,
+              'h-9 gap-1.5 rounded-lg px-3 text-xs font-medium',
+            )}>
             <PlusIcon className='size-3.5' />
             Create Bot
           </Button>

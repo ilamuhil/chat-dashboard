@@ -8,8 +8,10 @@ import {
   useDashboardNotifications,
   type DashboardNotification,
 } from '@/app/dashboard/notifications/NotificationProvider'
+import { useDashboardTheme } from '@/components/dashboard-theme'
 
 export default function Boot() {
+  const { theme } = useDashboardTheme()
   const { addNotification } =
     useDashboardNotifications()
 
@@ -121,5 +123,5 @@ export default function Boot() {
     }
   }, [addNotification])
 
-  return <Toaster richColors />
+  return <Toaster richColors theme={theme} />
 }

@@ -28,3 +28,24 @@ export async function GET() {
 
   return NextResponse.json(notifications)
 }
+
+export async function DELETE() {
+  const userId = await requireAuthUserId()
+  const organizationId = await resolveCurrentOrganizationId({ userId })
+
+  if (!organizationId) {
+    return NextResponse.json(
+      { error: 'No organization selected' },
+      { status: 400 },
+    )
+  }
+
+  const result = await prisma.notifications.deleteMany({
+    where: {
+      userId,
+      organizationId,
+    },
+  })
+
+  return NextResponse.json({ deleted: result.count })
+}

@@ -42,7 +42,7 @@ export default function ConfirmationDialog(props: Props) {
       <AlertDialogContent
         className={cn(
           "rounded-2xl border-slate-200 bg-white shadow-2xl sm:max-w-md",
-          needsTypedConfirmation && "min-h-[330px]",
+          needsTypedConfirmation && "min-h-82.5",
         )}>
         <AlertDialogCancel
           aria-label="Close"

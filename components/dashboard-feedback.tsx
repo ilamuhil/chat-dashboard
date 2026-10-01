@@ -6,6 +6,11 @@ import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import {
+  dashboardButtonClass,
+  dashboardOutlineButtonClass,
+} from '@/lib/dashboard-buttons'
+import { cn } from '@/lib/utils'
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -96,7 +101,10 @@ export default function DashboardFeedback() {
           type='button'
           variant='outline'
           size='sm'
-          className='h-9 cursor-pointer rounded-xl border-slate-200/80 bg-white text-slate-600 shadow-sm hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700'>
+          className={cn(
+            dashboardOutlineButtonClass,
+            'h-9 cursor-pointer rounded-xl',
+          )}>
           <MessageSquareMore className='mr-1.5 size-4' aria-hidden='true' />
           Feedback
         </Button>
@@ -146,7 +154,10 @@ export default function DashboardFeedback() {
               variant='outline'
               size='sm'
               disabled={isSending || files.length >= MAX_FILES}
-              className='cursor-pointer rounded-lg border-slate-200 text-xs'
+              className={cn(
+                dashboardOutlineButtonClass,
+                'cursor-pointer rounded-lg text-xs',
+              )}
               onClick={() => inputRef.current?.click()}>
               <ImagePlus className='mr-1.5 size-4' aria-hidden='true' />
               Attach images
@@ -191,7 +202,7 @@ export default function DashboardFeedback() {
             <Button
               type='submit'
               disabled={isSending || !message.trim()}
-              className='rounded-lg bg-slate-950 hover:bg-sky-700'>
+              className={cn(dashboardButtonClass, 'rounded-lg')}>
               {isSending && (
                 <LoaderCircle className='mr-1.5 size-4 animate-spin' />
               )}
