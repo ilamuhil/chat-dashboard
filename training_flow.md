@@ -1,34 +1,47 @@
 # Training flow
 
+The dashboard currently uses the following route handlers:
+
+- `POST /api/training-source/url` to add a website URL.
+- `POST /api/training-source/file/upload` to upload a file to storage.
+- `POST /api/training-source/file/finalize` to verify uploaded files and
+  finalize their training-source records.
+- `DELETE /api/training-source` to remove a training source.
+- `POST /api/training/[bot_id]` to start training for a bot.
+
+The older `/training/upload/init` endpoint referenced below is obsolete.
+
 ## File upload flow
 
-1. Send files to API call: `/training/upload/init`
-  a. Create training source
-      - Status `pending` with computed content hash
-   b. Upload files
+1. Send files to `/api/training-source/file/upload`
+   a. Create or identify the training source
+   b. Upload the file to object storage
+2. Call `/api/training-source/file/finalize` after the upload.
 
 ---
 
 ## Retry mechanism
 
-Use the same init API:
+Retry the upload and finalize flow:
 
-c. Compute hash for all the files.  
-d. Check if training sources exist for each of the files, matching the hash.
+c. Compute or reuse the content hash for each file.
+d. Check for an existing training source for the bot and organization.
 
 - If exists, return existing training source id
 - Else, do 1a.
 
-## Update database
+## Database state
 
 Check if file exists in storage for each of the training sources:
 
 - If yes:
   - DB mutation wrapped in a transaction:
-  a. Update training source with `pending` status to `created` for the uploaded file
-  b. Create file record with status `uploaded`
+a. Keep the training source and file records scoped to the organization and bot.
+b. Finalization verifies storage, creates or updates the file record, and updates
+   the training source status.
 - Else:
-a. Update training source status to `update failed` for non-existent files in storage
+a. Mark the source as `upload_failed` when the object is missing or verification
+   fails.
 
 
 
@@ -84,6 +97,6 @@ a. Update training source status to `update failed` for non-existent files in st
 
 | Table name | Status              | When to update           |
 | ---------- | ------------------- | ------------------------ |
-| conversations      | `active`          | When created         |
-| conversations      | `idle`        | Unsure   |
-| conversations      | `closed`         | Text extraction succeeds |
+| conversations_meta | `open`            | Conversation is active |
+| conversations_meta | `closed`          | Conversation is closed |
+| conversations_meta | `is_archived=true`| Conversation is archived |

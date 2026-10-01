@@ -1,3 +1,13 @@
+AUTHORITATIVE SOURCE
+====================
+The Prisma schema at prisma/schema.prisma is authoritative. This file is a
+readable summary of the current public-schema models. Run Prisma migrations
+from prisma/migrations when applying schema changes.
+
+The sections below are retained for compatibility with older tooling; fields
+and tables not listed in the old snapshot are documented in the current model
+summary at the end of this file.
+
 organizations
 -------------
 id                 text PRIMARY KEY
@@ -172,3 +182,66 @@ attempts             int DEFAULT 0
 max_attempts         int DEFAULT 5
 ip_address           text
 user_agent           text
+
+CURRENT PRISMA MODEL SUMMARY
+============================
+
+The current schema also includes:
+
+magic_links
+-----------
+id uuid PRIMARY KEY
+created_at timestamptz DEFAULT now()
+user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE
+organization_id text REFERENCES organizations(id) ON DELETE CASCADE
+token_hash text UNIQUE NOT NULL
+expires_at timestamptz NOT NULL
+used_at timestamptz
+
+Additional current fields:
+- bots: deleted_at, deleted_by
+- files: deleted_at, deleted_by
+- training_sources: updated_at, last_trained_at, content_hash,
+  original_filename, size_bytes, mime_type, quality_status, quality_summary,
+  deleted_at, deleted_by
+- conversations_meta: is_archived, handover_status, closed_by, closed_at
+- leads: enquirer/student/admissions fields, lead priority, AI summary,
+  pipeline stage, consent_to_contact, updated_at, deleted_at, deleted_by_id,
+  visitor_id
+
+notifications
+-------------
+id uuid PRIMARY KEY
+organization_id text
+user_id uuid
+title text
+body text
+type text
+read_at timestamptz
+created_at timestamptz DEFAULT now()
+metadata jsonb
+channels jsonb
+INDEX (user_id, read_at, created_at DESC)
+
+lead_follow_ups
+---------------
+id uuid PRIMARY KEY
+counsellor_id uuid
+follow_up_type text
+status text
+scheduled_for timestamptz
+completed_at timestamptz
+outcome text
+notes text
+created_at timestamptz DEFAULT now()
+updated_at timestamptz DEFAULT now()
+lead_id uuid NOT NULL REFERENCES leads(id) ON DELETE CASCADE
+deleted_at timestamptz
+deleted_by_id uuid
+INDEX (lead_id)
+INDEX (lead_id, deleted_at, scheduled_for)
+
+Current model list:
+Organizations, Bots, OrganizationMembers, Users, OrganizationInvites, Otps,
+MagicLinks, ApiKeys, Files, TrainingSources, ConversationsMeta, Leads,
+Notifications, and LeadFollowUps.

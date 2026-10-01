@@ -1,29 +1,18 @@
 # Chat Dashboard
 
-A comprehensive dashboard application for business users to configure and manage their embeddable chatbot widgets. This dashboard provides an intuitive interface for customizing bot behavior, managing conversations, and analyzing chatbot performance.
+The Next.js dashboard for configuring chatbot bots, managing conversations and
+leads, uploading training sources, and administering organization members.
 
-## Overview
+## Stack
 
-This repository contains the **dashboard application** for users who integrate our embeddable chatbot widget into their websites or applications. Business users can:
+- Next.js 16 App Router and React 19
+- TypeScript, Tailwind CSS v4, and Radix/shadcn-style UI components
+- PostgreSQL accessed through Prisma 7
+- Resend for transactional email
+- Cloudflare R2-compatible storage for uploaded training files
+- JWT-based authentication with email OTP and organization selection
 
-- **Configure chatbot settings** - Customize bot appearance, behavior, and responses
-- **Manage bot conversations** - View and respond to user interactions
-- **Analyze performance** - Track metrics and insights about chatbot usage
-- **Manage multiple bots** - Create and configure multiple chatbot instances
-- **Set up integrations** - Connect chatbots to various services and APIs
-
-## Tech Stack
-
-- **Framework**: [Next.js 16](https://nextjs.org/) with App Router
-- **ORM**: Prisma
-- **Database**: PostgreSQL
-- **Auth**: Custom OTP auth via AWS SES
-- **Storage**: Cloudflare R2 (S3-compatible)
-- **Styling**: Tailwind CSS with shadcn/ui components
-- **Form Management**: React Hook Form with Zod validation
-- **Language**: TypeScript
-
-## Project Structure
+## Current project structure
 
 ```
 chat_dashboard/
@@ -34,10 +23,10 @@ chat_dashboard/
 │   │   │   └── page.tsx          # Login page
 │   │   └── signup/
 │   │       └── page.tsx          # Signup page
-│   ├── dashboard/                # Dashboard pages (to be implemented)
+│   ├── dashboard/                # Implemented dashboard pages
 │   │   ├── layout.tsx            # Dashboard layout with sidebar/nav
 │   │   ├── page.tsx              # Dashboard home/overview
-│   │   ├── bots/                 # Bot management
+│   │   ├── bot/                  # Bot configuration, training, and API
 │   │   │   ├── page.tsx          # List all bots
 │   │   │   ├── [id]/             # Individual bot pages
 │   │   │   │   ├── page.tsx      # Bot details/configuration
@@ -62,7 +51,7 @@ chat_dashboard/
 │   │   ├── card.tsx
 │   │   ├── input.tsx
 │   │   └── ...
-│   └── dashboard/                # Dashboard-specific components (to be implemented)
+│   └── dashboard/                # Shared dashboard components
 │       ├── Sidebar.tsx           # Dashboard navigation sidebar
 │       ├── BotCard.tsx           # Bot display card
 │       ├── ConversationList.tsx  # List of conversations
@@ -82,16 +71,37 @@ chat_dashboard/
 └── package.json                  # Dependencies and scripts
 ```
 
-## Dashboard Structure (Planned)
+## Dashboard routes
 
-The dashboard will be organized into the following main sections:
+The implemented routes are listed below. The older tree in the section below is
+kept as a rough directory illustration; route names in this list are
+authoritative.
 
-### 1. **Dashboard Overview** (`/dashboard`)
+- `/dashboard` and `/dashboard/overview` — overview
+- `/dashboard/bot/interactions` — bot creation and configuration
+- `/dashboard/bot/training` — URLs, files, and training progress
+- `/dashboard/bot/api` — API keys and embed code
+- `/dashboard/users/conversations` and `/dashboard/users/conversations/[id]`
+  — conversation list and details
+- `/dashboard/users/leads` and `/dashboard/users/leads/[lead_id]`
+  — leads and follow-ups
+- `/dashboard/users/org-members` — organization members
+- `/dashboard/notifications` — user notifications
+- `/dashboard/profile` — organization profile
+- `/dashboard/subscription` — subscription display
+
+There are no implemented `/dashboard/bots`, `/dashboard/integrations`, or
+generic `/dashboard/settings` route trees.
+
+### Historical route notes (superseded)
+
+The following old planning notes are retained only for context and are not
+implemented route names:
 - Welcome screen with quick stats
 - Recent activity feed
 - Quick actions (create bot, view conversations, etc.)
 
-### 2. **Bot Management** (`/dashboard/bots`)
+### 2. Bot Management (historical)
 - **List View** (`/dashboard/bots`) - Grid/list of all configured bots
 - **Bot Details** (`/dashboard/bots/[id]`) - Individual bot configuration
   - General settings (name, description, avatar)
@@ -101,18 +111,18 @@ The dashboard will be organized into the following main sections:
 - **Analytics** (`/dashboard/bots/[id]/analytics`) - Bot-specific metrics
 - **Create New Bot** (`/dashboard/bots/new`) - Bot creation wizard
 
-### 3. **Conversations** (`/dashboard/conversations`)
+### 3. Conversations (historical)
 - List all conversations across all bots
 - Filter by bot, date, status
 - Individual conversation view with chat history
 - Ability to respond as bot or escalate to human
 
-### 4. **Integrations** (`/dashboard/integrations`)
+### 4. Integrations (historical)
 - Connect to external services (CRM, email, etc.)
 - API key management
 - Webhook configuration
 
-### 5. **Settings** (`/dashboard/settings`)
+### 5. Settings (historical)
 - User profile settings
 - Account management
 - Billing/subscription (if applicable)
@@ -122,7 +132,7 @@ The dashboard will be organized into the following main sections:
 
 ### Prerequisites
 
-- Node.js 18+ and pnpm (or npm/yarn)
+- Node.js 20.9+ and pnpm 11
 - PostgreSQL database
 
 ### Installation
@@ -148,11 +158,13 @@ NEXT_PUBLIC_APP_URL=
 NEXT_PUBLIC_PYTHON_SERVER_URL=
 
 
-# ------------- server side env variables ------------- #
+# ------------- server-side environment variables ------------- #
+APP_URL=
+PYTHON_API_URL=
+CHAT_FILE_BUCKET=
 R2_ACCOUNT_ID=
 R2_API_KEY_TOKEN=
-APP_URL=
-SUPABASE_SERVICE_KEY=
+R2_API_KEY=
 CLOUDFLARE_R2_BASE_URL=
 ACCESS_KEY_ID=
 SECRET_ACCESS_KEY=
@@ -172,11 +184,16 @@ pnpm dev
 
 ## Authentication
 
-Email OTP authentication. Authentication pages live in `app/auth/` and use `AuthForm`.
+Authentication lives in `app/auth/` and uses JWT sessions, email OTP flows,
+magic-link organization invitations, and organization selection. API requests
+are scoped to the authenticated user's current organization.
 
-## Database Schema
+## Database schema
 
-The application uses PostgreSQL with Prisma. See `prisma/schema.prisma` for tables.
+`prisma/schema.prisma` is the authoritative schema and `prisma/migrations`
+contains the migrations. `prisma.config.ts` loads `.env.local` before `.env`
+and supplies `DATABASE_URL` to Prisma. See `chat_db_schema.txt` for a readable
+summary.
 
 ## Development
 

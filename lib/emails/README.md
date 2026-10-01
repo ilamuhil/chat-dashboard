@@ -19,6 +19,16 @@ This directory contains email templates for transactional emails delivered throu
 - **Purpose**: Sent when a user verifies email via OTP (signup flow)
 - **Default Expiry**: 10 minutes
 
+### 4. Organization Magic Link (`magic-link.tsx`)
+- **Function**: `renderMagicLinkEmail({ magicLink, organizationName, inviterName, expiresInMinutes })`
+- **Purpose**: Sent for organization invitations and magic-link sign-in
+
+### 5. Membership notifications (`membership.tsx`)
+- **Functions**: `renderMembershipRoleUpdatedEmail` and
+  `renderMembershipRemovedEmail`
+- **Purpose**: Notify members when their organization role changes or access is
+  removed
+
 ## Usage
 
 All templates are imported and used in `lib/email.ts`. You can use the exported functions:
@@ -27,7 +37,8 @@ All templates are imported and used in `lib/email.ts`. You can use the exported 
 import { 
   sendEmailVerificationEmail, 
   sendLoginOTPEmail,
-  sendVerifyEmailOtp
+  sendVerifyEmailOtp,
+  sendOrganizationMagicLinkEmail
 } from '@/lib/email'
 
 // Send email verification
