@@ -370,6 +370,8 @@ model Leads {
   organization Organizations?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   leadFollowUps LeadFollowUps[]
 
+  @@index([organizationId, deletedAt, capturedAt(sort: Desc)], name: "leads_org_deleted_captured_idx")
+  @@index([organizationId, deletedAt, pipelineStage], name: "leads_org_deleted_stage_idx")
   @@map("leads")
   @@schema("public")
 }
@@ -409,6 +411,7 @@ model LeadFollowUps {
   deletedById    String?   @map("deleted_by_id") @db.Uuid
 
   @@index([leadId])
+  @@index([leadId, deletedAt, scheduledFor], name: "lead_follow_ups_lead_deleted_scheduled_idx")
   @@schema("public")
   @@map("lead_follow_ups")
 }

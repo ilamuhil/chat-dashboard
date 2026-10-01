@@ -52,7 +52,11 @@ async function sendEmail(params: {
   } = params
 
   const toAddresses = Array.isArray(to) ? to : [to]
-  const replyToAddresses = replyTo ? (Array.isArray(replyTo) ? replyTo : [replyTo]) : undefined
+  const replyToAddresses = replyTo
+    ? Array.isArray(replyTo)
+      ? replyTo
+      : [replyTo]
+    : undefined
 
   try {
     const { data, error } = await resend.emails.send({
@@ -75,21 +79,22 @@ async function sendEmail(params: {
 
     return { messageId: data.id }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error'
     throw new Error(`Failed to send email: ${errorMessage}`)
   }
 }
 
 /**
  * Sends a password reset email.
- * 
+ *
  * @param to - Recipient email address
  * @param resetLink - Password reset link with token
  * @param expiresInMinutes - Expiration time in minutes (for display purposes)
  */
 /**
  * Sends an email verification email.
- * 
+ *
  * @param to - Recipient email address
  * @param verificationLink - Email verification link with token
  * @param expiresInMinutes - Expiration time in minutes (for display purposes)
@@ -97,7 +102,7 @@ async function sendEmail(params: {
 export async function sendEmailVerificationEmail(
   to: string,
   verificationLink: string,
-  expiresInMinutes: number = 1440 // 24 hours
+  expiresInMinutes: number = 1440, // 24 hours
 ): Promise<{ messageId: string }> {
   const { html, text } = renderEmailVerificationEmail({
     verificationLink,
@@ -114,7 +119,7 @@ export async function sendEmailVerificationEmail(
 
 /**
  * Sends a login OTP email.
- * 
+ *
  * @param to - Recipient email address
  * @param otp - One-time password code
  * @param expiresInMinutes - Expiration time in minutes (for display purposes)
@@ -122,7 +127,7 @@ export async function sendEmailVerificationEmail(
 export async function sendLoginOTPEmail(
   to: string,
   otp: string,
-  expiresInMinutes: number = 10
+  expiresInMinutes: number = 10,
 ): Promise<{ messageId: string }> {
   const { html, text } = renderLoginOTPEmail({
     otp,
@@ -143,7 +148,7 @@ export async function sendLoginOTPEmail(
 export async function sendVerifyEmailOtp(
   to: string,
   otp: string,
-  expiresInMinutes: number = 10
+  expiresInMinutes: number = 10,
 ): Promise<{ messageId: string }> {
   const { html, text } = renderVerifyOtpEmail({ otp, expiresInMinutes })
   return sendEmail({
@@ -205,7 +210,7 @@ export async function sendMembershipRemovedEmail(params: {
 /**
  * Generic function to send custom emails.
  * Use this for emails that don't fit the predefined templates.
- * 
+ *
  * @param params - Email parameters
  */
 export async function sendCustomEmail(params: {

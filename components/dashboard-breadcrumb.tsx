@@ -48,12 +48,18 @@ const parentRoutes: Record<string, { title: string; url: string } | null> = {
 
 export function DashboardBreadcrumb() {
   const pathname = usePathname()
+  const isLeadDetail =
+    /^\/dashboard\/users\/leads\/[^/]+\/?$/.test(pathname)
   const matchedPath =
     Object.keys(routeTitles)
       .filter(route => pathname === route || pathname.startsWith(route + '/'))
       .sort((a, b) => b.length - a.length)[0] ?? pathname
-  const currentTitle = routeTitles[matchedPath] || 'Dashboard'
-  const parent = parentRoutes[matchedPath]
+  const currentTitle = isLeadDetail
+    ? 'Lead details'
+    : routeTitles[matchedPath] || 'Dashboard'
+  const parent = isLeadDetail
+    ? { title: 'Leads', url: '/dashboard/users/leads' }
+    : parentRoutes[matchedPath]
 
   return (
     <Breadcrumb>

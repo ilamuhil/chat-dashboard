@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { requireAuthUserId } from '@/lib/auth-server'
 import { resolveCurrentOrganizationId } from '@/lib/current-organization'
 import { prisma } from '@/lib/prisma'
@@ -19,9 +19,13 @@ export default async function LeadsPage() {
   const monthAgo = new Date(now)
   monthAgo.setDate(monthAgo.getDate() - 30)
 
-  const [leadsRaw, total, lastWeek, lastMonth] = await Promise.all([
+  const [membership, leadsRaw, total, lastWeek, lastMonth] = await Promise.all([
+    prisma.organizationMembers.findFirst({
+      where: { organizationId, userId },
+      select: { role: true },
+    }),
     prisma.leads.findMany({
-      where: { organizationId },
+      where: { organizationId, deletedAt: null },
       orderBy: { capturedAt: 'desc' },
       select: {
         id: true,
@@ -35,21 +39,25 @@ export default async function LeadsPage() {
       },
     }),
     prisma.leads.count({
-      where: { organizationId },
+      where: { organizationId, deletedAt: null },
     }),
     prisma.leads.count({
       where: {
         organizationId,
+        deletedAt: null,
         capturedAt: { gte: weekAgo },
       },
     }),
     prisma.leads.count({
       where: {
         organizationId,
+        deletedAt: null,
         capturedAt: { gte: monthAgo },
       },
     }),
   ])
+
+  if (!membership) notFound()
 
   const leads: LeadRow[] = leadsRaw.map(lead => ({
     id: lead.id,
@@ -70,7 +78,11 @@ export default async function LeadsPage() {
     <DashboardPageHeader
       title='Leads'
       description='Review visitor details captured by your bots during conversations.'>
-      <LeadsClient leads={leads} stats={stats} />
+      <LeadsClient
+        leads={leads}
+        stats={stats}
+        isAdmin={membership.role === 'admin'}
+      />
     </DashboardPageHeader>
   )
 }

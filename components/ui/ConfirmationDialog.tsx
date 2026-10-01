@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Loader2, XIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 type Props = {
   title: string;
@@ -30,13 +31,19 @@ type Props = {
 };
 
 export default function ConfirmationDialog(props: Props) {
+  const needsTypedConfirmation = Boolean(props.requiredConfirmationText);
+
   return (
     <AlertDialogRoot
       open={props.open}
       onOpenChange={open => {
         if (!props.isPending) props.setOpen(open);
       }}>
-      <AlertDialogContent className="min-h-[330px] rounded-2xl border-slate-200 bg-white p-7 shadow-2xl sm:max-w-md">
+      <AlertDialogContent
+        className={cn(
+          "rounded-2xl border-slate-200 bg-white shadow-2xl sm:max-w-md",
+          needsTypedConfirmation && "min-h-[330px]",
+        )}>
         <AlertDialogCancel
           aria-label="Close"
           disabled={props.isPending}
@@ -44,7 +51,13 @@ export default function ConfirmationDialog(props: Props) {
           <XIcon className="size-4" />
           <span className="sr-only">Close</span>
         </AlertDialogCancel>
-        <AlertDialogHeader className="border-b border-slate-100 pb-4 pr-8">
+        <AlertDialogHeader
+          className={cn(
+            "pr-8",
+            needsTypedConfirmation
+              ? "border-b border-slate-100 pb-4"
+              : "border-b-0 pb-1",
+          )}>
           <AlertDialogTitle>{props.title}</AlertDialogTitle>
           <AlertDialogDescription>
             {props.description}
