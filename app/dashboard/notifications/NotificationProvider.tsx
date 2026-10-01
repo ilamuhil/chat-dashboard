@@ -63,11 +63,15 @@ export function NotificationProvider({
   const clearedRef = useRef(false)
 
   useEffect(() => {
+    let cancelled = false
+
     const fetchNotifications = async () => {
       try {
         const { data } = await clientApiAxios.get<
           DashboardNotification[]
         >('/api/notifications')
+
+        if (cancelled) return
 
         setNotifications(current => {
           if (clearedRef.current) return current
@@ -104,6 +108,15 @@ export function NotificationProvider({
     }
 
     void fetchNotifications()
+    const pollingInterval = window.setInterval(
+      () => void fetchNotifications(),
+      30_000,
+    )
+
+    return () => {
+      cancelled = true
+      window.clearInterval(pollingInterval)
+    }
   }, [])
 
   const addNotification = useCallback(

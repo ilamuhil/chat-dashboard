@@ -4,7 +4,7 @@ import { MoonIcon, SunIcon } from 'lucide-react'
 import {
   createContext,
   useContext,
-  useEffect,
+  useLayoutEffect,
   useSyncExternalStore,
 } from 'react'
 
@@ -59,7 +59,7 @@ export function DashboardThemeProvider({
     (): DashboardTheme => 'light',
   )
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     applyDashboardTheme(readDashboardTheme(userId))
     return () => {
       document.documentElement.classList.remove('dark')

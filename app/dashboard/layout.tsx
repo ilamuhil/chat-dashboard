@@ -20,7 +20,6 @@ import {
   DashboardThemeProvider,
   DashboardThemeToggle,
 } from '@/components/dashboard-theme'
-import { dashboardThemeKey } from '@/lib/dashboard-theme'
 
 export default async function DashboardLayout({
   children,
@@ -71,41 +70,34 @@ export default async function DashboardLayout({
       role: m.role ?? 'member',
     }))
   
-  const themeKey = dashboardThemeKey(user.id)
-
   return (
     <DashboardThemeProvider userId={user.id}>
-    <script
-      dangerouslySetInnerHTML={{
-        __html: `(function(){try{if(localStorage.getItem(${JSON.stringify(themeKey)})==="dark"){document.documentElement.classList.add("dark")}}catch(e){}})();`,
-      }}
-    />
-    <NotificationProvider>
-      <SidebarProvider className='h-svh overflow-hidden'>
-        <Boot />
-        <AppSidebar user={user} organizations={organizations} />
-        <SidebarInset className='min-h-0 overflow-hidden bg-slate-50'>
-          <header className='flex h-14 shrink-0 items-center border-b border-slate-200/80 bg-linear-to-r from-white via-white to-sky-50/40 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 dark:to-slate-900/40'>
-            <div className='flex w-full items-center gap-3 px-4'>
-              <SidebarTrigger className='size-8 rounded-lg border border-slate-200/80 bg-white text-slate-600 shadow-sm hover:bg-sky-50 hover:text-sky-800 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-sky-500/15 dark:hover:text-sky-200' />
-              <Separator
-                orientation='vertical'
-                className='data-[orientation=vertical]:h-5 bg-slate-200'
-              />
-              <DashboardBreadcrumb />
-              <div className='ml-auto flex items-center gap-2'>
-                <DashboardThemeToggle />
-                <DashboardFeedback />
-                <DashboardNotifications />
+      <NotificationProvider>
+        <SidebarProvider className='h-svh overflow-hidden'>
+          <Boot />
+          <AppSidebar user={user} organizations={organizations} />
+          <SidebarInset className='min-h-0 overflow-hidden bg-slate-50'>
+            <header className='flex h-14 shrink-0 items-center border-b border-slate-200/80 bg-linear-to-r from-white via-white to-sky-50/40 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 dark:to-slate-900/40'>
+              <div className='flex w-full items-center gap-3 px-4'>
+                <SidebarTrigger className='size-8 rounded-lg border border-slate-200/80 bg-white text-slate-600 shadow-sm hover:bg-sky-50 hover:text-sky-800 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-sky-500/15 dark:hover:text-sky-200' />
+                <Separator
+                  orientation='vertical'
+                  className='data-[orientation=vertical]:h-5 bg-slate-200'
+                />
+                <DashboardBreadcrumb />
+                <div className='ml-auto flex items-center gap-2'>
+                  <DashboardThemeToggle />
+                  <DashboardFeedback />
+                  <DashboardNotifications />
+                </div>
               </div>
-            </div>
-          </header>
-          <main className='flex min-h-0 flex-1 flex-col overflow-hidden bg-linear-to-b from-slate-50 via-slate-50 to-sky-50/30 px-4 py-6 dark:to-slate-900/30'>
-            {children}
-          </main>
-        </SidebarInset>
-      </SidebarProvider>
-    </NotificationProvider>
+            </header>
+            <main className='flex min-h-0 flex-1 flex-col overflow-hidden bg-linear-to-b from-slate-50 via-slate-50 to-sky-50/30 px-4 py-6 dark:to-slate-900/30'>
+              {children}
+            </main>
+          </SidebarInset>
+        </SidebarProvider>
+      </NotificationProvider>
     </DashboardThemeProvider>
   )
 }

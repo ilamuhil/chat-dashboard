@@ -46,7 +46,7 @@ export default function Boot() {
         )
 
         eventStream.onopen = () => {
-          console.log('SSE connection opened')
+          toast.dismiss('live-notifications-unavailable')
         }
 
         const handleNotification = (
@@ -98,10 +98,19 @@ export default function Boot() {
           handleNotification,
         )
 
-        eventStream.onerror = error => {
-          console.error(
-            'SSE connection error:',
-            error,
+        eventStream.onerror = () => {
+          console.warn(
+            '[notifications] Live notification stream unavailable; using polling fallback.',
+          )
+          eventStream?.close()
+          eventStream = null
+          toast.warning(
+            'Live updates are temporarily unavailable',
+            {
+              id: 'live-notifications-unavailable',
+              description:
+                'Notifications will continue to refresh automatically.',
+            },
           )
         }
       } catch (error) {
@@ -109,6 +118,14 @@ export default function Boot() {
           console.error(
             'Error establishing SSE connection',
             error,
+          )
+          toast.warning(
+            'Live updates are temporarily unavailable',
+            {
+              id: 'live-notifications-unavailable',
+              description:
+                'Notifications will continue to refresh automatically.',
+            },
           )
         }
       }
