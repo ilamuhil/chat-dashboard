@@ -10,8 +10,11 @@ import { Button } from '@/components/ui/button'
 import { CopyIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
-const EMBED_SCRIPT =
-  '<script src="https://api.your-domain.com/embed.js"></script>'
+const EMBED_SCRIPT = `<script
+  src="https://api.your-domain.com/embed.js"
+  data-api-key="YOUR_API_KEY"
+  async
+></script>`
 
 const CodeBlock = () => {
   const copyToClipboard = useCallback(() => {
@@ -20,20 +23,29 @@ const CodeBlock = () => {
   }, [])
 
   return (
-    <div className='flex items-center gap-3 rounded-md border border-slate-200 bg-slate-950 px-3 py-2.5 text-slate-100'>
-      <code className='min-w-0 flex-1 overflow-x-auto font-mono text-xs leading-relaxed whitespace-nowrap'>
-        <span className='text-slate-400'>&lt;</span>
-        <span className='text-sky-300'>script</span>
-        <span className='text-slate-400'> </span>
-        <span className='text-emerald-300'>src</span>
-        <span className='text-slate-400'>=</span>
-        <span className='text-amber-200'>
-          &quot;https://api.your-domain.com/embed.js&quot;
-        </span>
-        <span className='text-slate-400'>&gt;&lt;/</span>
-        <span className='text-sky-300'>script</span>
-        <span className='text-slate-400'>&gt;</span>
-      </code>
+    <div className='flex items-start gap-3 rounded-md border border-slate-200 bg-slate-950 px-3 py-2.5 text-slate-100 shadow-sm dark:border-slate-700 dark:bg-slate-950'>
+      <pre className='min-w-0 flex-1 overflow-x-auto font-mono text-xs leading-5 text-slate-200'>
+        <code>
+          <span className='text-slate-500'>&lt;script</span>
+          {'\n'}
+          {'  '}
+          <span className='text-sky-300'>src</span>
+          <span className='text-slate-500'>=</span>
+          <span className='text-amber-200'>
+            &quot;https://api.your-domain.com/embed.js&quot;
+          </span>
+          {'\n'}
+          {'  '}
+          <span className='text-emerald-300'>data-api-key</span>
+          <span className='text-slate-500'>=</span>
+          <span className='text-amber-200'>&quot;YOUR_API_KEY&quot;</span>
+          {'\n'}
+          {'  '}
+          <span className='text-emerald-300'>async</span>
+          {'\n'}
+          <span className='text-slate-500'>&gt;&lt;/script&gt;</span>
+        </code>
+      </pre>
       <Tooltip>
         <TooltipTrigger asChild>
           <Button

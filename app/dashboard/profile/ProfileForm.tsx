@@ -13,7 +13,13 @@ import { Spinner } from '@/components/ui/spinner'
 import { type ProfileResult } from './action'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import React from 'react'
-import { Building2Icon, CameraIcon, MailIcon, MapPinIcon } from 'lucide-react'
+import {
+  Building2Icon,
+  CameraIcon,
+  CopyIcon,
+  MailIcon,
+  MapPinIcon,
+} from 'lucide-react'
 import { dashboardButtonClass } from '@/lib/dashboard-buttons'
 import { cn } from '@/lib/utils'
 
@@ -241,16 +247,41 @@ const ProfileForm = ({ organization: initialOrganization }: Props) => {
                 <Label htmlFor='tenant_id' className={fieldLabelClass}>
                   Tenant ID
                 </Label>
-                <Input
-                  id='tenant_id'
-                  name='tenant_id'
-                  type='text'
-                  disabled
-                  defaultValue={organization?.id || ''}
-                  className={cn(fieldControlClass, 'bg-slate-50 font-mono text-xs')}
-                />
+                <div className='flex items-center gap-2'>
+                  <Input
+                    id='tenant_id'
+                    name='tenant_id'
+                    type='text'
+                    readOnly
+                    value={organization?.id || ''}
+                    className={cn(
+                      fieldControlClass,
+                      'bg-slate-50 font-mono text-xs dark:bg-slate-800',
+                    )}
+                  />
+                  <Button
+                    type='button'
+                    variant='outline'
+                    size='icon'
+                    aria-label='Copy tenant ID'
+                    title='Copy tenant ID'
+                    disabled={!organization?.id}
+                    className='size-9 shrink-0 rounded-lg border-slate-200 bg-white text-slate-500 hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-sky-400/40 dark:hover:bg-sky-500/15 dark:hover:text-sky-200'
+                    onClick={async () => {
+                      if (!organization?.id) return
+                      try {
+                        await navigator.clipboard.writeText(organization.id)
+                        toast.success('Tenant ID copied')
+                      } catch {
+                        toast.error('Unable to copy tenant ID')
+                      }
+                    }}>
+                    <CopyIcon className='size-3.5' />
+                  </Button>
+                </div>
                 <p className='text-[11px] leading-relaxed text-muted-foreground'>
                   Auto-generated organization identifier. It cannot be changed.
+                  Use the copy button to copy it.
                 </p>
               </div>
             </div>

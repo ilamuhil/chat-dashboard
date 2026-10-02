@@ -15,6 +15,7 @@ import ConfirmationDialog from '@/components/ui/ConfirmationDialog'
 import {
   ArchiveIcon,
   ArchiveRestoreIcon,
+  CheckCircle2Icon,
   CheckSquareIcon,
   LoaderCircleIcon,
   MessageCircleIcon,
@@ -83,7 +84,7 @@ const FILTERS: Array<{
       id: 'closed',
       label: 'Closed',
       shortLabel: 'Closed',
-      icon: ArchiveIcon,
+      icon: CheckCircle2Icon,
       activeClass: 'border-slate-300 bg-slate-100 text-slate-800',
       inactiveClass: 'border-slate-200 bg-slate-50/60 text-slate-600 hover:bg-slate-100',
       badgeClass: 'bg-slate-200 text-slate-700',

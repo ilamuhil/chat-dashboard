@@ -293,11 +293,15 @@ export const docsPages: DocPage[] = [
         paragraphs: [
           'Copy the embed snippet shown in API Setup and add it to your website according to the integration package you deploy. Place it in the shared site template when the chatbot should appear across admissions pages.',
         ],
-        code: '<script src="https://api.your-domain.com/embed.js"></script>',
+        code: `<script
+  src="https://api.your-domain.com/embed.js"
+  data-api-key="YOUR_API_KEY"
+  async
+></script>`,
         note: {
           title: 'Use the generated snippet',
           content:
-            'The domain above is illustrative. Use the current snippet and bot credentials shown in your own API Setup page.',
+            'Replace YOUR_API_KEY with the active key generated for this bot. Keep the key scoped to the widget and revoke it if it is exposed.',
           tone: 'info',
         },
       },

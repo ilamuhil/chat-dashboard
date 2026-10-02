@@ -234,7 +234,7 @@ export default async function BotApiPage() {
                 </p>
               </div>
             </div>
-            <div className='rounded-lg border border-slate-200/70 bg-white/70 p-3'>
+            <div className='rounded-lg border border-slate-200/70 bg-white/70 p-3 dark:border-slate-700 dark:bg-slate-950/40'>
               <p className='mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground'>
                 Script
               </p>
