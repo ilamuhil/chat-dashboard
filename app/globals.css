@@ -301,9 +301,21 @@ html.dark .chat-message-bubble--assistant-tail::after {
   animation: loader-progress 1.35s ease-in-out infinite;
 }
 
+@keyframes google-loading-border {
+  to {
+    stroke-dashoffset: -100;
+  }
+}
+
+.auth-google-loading-border {
+  stroke-dasharray: 20 80;
+  animation: google-loading-border 2.4s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .route-transition,
   .loader-progress,
+  .auth-google-loading-border,
   ::view-transition-old(root),
   ::view-transition-new(root) {
     animation-duration: 1ms;

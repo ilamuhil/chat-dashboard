@@ -65,6 +65,13 @@ export default function AuthForm(props: Props) {
   );
   const [googlePending, setGooglePending] = useState(false);
 
+  useEffect(() => {
+    const resetGooglePending = () => setGooglePending(false);
+    window.addEventListener("pageshow", resetGooglePending);
+
+    return () => window.removeEventListener("pageshow", resetGooglePending);
+  }, []);
+
   // Signup
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -408,38 +415,85 @@ export default function AuthForm(props: Props) {
               </p>
             </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleGoogleClick}
-              disabled={isSubmitting || isSendingOtp || googlePending}
-              className="h-12 w-full rounded-xl border-slate-200 bg-white font-medium text-slate-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:shadow-md"
+            <div
+              className={cn(
+                "relative isolate rounded-[14px] p-0.5",
+                googlePending && "bg-slate-200/60 dark:bg-slate-700/70",
+              )}
+              aria-busy={googlePending}
             >
-              {googlePending && <Spinner />}
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                className="size-4.5"
+              {googlePending && (
+                <svg
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 z-0 size-full overflow-visible"
+                  preserveAspectRatio="none"
+                >
+                  <defs>
+                    <linearGradient
+                      id={`google-loading-border-${mode}`}
+                      x1="0%"
+                      y1="0%"
+                      x2="100%"
+                      y2="0%"
+                    >
+                      <stop offset="0%" stopColor="#0f2747" stopOpacity="0.3" />
+                      <stop offset="35%" stopColor="#0f2747" stopOpacity="0.95" />
+                      <stop offset="68%" stopColor="#b42332" stopOpacity="0.9" />
+                      <stop offset="100%" stopColor="#b42332" stopOpacity="0.3" />
+                    </linearGradient>
+                  </defs>
+                  <rect
+                    x="1.5"
+                    y="1.5"
+                    width="calc(100% - 3px)"
+                    height="calc(100% - 3px)"
+                    rx="12.5"
+                    pathLength="100"
+                    fill="none"
+                    stroke={`url(#google-loading-border-${mode})`}
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    className="auth-google-loading-border"
+                  />
+                </svg>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGoogleClick}
+                disabled={isSubmitting || isSendingOtp || googlePending}
+                className={cn(
+                  "relative z-10 h-12 w-full rounded-xl border-slate-200 bg-white font-medium text-slate-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:shadow-md disabled:opacity-100",
+                  googlePending && "border-transparent",
+                )}
               >
-                <path
-                  fill="#4285F4"
-                  d="M21.6 12.23c0-.71-.06-1.4-.18-2.07H12v3.92h5.38a4.6 4.6 0 0 1-2 3.02v2.54h3.24c1.9-1.75 2.98-4.32 2.98-7.41Z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 22c2.7 0 4.98-.9 6.63-2.43l-3.24-2.54c-.9.6-2.05.96-3.39.96-2.61 0-4.82-1.76-5.61-4.13H3.04v2.62A10 10 0 0 0 12 22Z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M6.39 13.86A6.01 6.01 0 0 1 6.08 12c0-.65.11-1.28.31-1.86V7.52H3.04A10 10 0 0 0 2 12c0 1.61.39 3.14 1.04 4.48l3.35-2.62Z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 6.01c1.47 0 2.79.51 3.82 1.49l2.88-2.88A9.65 9.65 0 0 0 12 2a10 10 0 0 0-8.96 5.52l3.35 2.62C7.18 7.77 9.39 6.01 12 6.01Z"
-                />
-              </svg>
-              {googlePending ? "Connecting to Google..." : "Continue with Google"}
-            </Button>
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  className="size-4.5"
+                >
+                  <path
+                    fill="#4285F4"
+                    d="M21.6 12.23c0-.71-.06-1.4-.18-2.07H12v3.92h5.38a4.6 4.6 0 0 1-2 3.02v2.54h3.24c1.9-1.75 2.98-4.32 2.98-7.41Z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 22c2.7 0 4.98-.9 6.63-2.43l-3.24-2.54c-.9.6-2.05.96-3.39.96-2.61 0-4.82-1.76-5.61-4.13H3.04v2.62A10 10 0 0 0 12 22Z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M6.39 13.86A6.01 6.01 0 0 1 6.08 12c0-.65.11-1.28.31-1.86V7.52H3.04A10 10 0 0 0 2 12c0 1.61.39 3.14 1.04 4.48l3.35-2.62Z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 6.01c1.47 0 2.79.51 3.82 1.49l2.88-2.88A9.65 9.65 0 0 0 12 2a10 10 0 0 0-8.96 5.52l3.35 2.62C7.18 7.77 9.39 6.01 12 6.01Z"
+                  />
+                </svg>
+                {googlePending
+                  ? "Connecting to Google..."
+                  : "Continue with Google"}
+              </Button>
+            </div>
 
             <div className="my-6 flex items-center gap-4">
               <div className="h-px flex-1 bg-slate-200" />
@@ -492,7 +546,7 @@ export default function AuthForm(props: Props) {
                       placeholder="you@company.com"
                       required
                       value={mode === "login" ? loginEmail : email}
-                      disabled={isSubmitting || isSendingOtp}
+                      disabled={isSubmitting || isSendingOtp || googlePending}
                       onChange={(event) => {
                         const nextEmail = event.target.value;
                         if (mode === "login") {
@@ -521,7 +575,8 @@ export default function AuthForm(props: Props) {
                     disabled={
                       isSendingOtp ||
                       otpCooldown > 0 ||
-                      isSubmitting
+                      isSubmitting ||
+                      googlePending
                     }
                     className="h-12 min-w-29 rounded-xl border-slate-200 bg-white shadow-sm transition-all duration-200 hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700"
                   >
