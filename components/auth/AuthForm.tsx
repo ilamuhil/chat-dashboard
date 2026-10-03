@@ -25,15 +25,45 @@ import { useMutation } from "@tanstack/react-query";
 
 type Props = {
   mode: "login" | "signup";
+  initialError?: string;
 };
 
 type Banner = { type: "error" | "success" | "info"; msg: string } | null;
 
+const googleErrorMessages: Record<string, string> = {
+  google_account_exists:
+    "This email already has an account. Sign in with email OTP instead.",
+  google_account_mismatch:
+    "This Google account does not match the linked account. Sign in with email OTP instead.",
+  google_account_unavailable:
+    "This account is currently unavailable. Sign in with email OTP if you need help.",
+  google_cancelled:
+    "Google sign-in was cancelled. You can continue with email OTP.",
+  google_invalid_callback:
+    "Google sign-in could not be completed. Please try again or use email OTP.",
+  google_not_configured:
+    "Google sign-in is not configured yet. Please continue with email OTP.",
+  google_unverified:
+    "Google could not verify this email address. Please use email OTP instead.",
+  google_error:
+    "Google sign-in could not be completed. Please try again or use email OTP.",
+};
+
 export default function AuthForm(props: Props) {
   const router = useRouter();
-  const { mode } = props;
+  const { mode, initialError } = props;
 
-  const [banner, setBanner] = useState<Banner>(null);
+  const [banner, setBanner] = useState<Banner>(() =>
+    initialError
+      ? {
+          type: "error",
+          msg:
+            googleErrorMessages[initialError] ??
+            "Google sign-in could not be completed. Please try again or use email OTP.",
+        }
+      : null,
+  );
+  const [googlePending, setGooglePending] = useState(false);
 
   // Signup
   const [fullName, setFullName] = useState("");
@@ -278,10 +308,9 @@ export default function AuthForm(props: Props) {
     mode === "signup" ? emailOtpCooldown : loginOtpCooldown;
 
   const handleGoogleClick = () => {
-    setBanner({
-      type: "info",
-      msg: "Google sign-in is not configured yet. Please continue with email.",
-    });
+    setBanner(null);
+    setGooglePending(true);
+    window.location.assign("/api/auth/google");
   };
 
   return (
@@ -383,9 +412,10 @@ export default function AuthForm(props: Props) {
               type="button"
               variant="outline"
               onClick={handleGoogleClick}
-              disabled={isSubmitting || isSendingOtp}
+              disabled={isSubmitting || isSendingOtp || googlePending}
               className="h-12 w-full rounded-xl border-slate-200 bg-white font-medium text-slate-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:shadow-md"
             >
+              {googlePending && <Spinner />}
               <svg
                 aria-hidden="true"
                 viewBox="0 0 24 24"
@@ -408,7 +438,7 @@ export default function AuthForm(props: Props) {
                   d="M12 6.01c1.47 0 2.79.51 3.82 1.49l2.88-2.88A9.65 9.65 0 0 0 12 2a10 10 0 0 0-8.96 5.52l3.35 2.62C7.18 7.77 9.39 6.01 12 6.01Z"
                 />
               </svg>
-              Continue with Google
+              {googlePending ? "Connecting to Google..." : "Continue with Google"}
             </Button>
 
             <div className="my-6 flex items-center gap-4">

@@ -171,6 +171,9 @@ SECRET_ACCESS_KEY=
 RESEND_API_KEY=
 RESEND_FROM_EMAIL=
 RESEND_FROM_NAME=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REDIRECT_URI=http://localhost:4000/api/auth/google/callback
 DATABASE_URL=
 AUTH_JWT_SECRET=
 ```
@@ -181,6 +184,19 @@ pnpm dev
 ```
 
 5. Open [localhost:4000](http://localhost:4000) in your browser.
+
+## Google sign-in
+
+Google sign-in requests only the `openid`, `email`, and `profile` scopes.
+Register the callback URL below in Google Cloud Console:
+
+```text
+http://localhost:4000/api/auth/google/callback
+```
+
+For production, set `GOOGLE_REDIRECT_URI` to the deployed HTTPS callback URL.
+Existing email-OTP and invited accounts are not linked automatically to Google;
+they should continue using email OTP.
 
 ## Authentication
 
