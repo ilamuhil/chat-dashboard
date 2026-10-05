@@ -288,7 +288,7 @@ model TrainingSources {
   botId            String?   @map("bot_id") @db.Uuid
   type             String?   @db.Text
   status           String?   @db.Text
-  errorMessage     String?   @map("error_message") @db.Text
+  errorMessage     Json      @default("[]") @map("error_message") @db.JsonB
   sourceValue      String?   @map("source_value") @db.Text
   contentHash      String?   @map("content_hash") @db.Text
   originalFilename String?   @map("original_filename") @db.Text

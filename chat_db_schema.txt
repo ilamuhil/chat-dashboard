@@ -145,7 +145,7 @@ organization_id      text REFERENCES organizations(id)
 bot_id               uuid REFERENCES bots(id)
 type                 text
 status               text
-error_message        text
+error_message        jsonb NOT NULL DEFAULT '[]'
 source_value         text
 
 

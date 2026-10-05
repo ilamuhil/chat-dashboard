@@ -61,7 +61,8 @@ status                     text NOT NULL
   -- queued, processing, completed, failed, cleanup_completed
 started_at                 timestamptz
 completed_at               timestamptz
-error_message              text
+error_message              jsonb NOT NULL DEFAULT '[]'
+source_ids                 jsonb NOT NULL DEFAULT '[]'
 embedding_configuration_id uuid NOT NULL
 bot_configuration_id       uuid NOT NULL
 
@@ -136,7 +137,7 @@ dimension  integer NOT NULL DEFAULT 1536
 chunk_size integer NOT NULL
 chunk_overlap integer NOT NULL
 state      text NOT NULL DEFAULT 'draft'
-  -- draft, training, active, failed, deprecated
+  -- draft, training, active, deprecated
 created_at timestamptz DEFAULT now()
 updated_at timestamptz DEFAULT now()
 
@@ -146,7 +147,7 @@ CHECK (chunk_overlap >= 0 AND chunk_overlap < chunk_size)
   -- embedding_config_chunk_overlap_range
 CHECK (dimension > 0)
   -- embedding_config_dimension_positive
-CHECK (state IN ('draft', 'training', 'active', 'failed', 'deprecated'))
+CHECK (state IN ('draft', 'training', 'active', 'deprecated'))
   -- embedding_config_state_valid
 
 UNIQUE INDEX: embedding_configurations_one_active_per_bot_idx
@@ -164,7 +165,7 @@ model                    text NOT NULL
 version                  text
 settings                 jsonb
 state                    text NOT NULL DEFAULT 'draft'
-  -- draft, training, active, failed, deprecated
+  -- draft, training, active, deprecated
 retrieval_k              integer NOT NULL
 similarity_threshold     double precision NOT NULL
 created_by_user_id       uuid
@@ -175,7 +176,7 @@ CHECK (retrieval_k > 0)
   -- bot_config_retrieval_k_positive
 CHECK (similarity_threshold >= 0.0 AND similarity_threshold <= 1.0)
   -- bot_config_similarity_threshold_range
-CHECK (state IN ('draft', 'training', 'active', 'failed', 'deprecated'))
+CHECK (state IN ('draft', 'training', 'active', 'deprecated'))
   -- bot_config_state_valid
 
 UNIQUE INDEX: bot_configurations_one_active_per_bot_idx

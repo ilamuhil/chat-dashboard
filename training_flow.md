@@ -100,3 +100,22 @@ a. Mark the source as `upload_failed` when the object is missing or verification
 | conversations_meta | `open`            | Conversation is active |
 | conversations_meta | `closed`          | Conversation is closed |
 | conversations_meta | `is_archived=true`| Conversation is archived |
+
+Training failures belong to individual sources (`training_failed`) and the
+training job (`failed` or `partially_completed`). Model configurations use only
+`draft`, `training`, `active`, and `deprecated`; unsuccessful initial training
+returns the configuration to `draft`.
+
+`TrainingSources.errorMessage` is a JSONB error-history array, defaulting to `[]`.
+Each error has an ID, code, stage, message, suggested action, retryability,
+timestamp, source/job IDs, and `resolved_at`. Successful source retries mark
+previous errors resolved rather than deleting the history. The training GET
+route returns `errors` and `retry_available` per source; POST accepts selected
+`source_ids` and `retry_failed: true`. The UI offers individual and all-failed
+retries while leaving trained sources alone. Queue errors are recorded on
+sources too, including failures reaching the Python service.
+
+Dashboard DB migrations use Prisma from this repository exclusively. Migration
+`20261005123000_structured_training_errors` converts existing source errors to
+JSONB without discarding their messages. Chat DB migrations use Alembic from
+chat_api; revision `6e40a12bc893` handles job errors and configuration states.

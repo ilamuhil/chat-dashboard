@@ -7,6 +7,7 @@ import {
   TrashIcon,
   InfoIcon,
   FolderOpenIcon,
+  RotateCcwIcon,
 } from 'lucide-react'
 import {
   Dialog,
@@ -18,6 +19,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { StatusChip, type StatusChipStatus } from '@/components/status-chip'
 import { cn } from '@/lib/utils'
+import type { TrainingError } from '@/lib/training-errors'
 
 type Props = {
   resources: Array<{
@@ -25,6 +27,8 @@ type Props = {
     type: 'url' | 'file'
     value: string
     status: StatusChipStatus | string | null | undefined
+    errors: TrainingError[]
+    onRetry?: () => void
     onDelete: () => void
   }>
   isDisabled: boolean
@@ -105,18 +109,26 @@ const ResourceContainer = (props: Props) => {
               </div>
 
               <div className='flex shrink-0 items-center gap-0.5'>
-                {isFailedStatus(resource.status) && (
+                {(isFailedStatus(resource.status) || resource.errors.length > 0) && (
                   <Button
                     type='button'
                     variant='ghost'
                     size='icon'
+                    aria-label={`View errors for ${resource.value}`}
                     onClick={e => {
                       e.preventDefault()
                       e.stopPropagation()
-                      setOpenDialog(resource.value)
+                      setOpenDialog(resource.id)
                     }}
                     className='size-7 rounded-md text-rose-500 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/15 dark:hover:text-rose-200'>
                     <InfoIcon className='size-3.5' />
+                  </Button>
+                )}
+                {resource.onRetry && (
+                  <Button type='button' variant='ghost' size='icon'
+                    aria-label={`Retry ${resource.value}`} disabled={props.isDisabled}
+                    onClick={() => resource.onRetry?.()} className='size-7 rounded-md'>
+                    <RotateCcwIcon className='size-3.5' />
                   </Button>
                 )}
                 <Button
@@ -124,6 +136,7 @@ const ResourceContainer = (props: Props) => {
                   variant='ghost'
                   size='icon'
                   disabled={props.isDisabled}
+                  aria-label={`Remove ${resource.value}`}
                   onClick={e => {
                     e.preventDefault()
                     e.stopPropagation()
@@ -135,25 +148,30 @@ const ResourceContainer = (props: Props) => {
               </div>
 
               <Dialog
-                open={openDialog === resource.value}
+                open={openDialog === resource.id}
                 onOpenChange={open => {
                   if (!open) setOpenDialog(null)
                 }}>
                 <DialogContent className='sm:max-w-md'>
                   <DialogHeader>
-                    <DialogTitle className='text-sm'>Processing Error</DialogTitle>
+                    <DialogTitle className='text-sm'>Training error history</DialogTitle>
                     <DialogDescription asChild>
-                      <div className='space-y-2 pt-2 text-xs'>
-                        <p>
-                          Something went wrong while processing this resource.
-                          Please try again or contact support if the issue
-                          persists.
-                        </p>
-                        <p>
-                          This may be due to an unsupported file type, network
-                          error, or service interruption. You can also remove
-                          this resource and attempt to upload it again.
-                        </p>
+                      <div className='max-h-80 space-y-3 overflow-y-auto pt-2 text-xs'>
+                        {resource.errors.length ? [...resource.errors].reverse().map(error => (
+                          <div key={error.id} className='space-y-1 rounded-lg border p-3'>
+                            <p className='font-medium'>{error.message}</p>
+                            <p>{error.action}</p>
+                            <p className='text-muted-foreground'>
+                              {error.stage.replaceAll('_', ' ')} · {new Date(error.occurred_at).toLocaleString()}
+                              {error.resolved_at ? ' · Resolved' : ''}
+                            </p>
+                          </div>
+                        )) : <p>No detailed error was recorded. Retry training, or contact support if the issue continues.</p>}
+                        {resource.onRetry && (
+                          <Button type='button' disabled={props.isDisabled} onClick={() => { resource.onRetry?.(); setOpenDialog(null) }}>
+                            Retry this source
+                          </Button>
+                        )}
                       </div>
                     </DialogDescription>
                   </DialogHeader>

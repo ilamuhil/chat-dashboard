@@ -23,6 +23,7 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { clientApiAxios } from '@/lib/axios-client'
 import { isAxiosError } from 'axios'
+import type { TrainingError } from '@/lib/training-errors'
 
 type TrainingSourceType = 'url' | 'file'
 
@@ -32,6 +33,8 @@ type ApiTrainingSource = {
   source_value: string | null
   original_filename?: string | null
   status: string | null // Can be any status from training_flow.md
+  errors: TrainingError[]
+  retry_available: boolean
   file?: {
     original_filename?: string | null
     path?: string | null
@@ -53,13 +56,8 @@ const fileLimitAndSizeCheck = (files: File[] | FileList | null) => {
 }
 
 const invalidFileTypes = (files: File[]) => {
-  const allowed = new Set([
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'text/plain',
-  ])
-  const invalid = files.filter(f => !allowed.has(f.type))
+  const allowed = new Set(['pdf', 'docx', 'txt', 'csv', 'md', 'markdown', 'html', 'htm'])
+  const invalid = files.filter(file => !allowed.has(file.name.split('.').pop()?.toLowerCase() ?? ''))
   if (invalid.length === 0) return null
   return `Invalid file type(s): ${invalid.map(f => f.name).join(', ')}`
 }
@@ -149,22 +147,20 @@ export default function TrainingDataClient({ bots }: Props) {
 
   const progressTone = hasActiveSources
     ? 'active'
-    : progress === 100 && totalSourcesCount > 0
+    : progress === 100 && totalSourcesCount > 0 && failedSourcesCount === 0
       ? 'complete'
       : 'idle'
 
   // query to queue training for the selected bot with the uploaded training sources and urls
   const { isPending: isPendingTraining, mutate: train_bot } = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (options: { sourceIds?: string[]; retryFailed?: boolean } | undefined) => {
       if (!selectedBot?.id) throw new Error('Please select a bot to train')
-      const source_ids = trainingSources
-        .filter(source => source.status === 'created')
+      const source_ids = options?.sourceIds ?? trainingSources
+        .filter(source => source.status === (options?.retryFailed ? 'training_failed' : 'created'))
         .map(source => source.id)
       const response = await clientApiAxios.post<{ message: string }>(
         `/api/training/${selectedBot.id}`,
-        {
-          source_ids,
-        }
+        { source_ids, retry_failed: options?.retryFailed ?? false }
       )
       return response.data.message
     },
@@ -174,7 +170,9 @@ export default function TrainingDataClient({ bots }: Props) {
       refetchTrainingSources()
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to train bot. Please try again.')
+      const message = isAxiosError<{ error?: string }>(error) ? error.response?.data?.error : error.message
+      toast.error(message || 'Failed to train bot. Please try again.')
+      refetchTrainingSources()
     },
   })
 
@@ -447,7 +445,7 @@ export default function TrainingDataClient({ bots }: Props) {
               : 'Click to upload or drag and drop'}
           </p>
           <p className='text-xs text-muted-foreground'>
-            PDF, DOC, DOCX, TXT · Max 10MB per file · Up to 10 files
+            PDF, DOCX, CSV, Markdown, HTML, TXT · Max 10MB per file · Up to 10 files
           </p>
         </div>
       </section>
@@ -465,6 +463,8 @@ export default function TrainingDataClient({ bots }: Props) {
             source.file?.original_filename ??
             '',
           status: source.status,
+          errors: source.errors ?? [],
+          onRetry: source.retry_available ? () => train_bot({ sourceIds: [source.id], retryFailed: true }) : undefined,
           onDelete: () => {
             deleteTrainingSource(source.id)
           },
@@ -472,7 +472,7 @@ export default function TrainingDataClient({ bots }: Props) {
         isDisabled={
           isLoadingTrainingSources ||
           isPendingTraining ||
-          isSourceDeletionLoading
+          isSourceDeletionLoading || hasActiveSources || !termsAccepted
         }
       />
 
@@ -505,7 +505,9 @@ export default function TrainingDataClient({ bots }: Props) {
               <p className='mt-0.5 text-xs text-muted-foreground'>
                 {hasActiveSources
                   ? 'Sources are being processed…'
-                  : progress === 100 && totalSourcesCount > 0
+                  : failedSourcesCount > 0
+                    ? `${failedSourcesCount} source(s) failed. Review their errors and retry.`
+                    : progress === 100 && totalSourcesCount > 0
                     ? 'All resources have been processed'
                     : 'Waiting to start training'}
               </p>
@@ -639,6 +641,14 @@ export default function TrainingDataClient({ bots }: Props) {
             </Label>
           </div>
 
+          {trainingSources.some(source => source.retry_available) && (
+            <Button type='button' variant='outline'
+              disabled={isPendingTraining || hasActiveSources || !termsAccepted || isSourceDeletionLoading || isFileUploading}
+              onClick={() => train_bot({ retryFailed: true })}>
+              Retry failed sources
+            </Button>
+          )}
+
           <Button
             type='button'
             className={cn(
@@ -653,11 +663,11 @@ export default function TrainingDataClient({ bots }: Props) {
               isUrlAdditionPending ||
               isLoadingTrainingSources ||
               isFileUploading ||
-              processedSourcesCount === totalSourcesCount ||
+              !trainingSources.some(source => source.status === 'created') ||
               !termsAccepted ||
               trainingSources?.length === 0
             }
-            onClick={() => train_bot()}>
+            onClick={() => train_bot(undefined)}>
             {isPendingTraining || hasActiveSources ? (
               <span className='flex items-center gap-2'>
                 <Loader2 className='size-4 animate-spin' />
