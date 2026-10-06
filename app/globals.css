@@ -493,6 +493,106 @@ html.dark .chat-message-bubble--assistant-tail::after {
   background: #f8fafc;
 }
 
+.chat-typing-indicator {
+  background: linear-gradient(
+    180deg,
+    rgba(241, 245, 249, 0.98) 0%,
+    rgba(226, 232, 240, 0.96) 100%
+  );
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  box-shadow: 0 1px 2px rgba(0, 5, 14, 0.1);
+}
+
+.dark .chat-typing-indicator {
+  background: linear-gradient(
+    180deg,
+    rgba(20, 43, 70, 0.98) 0%,
+    rgba(15, 34, 57, 0.98) 100%
+  );
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+.typing-dot {
+  background: color-mix(in srgb, #0f172a 48%, transparent);
+  animation-duration: var(--typing-cycle, 1.8s);
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+  animation-fill-mode: both;
+}
+
+.dark .chat-typing-indicator .typing-dot {
+  background: color-mix(in srgb, #e8f0fa 48%, transparent);
+}
+
+.typing-dot--1 {
+  animation-name: typingDot1;
+}
+
+.typing-dot--2 {
+  animation-name: typingDot2;
+}
+
+.typing-dot--3 {
+  animation-name: typingDot3;
+}
+
+@keyframes typingDot1 {
+  0%,
+  55%,
+  100% {
+    transform: translateY(0);
+  }
+  10% {
+    transform: translateY(calc(-1 * var(--bounce-height, 1.5px)));
+  }
+  20% {
+    transform: translateY(var(--bounce-height, 1.5px));
+  }
+  30% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes typingDot2 {
+  0%,
+  55%,
+  100% {
+    transform: translateY(0);
+  }
+  20% {
+    transform: translateY(calc(-1 * var(--bounce-height, 1.5px)));
+  }
+  30% {
+    transform: translateY(var(--bounce-height, 1.5px));
+  }
+  40% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes typingDot3 {
+  0%,
+  55%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(calc(-1 * var(--bounce-height, 1.5px)));
+  }
+  40% {
+    transform: translateY(var(--bounce-height, 1.5px));
+  }
+  50% {
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .typing-dot {
+    animation: none;
+  }
+}
+
 .chat-markdown .chat-table-wrap {
   width: 100%;
   max-width: 100%;

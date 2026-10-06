@@ -1,15 +1,13 @@
 'use client'
 
-import { Button } from '@/components/ui/button'
 import {
   CheckCircle2Icon,
-  PaperclipIcon,
-  SendIcon,
+  LoaderCircleIcon,
   MessagesSquareIcon,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
-import { dashboardButtonClass } from '@/lib/dashboard-buttons'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Message } from './types'
 import { renderChatMarkdown } from './markdown'
@@ -17,15 +15,99 @@ import {
   conversationEndedLabel,
   isConversationEndedMessage,
 } from '../conversation-status'
+import { useTypingActivity } from './useTypingActivity'
 
 type ChatWindowProps = {
   messages: Message[]
   expanded?: boolean
   onSendMessage?: (content: string) => void
+  onSendFile?: (fileName: string) => void
+  uploadToken?: string | null
+  onTypingActivity?: (active: boolean) => boolean
+  isVisitorTyping?: boolean
   isSending?: boolean
   disabled?: boolean
   connectionError?: string | null
   closedBy?: string | null
+}
+
+function VisitorTypingIndicator() {
+  return (
+    <div
+      className='chat-typing-indicator mt-0.5 mb-1.5 ml-3 flex h-5 w-fit items-center justify-center gap-0.5 self-start rounded-full px-1.5'
+      style={
+        {
+          '--bounce-height': '1.5px',
+          '--typing-cycle': '1.8s',
+        } as React.CSSProperties
+      }
+      aria-live='polite'
+      aria-label='Visitor is typing'>
+      <div className='typing-dot typing-dot--1 h-1 w-1 rounded-full' />
+      <div className='typing-dot typing-dot--2 h-1 w-1 rounded-full' />
+      <div className='typing-dot typing-dot--3 h-1 w-1 rounded-full' />
+    </div>
+  )
+}
+
+function PaperclipIcon() {
+  return (
+    <svg viewBox='0 0 24 24' width='16' height='16' aria-hidden='true'>
+      <path
+        fill='currentColor'
+        d='M16.5 6.5l-7.78 7.78a2.5 2.5 0 1 0 3.54 3.54l8.13-8.13a4 4 0 0 0-5.66-5.66L7.6 10.17a5.5 5.5 0 0 0 7.78 7.78l6.01-6.01a1 1 0 0 0-1.41-1.41l-6.01 6.01a3.5 3.5 0 1 1-4.95-4.95l6.13-6.13a2 2 0 0 1 2.83 2.83l-8.13 8.13a.5.5 0 0 1-.71-.71l7.78-7.78a1 1 0 0 0-1.42-1.42Z'
+      />
+    </svg>
+  )
+}
+
+function SendIcon() {
+  return (
+    <svg viewBox='0 0 24 24' width='16' height='16' aria-hidden='true'>
+      <path
+        fill='currentColor'
+        d='M3.4 20.2l18.1-8.1c.7-.3.7-1.4 0-1.7L3.4 2.3c-.7-.3-1.5.4-1.2 1.2L4.6 10l8.8 2l-8.8 2l-2.4 6.5c-.3.8.5 1.5 1.2 1.2Z'
+      />
+    </svg>
+  )
+}
+
+async function uploadConversationFile(file: File, token: string) {
+  if (file.size > 5 * 1024 * 1024) {
+    throw new Error('File size must be less than 5MB')
+  }
+
+  const allowedExtensions = ['pdf', 'docx', 'img', 'txt']
+  const extension = file.name.split('.').pop()?.toLowerCase()
+  if (!extension || !allowedExtensions.includes(extension)) {
+    throw new Error('Allowed file types are pdf, docx, img, txt')
+  }
+
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await fetch('/api/conversations/upload', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  })
+
+  if (!response.ok) {
+    let serverMessage: string | null = null
+    try {
+      const body = (await response.json()) as { error?: unknown; message?: unknown }
+      serverMessage =
+        typeof body.message === 'string'
+          ? body.message
+          : typeof body.error === 'string'
+            ? body.error
+            : null
+    } catch {
+      serverMessage = null
+    }
+    throw new Error(serverMessage ?? 'Failed to upload file')
+  }
+
+  return file.name
 }
 
 function isThematicBreakMessage(content: string) {
@@ -33,11 +115,12 @@ function isThematicBreakMessage(content: string) {
 }
 
 export default function ChatWindow(props: ChatWindowProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const scrollAnchorRef = useRef<HTMLDivElement>(null)
   const didInitialScrollRef = useRef(false)
   const [draft, setDraft] = useState('')
+  const [fileUploading, setFileUploading] = useState(false)
+  const { noteTyping, stopTyping } = useTypingActivity(props.onTypingActivity)
   const conversationEnded = props.messages.some(isConversationEndedMessage)
   const composerDisabled =
     props.disabled || props.isSending || conversationEnded
@@ -55,6 +138,7 @@ export default function ChatWindow(props: ChatWindowProps) {
     ) {
       return
     }
+    stopTyping()
     props.onSendMessage(content)
     setDraft('')
   }
@@ -63,7 +147,7 @@ export default function ChatWindow(props: ChatWindowProps) {
     const element = textareaRef.current
     if (!element) return
     element.style.height = 'auto'
-    element.style.height = `${Math.min(element.scrollHeight, 120)}px`
+    element.style.height = draft.trim() ? `${element.scrollHeight}px` : '36px'
   }, [draft])
 
   const lastMessage = props.messages[props.messages.length - 1]
@@ -77,16 +161,32 @@ export default function ChatWindow(props: ChatWindowProps) {
     props.messages.length,
     lastMessage?.id,
     lastMessage?.content,
+    props.isVisitorTyping,
   ])
 
-  const handleFileUpload = () => {
-    fileInputRef.current?.click()
-  }
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files
-    if (files && files.length > 0) {
-      console.log('Files selected:', files)
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0]
+    try {
+      if (!file) {
+        toast.warning('No file was selected')
+        return
+      }
+      if (!props.uploadToken) {
+        throw new Error('Join the conversation before uploading a file')
+      }
+      setFileUploading(true)
+      const fileName = await uploadConversationFile(file, props.uploadToken)
+      props.onSendFile?.(fileName)
+      toast.success('File uploaded successfully')
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to upload file',
+      )
+    } finally {
+      event.target.value = ''
+      setFileUploading(false)
     }
   }
 
@@ -269,34 +369,45 @@ export default function ChatWindow(props: ChatWindowProps) {
         <div ref={scrollAnchorRef} aria-hidden='true' />
       </div>
 
-      <div className='shrink-0 border-t border-slate-200/80 bg-white/90 px-3 py-3 backdrop-blur-sm'>
-        <div className='flex items-center gap-2'>
-          <input
-            ref={fileInputRef}
-            type='file'
-            multiple
-            className='hidden'
-            onChange={handleFileChange}
-            accept='image/*,application/pdf,.doc,.docx,.txt'
-            disabled={composerDisabled}
-          />
-          <Button
-            type='button'
-            variant='outline'
-            size='icon'
-            onClick={handleFileUpload}
-            disabled={composerDisabled}
-            className='size-9 shrink-0 rounded-lg border-slate-200 hover:bg-slate-50'>
-            <PaperclipIcon className='size-4' />
-          </Button>
+      {props.isVisitorTyping && <VisitorTypingIndicator />}
+      <div className='shrink-0 border-t border-slate-200/60 bg-linear-to-b from-slate-50/90 to-slate-100/95 p-2.5 backdrop-blur-sm dark:border-slate-700/80 dark:from-slate-950/90 dark:to-slate-900/95'>
+        <div className='flex items-end gap-2 rounded-2xl border border-slate-900/10 bg-white/80 p-1.5 shadow-[0_4px_16px_rgba(15,23,42,0.05)] dark:border-slate-400/20 dark:bg-slate-900/80 dark:shadow-[0_5px_18px_rgba(0,5,14,0.22)]'>
+          <label
+            className={cn(
+              'inline-grid size-9 shrink-0 cursor-pointer place-items-center rounded-full text-slate-500 hover:bg-slate-900/[0.06] hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-400/15 dark:hover:text-slate-100',
+              (composerDisabled || fileUploading) &&
+                'pointer-events-none opacity-60',
+            )}>
+            <input
+              className='sr-only'
+              type='file'
+              disabled={composerDisabled || fileUploading}
+              onChange={event => void handleFileChange(event)}
+            />
+            <span aria-label='Add attachment'>
+              {fileUploading ? (
+                <LoaderCircleIcon className='size-4 animate-spin' />
+              ) : (
+                <PaperclipIcon />
+              )}
+            </span>
+          </label>
           <textarea
-            placeholder='Type your message…'
-            className='h-9 min-h-9 flex-1 resize-none rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm outline-none placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-sky-500/30 disabled:cursor-not-allowed disabled:opacity-50'
+            placeholder='Type a message…'
+            title='Type a message…'
+            className='h-9 min-h-9 flex-1 resize-none rounded-xl bg-transparent px-2 py-2 text-[13px] leading-5 tracking-[-0.01em] text-slate-900 outline-none placeholder:text-[13px] placeholder:text-slate-500 disabled:opacity-60 dark:text-slate-100 dark:placeholder:text-slate-400'
             value={draft}
-            onChange={event => setDraft(event.target.value)}
+            onChange={event => {
+              const next = event.target.value
+              setDraft(next)
+              if (composerDisabled) return
+              if (next.trim()) noteTyping()
+              else stopTyping()
+            }}
             rows={1}
             ref={textareaRef}
             disabled={composerDisabled}
+            style={{ maxHeight: '120px' }}
             onKeyDown={event => {
               if (event.key !== 'Enter' || event.shiftKey) return
               if (event.nativeEvent.isComposing) return
@@ -304,18 +415,14 @@ export default function ChatWindow(props: ChatWindowProps) {
               sendDraft()
             }}
           />
-          <Button
+          <button
             type='button'
-            size='icon'
-            disabled={
-              !draft.trim() ||
-              composerDisabled ||
-              !props.onSendMessage
-            }
+            aria-label='Send message'
+            disabled={!draft.trim() || composerDisabled || !props.onSendMessage}
             onClick={sendDraft}
-            className={cn(dashboardButtonClass, 'size-9 rounded-lg')}>
-            <SendIcon className='size-4' />
-          </Button>
+            className='inline-grid size-9 shrink-0 place-items-center rounded-full bg-sky-600 text-white shadow-sm transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-40'>
+            <SendIcon />
+          </button>
         </div>
       </div>
     </div>

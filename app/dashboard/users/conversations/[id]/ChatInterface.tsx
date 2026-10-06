@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { createPortal } from 'react-dom'
 import { isAxiosError } from 'axios'
 import {
   CheckIcon,
@@ -26,12 +27,43 @@ import { useDashboardNotifications } from '@/app/dashboard/notifications/Notific
 import ChatWindow from './ChatWindow'
 import { useChatSocket } from './useChatSocket'
 import type { Message as ChatMessage } from './types'
+
+type ChatFrame = {
+  top: number
+  left: number
+  width: number
+  height: number
+}
+
+const expandTransition =
+  'top 320ms cubic-bezier(0.22, 1, 0.36, 1), left 320ms cubic-bezier(0.22, 1, 0.36, 1), width 320ms cubic-bezier(0.22, 1, 0.36, 1), height 320ms cubic-bezier(0.22, 1, 0.36, 1), border-radius 320ms cubic-bezier(0.22, 1, 0.36, 1)'
+
+function fullscreenFrame(): ChatFrame {
+  return {
+    top: 0,
+    left: 0,
+    width: document.documentElement.clientWidth,
+    height: document.documentElement.clientHeight,
+  }
+}
+
+function frameFromRect(rect: DOMRect): ChatFrame {
+  return {
+    top: rect.top,
+    left: rect.left,
+    width: rect.width,
+    height: rect.height,
+  }
+}
 import {
   conversationEndedTypes,
   conversationStatusEvent,
   isConversationEndedMessage,
   type ConversationStatusDetail,
 } from '../conversation-status'
+
+/** Keep the visitor dots up briefly after typing stops so they don't flicker. */
+const VISITOR_TYPING_HIDE_BUFFER_MS = 1_400
 
 type ChatInterfaceProps = {
   conversationId: string
@@ -52,7 +84,14 @@ export default function ChatInterface({
   initialClosedBy = null,
   initialLoadError = null,
 }: ChatInterfaceProps) {
-  const [expandedChat, setExpandedChat] = React.useState(false)
+  const slotRef = React.useRef<HTMLDivElement>(null)
+  const panelRef = React.useRef<HTMLElement>(null)
+  const [presentation, setPresentation] = React.useState<{
+    frame: ChatFrame
+    animate: boolean
+    mode: 'expand' | 'collapse'
+  } | null>(null)
+  const expandedChat = presentation !== null
   const [isJoining, setIsJoining] = React.useState(false)
   const [socketError, setSocketError] = React.useState<string | null>(
     initialLoadError,
@@ -73,6 +112,44 @@ export default function ChatInterface({
       token: string
       conversationId: string
     } | null>(null)
+  const [isVisitorTyping, setIsVisitorTyping] = React.useState(false)
+  const visitorTypingHideRef = React.useRef<
+    ReturnType<typeof setTimeout> | undefined
+  >(undefined)
+
+  const clearVisitorTyping = React.useCallback(() => {
+    if (visitorTypingHideRef.current) {
+      clearTimeout(visitorTypingHideRef.current)
+      visitorTypingHideRef.current = undefined
+    }
+    setIsVisitorTyping(false)
+  }, [])
+
+  const showVisitorTyping = React.useCallback(() => {
+    if (visitorTypingHideRef.current) {
+      clearTimeout(visitorTypingHideRef.current)
+      visitorTypingHideRef.current = undefined
+    }
+    setIsVisitorTyping(true)
+  }, [])
+
+  const releaseVisitorTyping = React.useCallback(() => {
+    if (visitorTypingHideRef.current) {
+      clearTimeout(visitorTypingHideRef.current)
+    }
+    visitorTypingHideRef.current = setTimeout(() => {
+      visitorTypingHideRef.current = undefined
+      setIsVisitorTyping(false)
+    }, VISITOR_TYPING_HIDE_BUFFER_MS)
+  }, [])
+
+  React.useEffect(() => {
+    return () => {
+      if (visitorTypingHideRef.current) {
+        clearTimeout(visitorTypingHideRef.current)
+      }
+    }
+  }, [])
 
   const [messageState, setMessageState] = React.useState<{
     conversationId: string
@@ -177,6 +254,16 @@ export default function ChatInterface({
         return
       }
 
+      if (
+        payload.type === 'typing' &&
+        typeof payload.is_typing === 'boolean'
+      ) {
+        if (payload.actor === 'support_agent') return
+        if (payload.is_typing) showVisitorTyping()
+        else releaseVisitorTyping()
+        return
+      }
+
       const content =
         typeof payload.content === 'string'
           ? payload.content
@@ -216,6 +303,8 @@ export default function ChatInterface({
           )
           ? 'system'
           : 'user'
+
+      if (role === 'user') clearVisitorTyping()
 
       const messageId =
         typeof payload.id === 'string'
@@ -281,7 +370,14 @@ export default function ChatInterface({
         }
       })
     },
-    [conversationId, initialStatus, messages],
+    [
+      clearVisitorTyping,
+      conversationId,
+      initialStatus,
+      messages,
+      releaseVisitorTyping,
+      showVisitorTyping,
+    ],
   )
 
   const handleSocketClosed = React.useCallback((reason?: string) => {
@@ -477,6 +573,15 @@ export default function ChatInterface({
     await requestAgentSocket(true, true)
   }
 
+  const reportTyping = React.useCallback(
+    (active: boolean) => {
+      if (readyState !== 'open') return false
+      sendJsonMessage({ type: 'typing', is_typing: active })
+      return true
+    },
+    [readyState, sendJsonMessage],
+  )
+
   const sendMessage = (content: string) => {
     const trimmedContent = content.trim()
     const contentWithoutBreakTags = trimmedContent
@@ -496,6 +601,10 @@ export default function ChatInterface({
       message: trimmedContent,
     })
 
+    appendLocalMessage(trimmedContent, 'text')
+  }
+
+  const appendLocalMessage = (content: string, contentType: string) => {
     setMessageState(current => {
       const currentMessages =
         current.conversationId === conversationId
@@ -511,12 +620,90 @@ export default function ChatInterface({
             conversation_id: conversationId,
             created_at: new Date().toISOString(),
             agent_id: '',
-            content_type: 'text',
-            content: trimmedContent,
+            content_type: contentType,
+            content,
             role: 'support_agent',
           },
         ],
       }
+    })
+  }
+
+  const sendFile = (fileName: string) => {
+    if (!socketEnabled || readyState !== 'open' || !fileName) return
+    sendJsonMessage({
+      type: 'file',
+      message: fileName,
+      content: fileName,
+    })
+    appendLocalMessage(fileName, 'file')
+  }
+
+  React.useLayoutEffect(() => {
+    if (!presentation || presentation.animate || presentation.mode !== 'expand') {
+      return
+    }
+
+    const frameId = requestAnimationFrame(() => {
+      setPresentation({
+        frame: fullscreenFrame(),
+        animate: true,
+        mode: 'expand',
+      })
+    })
+
+    return () => cancelAnimationFrame(frameId)
+  }, [presentation])
+
+  React.useEffect(() => {
+    if (presentation?.mode !== 'expand' || !presentation.animate) return
+
+    const fit = () => {
+      setPresentation(current =>
+        current?.mode === 'expand' && current.animate
+          ? { ...current, frame: fullscreenFrame() }
+          : current,
+      )
+    }
+
+    window.addEventListener('resize', fit)
+    return () => window.removeEventListener('resize', fit)
+  }, [presentation?.animate, presentation?.mode])
+
+  const toggleExpandedChat = () => {
+    const reduceMotion = window.matchMedia(
+      '(prefers-reduced-motion: reduce)',
+    ).matches
+
+    if (!presentation) {
+      const rect = panelRef.current?.getBoundingClientRect()
+      if (!rect) return
+      if (reduceMotion) {
+        setPresentation({
+          frame: fullscreenFrame(),
+          animate: false,
+          mode: 'expand',
+        })
+        return
+      }
+      setPresentation({
+        frame: frameFromRect(rect),
+        animate: false,
+        mode: 'expand',
+      })
+      return
+    }
+
+    const rect = slotRef.current?.getBoundingClientRect()
+    if (!rect || reduceMotion) {
+      setPresentation(null)
+      return
+    }
+
+    setPresentation({
+      frame: frameFromRect(rect),
+      animate: true,
+      mode: 'collapse',
     })
   }
 
@@ -526,22 +713,43 @@ export default function ChatInterface({
       (readyState === 'connecting' ||
         readyState === 'closing'))
 
-  return (
-    <>
-      {expandedChat && (
-        <div
-          className='fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-[1px] transition-opacity duration-300'
-          onClick={() => setExpandedChat(false)}
-        />
-      )}
-
+  const chatPanel = (
       <section
+        ref={panelRef}
+        onTransitionEnd={event => {
+          if (
+            event.target !== panelRef.current ||
+            event.propertyName !== 'width' ||
+            presentation?.mode !== 'collapse'
+          ) {
+            return
+          }
+          setPresentation(null)
+        }}
         className={cn(
-          'dashboard-surface flex h-full min-h-0 flex-col overflow-hidden rounded-xl transition-all duration-300 ease-in-out',
-          expandedChat
-            ? 'fixed inset-4 z-50 h-[calc(100vh-2rem)] w-[calc(100vw-2rem)]'
-            : 'relative',
-        )}>
+          'dashboard-surface flex min-h-0 flex-col overflow-hidden bg-white dark:bg-slate-950',
+          presentation
+            ? 'fixed z-50 m-0 box-border'
+            : 'relative h-full rounded-xl',
+          presentation?.mode === 'expand' &&
+            presentation.animate &&
+            'shadow-2xl',
+        )}
+        style={
+          presentation
+            ? {
+                top: presentation.frame.top,
+                left: presentation.frame.left,
+                width: presentation.frame.width,
+                height: presentation.frame.height,
+                borderRadius:
+                  presentation.mode === 'expand' && presentation.animate
+                    ? 0
+                    : 12,
+                transition: presentation.animate ? expandTransition : 'none',
+              }
+            : undefined
+        }>
         <header className='flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-4 py-3'>
           <div className='flex min-w-0 items-center gap-2.5'>
             <div className='flex size-8 shrink-0 items-center justify-center rounded-lg bg-linear-to-br from-sky-500 to-slate-700 text-white shadow-sm'>
@@ -609,9 +817,7 @@ export default function ChatInterface({
                       ? 'Collapse chat'
                       : 'Expand chat'
                   }
-                  onClick={() =>
-                    setExpandedChat(current => !current)
-                  }
+                  onClick={toggleExpandedChat}
                   variant='ghost'
                   size='icon'
                   className='size-8 rounded-lg bg-slate-50 hover:bg-slate-100'>
@@ -639,6 +845,10 @@ export default function ChatInterface({
             messages={visibleMessages}
             closedBy={closedBy}
             onSendMessage={sendMessage}
+            onSendFile={sendFile}
+            uploadToken={socketCredentials?.token ?? null}
+            onTypingActivity={reportTyping}
+            isVisitorTyping={isVisitorTyping}
             connectionError={socketError}
             disabled={
               !isJoined ||
@@ -648,6 +858,13 @@ export default function ChatInterface({
           />
         </div>
       </section>
-    </>
+  )
+
+  return (
+    <div ref={slotRef} className='h-full min-h-0 min-w-0'>
+      {presentation && typeof document !== 'undefined'
+        ? createPortal(chatPanel, document.body)
+        : chatPanel}
+    </div>
   )
 }
