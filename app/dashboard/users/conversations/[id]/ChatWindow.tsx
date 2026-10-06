@@ -13,6 +13,10 @@ import { dashboardButtonClass } from '@/lib/dashboard-buttons'
 import { cn } from '@/lib/utils'
 import { Message } from './types'
 import { renderChatMarkdown } from './markdown'
+import {
+  conversationEndedLabel,
+  isConversationEndedMessage,
+} from '../conversation-status'
 
 type ChatWindowProps = {
   messages: Message[]
@@ -21,28 +25,7 @@ type ChatWindowProps = {
   isSending?: boolean
   disabled?: boolean
   connectionError?: string | null
-}
-
-function isConversationEndedMessage(message: Message) {
-  const endedContentTypes = [
-    'end_chat',
-    'chat_ended',
-    'chat_closed',
-    'conversation_end',
-    'conversation_ended',
-    'conversation_closed',
-  ]
-
-  if (endedContentTypes.includes(message.content_type)) {
-    return true
-  }
-
-  return (
-    message.role === 'system' &&
-    /\b(?:chat|conversation)\b.*\b(?:ended|closed)\b|\b(?:ended|closed)\b.*\b(?:chat|conversation)\b|\b(?:ended|closed)\b.*\b(?:user|visitor)\b/i.test(
-      message.content,
-    )
-  )
+  closedBy?: string | null
 }
 
 function isThematicBreakMessage(content: string) {
@@ -129,9 +112,11 @@ export default function ChatWindow(props: ChatWindowProps) {
         <div
           key={message.id}
           className='flex justify-center px-4 py-5'>
-          <div className='flex items-center gap-2 rounded-xl border border-slate-200/80 bg-white/80 px-3.5 py-2.5 text-xs text-slate-500 shadow-sm'>
-            <CheckCircle2Icon className='size-4 text-slate-400' />
-            <span>Conversation ended by the visitor</span>
+          <div className='flex items-center gap-2 rounded-xl border border-slate-200/80 bg-white/80 px-3.5 py-2.5 text-xs text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300'>
+            <CheckCircle2Icon className='size-4 text-slate-400 dark:text-slate-400' />
+            <span>
+              {conversationEndedLabel(message, props.closedBy)}
+            </span>
           </div>
         </div>
       )
@@ -268,9 +253,18 @@ export default function ChatWindow(props: ChatWindowProps) {
             </p>
           </div>
         ) : (
-          props.messages.map((message, index) =>
-            renderMessage(message, index, props.messages)
-          )
+          props.messages.map((message, index) => {
+            if (
+              isConversationEndedMessage(message) &&
+              props.messages
+                .slice(0, index)
+                .some(isConversationEndedMessage)
+            ) {
+              return null
+            }
+
+            return renderMessage(message, index, props.messages)
+          })
         )}
         <div ref={scrollAnchorRef} aria-hidden='true' />
       </div>

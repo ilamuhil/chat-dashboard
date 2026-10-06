@@ -25,6 +25,7 @@ export default async function ConversationPage({ params }: { params: { id: strin
   let conversationMode = 'ai'
   let conversationHandOverStatus = 'none'
   let conversationStatus = 'open'
+  let conversationClosedBy: string | null = null
   let messageLoadError: string | null = null
 
   try {
@@ -38,6 +39,7 @@ export default async function ConversationPage({ params }: { params: { id: strin
         mode: true,
         handOverStatus: true,
         status: true,
+        closedBy: true,
       },
     })
     if (!conversation || !conversation.botId) {
@@ -47,6 +49,7 @@ export default async function ConversationPage({ params }: { params: { id: strin
     conversationMode = conversation.mode
     conversationHandOverStatus = conversation.handOverStatus ?? 'none'
     conversationStatus = conversation.status
+    conversationClosedBy = conversation.closedBy
 
     const privateKey = getSecretKey()
     if (!privateKey) {
@@ -90,6 +93,7 @@ export default async function ConversationPage({ params }: { params: { id: strin
       initialMode={conversationMode}
       initialHandOverStatus={conversationHandOverStatus}
       initialStatus={conversationStatus}
+      initialClosedBy={conversationClosedBy}
       initialLoadError={messageLoadError}
     />
   )

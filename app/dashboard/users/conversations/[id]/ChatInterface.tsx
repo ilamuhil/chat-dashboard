@@ -26,6 +26,12 @@ import { useDashboardNotifications } from '@/app/dashboard/notifications/Notific
 import ChatWindow from './ChatWindow'
 import { useChatSocket } from './useChatSocket'
 import type { Message as ChatMessage } from './types'
+import {
+  conversationEndedTypes,
+  conversationStatusEvent,
+  isConversationEndedMessage,
+  type ConversationStatusDetail,
+} from '../conversation-status'
 
 type ChatInterfaceProps = {
   conversationId: string
@@ -33,29 +39,8 @@ type ChatInterfaceProps = {
   initialMode: string
   initialHandOverStatus: string
   initialStatus: string
+  initialClosedBy?: string | null
   initialLoadError?: string | null
-}
-
-const conversationEndedTypes = [
-  'end_chat',
-  'chat_ended',
-  'chat_closed',
-  'conversation_end',
-  'conversation_ended',
-  'conversation_closed',
-]
-
-function isConversationEndedMessage(message: ChatMessage) {
-  if (conversationEndedTypes.includes(message.content_type)) {
-    return true
-  }
-
-  return (
-    message.role === 'system' &&
-    /\b(?:chat|conversation)\b.*\b(?:ended|closed)\b|\b(?:ended|closed)\b.*\b(?:chat|conversation)\b|\b(?:ended|closed)\b.*\b(?:user|visitor)\b/i.test(
-      message.content,
-    )
-  )
 }
 
 export default function ChatInterface({
@@ -64,6 +49,7 @@ export default function ChatInterface({
   initialMode,
   initialHandOverStatus,
   initialStatus,
+  initialClosedBy = null,
   initialLoadError = null,
 }: ChatInterfaceProps) {
   const [expandedChat, setExpandedChat] = React.useState(false)
@@ -95,14 +81,70 @@ export default function ChatInterface({
     conversationId,
     messages,
   })
+  const [closedByState, setClosedByState] = React.useState<{
+    conversationId: string
+    status: string
+    closedBy: string | null
+  }>({
+    conversationId,
+    status: initialStatus,
+    closedBy: initialClosedBy,
+  })
+  const conversationStatus =
+    closedByState.conversationId === conversationId
+      ? closedByState.status
+      : initialStatus
+  const closedBy =
+    closedByState.conversationId === conversationId
+      ? closedByState.closedBy
+      : initialClosedBy
+
+  React.useEffect(() => {
+    const onStatusChange = (event: Event) => {
+      const detail = (event as CustomEvent<ConversationStatusDetail>).detail
+      if (!detail?.ids?.includes(conversationId) || !detail.status) return
+      setClosedByState({
+        conversationId,
+        status: detail.status,
+        closedBy: detail.status === 'closed' ? detail.closedBy : null,
+      })
+    }
+
+    window.addEventListener(conversationStatusEvent, onStatusChange)
+    return () => {
+      window.removeEventListener(conversationStatusEvent, onStatusChange)
+    }
+  }, [conversationId])
 
   const chatMessages =
     messageState.conversationId === conversationId
       ? messageState.messages
       : messages
+  const visibleMessages = React.useMemo(() => {
+    if (
+      conversationStatus !== 'closed' ||
+      chatMessages.some(isConversationEndedMessage)
+    ) {
+      return chatMessages
+    }
+
+    return [
+      ...chatMessages,
+      {
+        id: `${conversationId}:ended`,
+        conversation_id: conversationId,
+        created_at: new Date().toISOString(),
+        agent_id: '',
+        content_type: 'end_chat',
+        content: 'Chat ended',
+        role: 'system' as const,
+        closed_by: closedBy,
+      },
+    ]
+  }, [chatMessages, closedBy, conversationId, conversationStatus])
   const conversationEnded =
-    initiallyClosed ||
-    chatMessages.some(isConversationEndedMessage)
+    conversationStatus === 'closed' ||
+    visibleMessages.some(isConversationEndedMessage)
 
   const autoConnectPromiseRef =
     React.useRef<Promise<void> | null>(null)
@@ -144,6 +186,19 @@ export default function ChatInterface({
 
       if (!content) return
 
+      const payloadClosedBy =
+        typeof payload.closed_by === 'string' ? payload.closed_by : null
+      if (payloadClosedBy) {
+        setClosedByState(current => ({
+          conversationId,
+          status:
+            current.conversationId === conversationId
+              ? 'closed'
+              : initialStatus,
+          closedBy: payloadClosedBy,
+        }))
+      }
+
       const allowedRoles: ChatMessage['role'][] = [
         'user',
         'support_agent',
@@ -177,6 +232,22 @@ export default function ChatInterface({
           return current
         }
 
+        const incomingType =
+          typeof payload.type === 'string' ? payload.type : ''
+        const incomingIsEnded =
+          conversationEndedTypes.includes(incomingType) ||
+          conversationEndedTypes.includes(
+            typeof payload.content_type === 'string'
+              ? payload.content_type
+              : '',
+          )
+        if (
+          incomingIsEnded &&
+          currentMessages.some(isConversationEndedMessage)
+        ) {
+          return current
+        }
+
         return {
           conversationId,
           messages: [
@@ -204,12 +275,13 @@ export default function ChatInterface({
                     : 'text',
               content,
               role,
+              closed_by: payloadClosedBy,
             },
           ],
         }
       })
     },
-    [conversationId, messages],
+    [conversationId, initialStatus, messages],
   )
 
   const handleSocketClosed = React.useCallback((reason?: string) => {
@@ -564,7 +636,8 @@ export default function ChatInterface({
 
         <div className='min-h-0 flex-1'>
           <ChatWindow
-            messages={chatMessages}
+            messages={visibleMessages}
+            closedBy={closedBy}
             onSendMessage={sendMessage}
             connectionError={socketError}
             disabled={

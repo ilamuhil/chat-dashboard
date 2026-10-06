@@ -6,4 +6,5 @@ export type Message = {
   content_type: string
   content: string
   role: 'user' | 'support_agent' | 'ai' | 'system'
+  closed_by?: string | null
 }

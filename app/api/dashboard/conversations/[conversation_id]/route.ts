@@ -42,7 +42,19 @@ export async function PATCH(
     const updated = await prisma.conversationsMeta.update({
       where: { id: conversation.id },
       data: {
-        ...(body.status ? { status: body.status } : {}),
+        ...(body.status === 'closed'
+          ? {
+              status: 'closed' as const,
+              closedBy: 'support_agent',
+              closedAt: new Date(),
+            }
+          : body.status === 'open'
+            ? {
+                status: 'open' as const,
+                closedBy: null,
+                closedAt: null,
+              }
+            : {}),
         ...(body.isArchived !== undefined
           ? { isArchived: body.isArchived }
           : {}),

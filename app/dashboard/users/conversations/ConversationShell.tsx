@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
   dashboardDangerButtonClass,
@@ -35,6 +36,7 @@ import {
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { clientApiAxios } from '@/lib/axios-client'
+import { conversationStatusEvent } from './conversation-status'
 import { useDashboardNotifications } from '@/app/dashboard/notifications/NotificationProvider'
 
 type ChatFilter = 'all' | 'open' | 'closed' | 'archived'
@@ -152,6 +154,11 @@ export default function ConversationShell(props: {
   const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set())
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   const [pendingDeleteIds, setPendingDeleteIds] = useState<string[]>([])
+  const [contextMenu, setContextMenu] = useState<{
+    chatId: string
+    x: number
+    y: number
+  } | null>(null)
 
   useEffect(() => {
     if (!hasServerFilter) {
@@ -320,6 +327,17 @@ export default function ConversationShell(props: {
       )
       toast.success(message)
       clearSelection()
+      if (patch.status) {
+        window.dispatchEvent(
+          new CustomEvent(conversationStatusEvent, {
+            detail: {
+              ids,
+              status: patch.status,
+              closedBy: patch.status === 'closed' ? 'support_agent' : null,
+            },
+          }),
+        )
+      }
     } catch (error) {
       setConversationState(current => {
         const next = { ...current }
@@ -394,6 +412,27 @@ export default function ConversationShell(props: {
   }
 
   const selectedList = Array.from(selectedIds)
+  const contextChat = contextMenu
+    ? visibleBaseChats.find(chat => chat.id === contextMenu.chatId) ?? null
+    : null
+
+  useEffect(() => {
+    if (!contextMenu) return
+
+    const closeMenu = () => setContextMenu(null)
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeMenu()
+    }
+
+    window.addEventListener('pointerdown', closeMenu)
+    window.addEventListener('scroll', closeMenu, true)
+    window.addEventListener('keydown', closeOnEscape)
+    return () => {
+      window.removeEventListener('pointerdown', closeMenu)
+      window.removeEventListener('scroll', closeMenu, true)
+      window.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [contextMenu])
 
   return (
     <div className='grid h-full min-h-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(300px,1fr)_minmax(0,2fr)]'>
@@ -676,6 +715,23 @@ export default function ConversationShell(props: {
               return (
                 <div
                   key={chat.id}
+                  onContextMenu={event => {
+                    if (selectionMode) return
+                    event.preventDefault()
+                    const menuWidth = 192
+                    const menuHeight = 168
+                    setContextMenu({
+                      chatId: chat.id,
+                      x: Math.min(
+                        Math.max(8, event.clientX),
+                        window.innerWidth - menuWidth - 8,
+                      ),
+                      y: Math.min(
+                        Math.max(8, event.clientY),
+                        window.innerHeight - menuHeight - 8,
+                      ),
+                    })
+                  }}
                   className={cn(
                     'group relative flex w-full items-start gap-1.5 rounded-lg border p-2 transition-all duration-200',
                     isActive
@@ -836,6 +892,69 @@ export default function ConversationShell(props: {
             })
           )}
         </nav>
+        {contextMenu &&
+          contextChat &&
+          !selectionMode &&
+          createPortal(
+            <div
+              role='menu'
+              aria-label={`${contextChat.name} actions`}
+              className='fixed z-50 w-48 rounded-md border bg-popover p-1 text-popover-foreground shadow-md'
+              style={{ left: contextMenu.x, top: contextMenu.y }}
+              onPointerDown={event => event.stopPropagation()}
+              onContextMenu={event => event.preventDefault()}>
+              <p className='px-2 py-1.5 text-xs font-medium text-muted-foreground'>
+                Conversation status
+              </p>
+              <button
+                type='button'
+                role='menuitem'
+                className='flex w-full cursor-pointer items-center rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground'
+                onClick={() => {
+                  const state = getState(contextChat)
+                  if (state.status === 'closed') reopenChats([contextChat.id])
+                  else closeChats([contextChat.id])
+                  setContextMenu(null)
+                }}>
+                {getState(contextChat).status === 'closed'
+                  ? 'Reopen conversation'
+                  : 'Close conversation'}
+              </button>
+              <div className='my-1 h-px bg-border' />
+              <button
+                type='button'
+                role='menuitem'
+                disabled={updatingIds.has(contextChat.id)}
+                className='flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50'
+                onClick={() => {
+                  const state = getState(contextChat)
+                  if (state.isArchived) unarchiveChats([contextChat.id])
+                  else archiveChats([contextChat.id])
+                  setContextMenu(null)
+                }}>
+                {updatingIds.has(contextChat.id) ? (
+                  <LoaderCircleIcon className='size-3.5 animate-spin' />
+                ) : getState(contextChat).isArchived ? (
+                  <ArchiveRestoreIcon className='size-3.5' />
+                ) : (
+                  <ArchiveIcon className='size-3.5' />
+                )}
+                {getState(contextChat).isArchived ? 'Unarchive' : 'Archive'}
+              </button>
+              <button
+                type='button'
+                role='menuitem'
+                className='flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm text-rose-600 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/15'
+                onClick={() => {
+                  requestDelete([contextChat.id])
+                  setContextMenu(null)
+                }}>
+                <Trash2Icon className='size-3.5' />
+                Delete
+              </button>
+            </div>,
+            document.body,
+          )}
       </aside>
 
       <div className='min-h-0 min-w-0'>{children}</div>
