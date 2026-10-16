@@ -23,6 +23,10 @@ export function string(value: unknown) {
     ? String(value)
     : ''
 }
+export function paymentStatus(value: unknown) {
+  const status = string(value).toUpperCase()
+  return status === 'CUSTOMER_CANCELLED' ? 'USER_DROPPED' : status
+}
 export function providerDate(value: unknown): Date | null {
   const raw = string(value)
   if (!raw) return null
@@ -48,7 +52,7 @@ export function normalizePayment(
       data.subscription_id || subscription.subscription_id,
     ),
     kind: string(data.payment_type),
-    status: string(data.payment_status),
+    status: paymentStatus(data.payment_status),
     amountPaise: Number.isFinite(amount) ? Math.round(amount * 100) : -1,
     currency: string(data.payment_currency || 'INR'),
     scheduledAt: providerDate(data.payment_schedule_date),

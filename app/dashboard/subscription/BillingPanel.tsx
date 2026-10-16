@@ -1,9 +1,15 @@
 'use client'
-import { useCallback, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { billingDetailsSchema } from '@/lib/billing/details'
 import Script from 'next/script'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import {
   Check,
@@ -14,8 +20,13 @@ import {
   ShieldCheck,
   Loader2,
   AlertCircle,
+  CircleCheck,
+  Info,
+  TriangleAlert,
+  X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { AppLoader } from '@/components/ui/app-loader'
 import {
   Dialog,
   DialogContent,
@@ -108,6 +119,13 @@ type Summary = {
   configured: boolean
   quotes: Record<'starter' | 'growth' | 'pack', TaxQuote>
 }
+type BillingAction = Record<string, unknown> & { action: string }
+type BillingActionResult = {
+  mode?: 'sandbox' | 'production'
+  kind?: 'pack' | 'subscription'
+  sessionId?: string
+  checkoutStatus?: string
+}
 type CashfreeInstance = {
   checkout: (options: {
     paymentSessionId: string
@@ -134,6 +152,114 @@ const date = (value: string | null) =>
     : '—'
 const inputClass =
   'mt-1.5 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/15'
+async function billingRequest<T>(
+  method: 'GET' | 'POST' | 'PATCH',
+  body?: unknown,
+  signal?: AbortSignal,
+) {
+  const response = await fetch('/api/billing', {
+    method,
+    cache: 'no-store',
+    signal,
+    ...(body === undefined
+      ? {}
+      : {
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        }),
+  })
+  const data = await response.json()
+  if (!response.ok)
+    throw new Error(data.error || 'Could not complete this billing request.')
+  return data as T
+}
+async function fetchInvoice(paymentId: string) {
+  const response = await fetch(
+    `/api/billing/invoices/${encodeURIComponent(paymentId)}`,
+    { cache: 'no-store' },
+  )
+  if (!response.ok) {
+    const body = await response.json()
+    throw new Error(body.error || 'Could not download the invoice.')
+  }
+  return {
+    blob: await response.blob(),
+    filename:
+      response.headers
+        .get('content-disposition')
+        ?.match(/filename="([^"]+)"/)?.[1] || 'invoice.pdf',
+  }
+}
+type MessageTone = 'info' | 'success' | 'warning' | 'error'
+function checkoutMessage(status?: string): {
+  tone: MessageTone
+  message: string
+} | null {
+  if (status === 'failed')
+    return {
+      tone: 'error',
+      message:
+        'Payment failed. No allowance was added. Review the payment details below and try again.',
+    }
+  if (status === 'user_dropped' || status === 'cancelled')
+    return {
+      tone: 'warning',
+      message:
+        status === 'user_dropped'
+          ? 'You left the Cashfree checkout before completing payment. No charge was made. You can try again when ready.'
+          : 'Payment was cancelled before completion. No charge was made. You can try again when ready.',
+    }
+  if (status === 'active' || status === 'paid')
+    return {
+      tone: 'success',
+      message: 'Payment verified. Your updated allowance is ready.',
+    }
+  return null
+}
+const messageToneStyles: Record<MessageTone, string> = {
+  info: 'border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-700/50 dark:bg-sky-950/30 dark:text-sky-200',
+  success:
+    'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-700/50 dark:bg-emerald-950/30 dark:text-emerald-200',
+  warning:
+    'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-200',
+  error:
+    'border-red-200 bg-red-50 text-red-800 dark:border-red-700/50 dark:bg-red-950/30 dark:text-red-200',
+}
+function MessageBar({
+  tone,
+  children,
+  onClose,
+}: {
+  tone: MessageTone
+  children: ReactNode
+  onClose: () => void
+}) {
+  const Icon =
+    tone === 'success'
+      ? CircleCheck
+      : tone === 'warning'
+        ? TriangleAlert
+        : tone === 'error'
+          ? AlertCircle
+          : Info
+  return (
+    <div
+      role={tone === 'error' ? 'alert' : 'status'}
+      className={`flex items-start gap-2 rounded-lg border p-3 text-sm ${messageToneStyles[tone]}`}
+    >
+      <Icon className="mt-0.5 size-4 shrink-0" />
+      <div className="min-w-0 flex-1">{children}</div>
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Dismiss message"
+        className="-m-1 shrink-0 rounded-md p-1 opacity-70 transition hover:bg-black/5 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current dark:hover:bg-white/10"
+      >
+        <X className="size-4" />
+      </button>
+    </div>
+  )
+}
 function Meter({
   label,
   used,
@@ -174,12 +300,7 @@ function Meter({
 function useBillingSummary() {
   return useQuery<Summary>({
     queryKey: ['billing-summary'],
-    queryFn: async () => {
-      const response = await fetch('/api/billing', { cache: 'no-store' })
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Could not load billing.')
-      return data
-    },
+    queryFn: ({ signal }) => billingRequest<Summary>('GET', undefined, signal),
     staleTime: 0,
     refetchOnMount: 'always',
     retry: 1,
@@ -193,11 +314,18 @@ export function BillingPanel({
     kind: 'pack' | 'subscription'
   }
 }) {
-  const { data: summary, error: loadError, refetch } = useBillingSummary()
+  const { data: summary, error: loadError } = useBillingSummary()
+  const queryClient = useQueryClient()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const checkoutParam = searchParams.get('checkout')
+  const returnCheckoutId =
+    checkoutParam && /^[\da-f-]{36}$/.test(checkoutParam) ? checkoutParam : ''
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-  const [busy, setBusy] = useState(false)
+  const [noticeTone, setNoticeTone] = useState<MessageTone>('info')
+  const [sandboxVisible, setSandboxVisible] = useState(true)
+  const [dismissedCheckoutStatus, setDismissedCheckoutStatus] = useState('')
   const [sdkReady, setSdkReady] = useState(false)
   const [confirmation, setConfirmation] = useState<{
     action: 'checkout' | 'change_plan' | 'cancel'
@@ -205,45 +333,66 @@ export function BillingPanel({
     kind?: 'pack' | 'subscription'
   } | null>(checkoutReview ? { action: 'checkout', ...checkoutReview } : null)
   const [accepted, setAccepted] = useState(false)
+  const { mutateAsync: runBillingAction, isPending: busy } = useMutation({
+    mutationFn: (body: BillingAction) =>
+      billingRequest<BillingActionResult>('POST', body),
+  })
+  const { mutateAsync: refreshCheckout } = useMutation({
+    mutationFn: ({
+      checkoutId,
+      signal,
+    }: {
+      checkoutId: string
+      signal: AbortSignal
+    }) =>
+      billingRequest<BillingActionResult>(
+        'POST',
+        { action: 'refresh', checkoutId },
+        signal,
+      ),
+  })
+  const refreshCheckoutRef = useRef(refreshCheckout)
+  useEffect(() => {
+    refreshCheckoutRef.current = refreshCheckout
+  }, [refreshCheckout])
   const load = useCallback(async () => {
-    await refetch()
-  }, [refetch])
+    await queryClient.invalidateQueries({ queryKey: ['billing-summary'] })
+  }, [queryClient])
   const act = useCallback(
-    async (body: Record<string, unknown>) => {
-      setBusy(true)
+    async (body: BillingAction) => {
       setError('')
       setNotice('')
       try {
-        const response = await fetch('/api/billing', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        })
-        const result = await response.json()
-        if (!response.ok)
-          throw new Error(
-            result.error || 'Could not complete this billing action.',
-          )
+        const result = await runBillingAction(body)
         if (body.action === 'checkout') {
           if (!window.Cashfree)
             throw new Error(
               'Secure checkout is still loading. Please try again.',
             )
-          const cashfree = window.Cashfree({ mode: result.mode })
+          const cashfree = window.Cashfree({ mode: result.mode! })
           if (result.kind === 'pack')
             await cashfree.checkout({
-              paymentSessionId: result.sessionId,
+              paymentSessionId: result.sessionId!,
               redirectTarget: '_self',
             })
           else
             await cashfree.subscriptionsCheckout({
-              subsSessionId: result.sessionId,
+              subsSessionId: result.sessionId!,
               redirectTarget: '_self',
             })
         } else {
+          setNoticeTone(
+            body.action === 'retry'
+              ? 'info'
+              : body.action === 'abandon'
+                ? 'warning'
+                : 'success',
+          )
           setNotice(
             body.action === 'cancel'
               ? 'Future renewals are cancelled. Your paid access continues until the date shown below.'
+              : body.action === 'abandon'
+                ? 'Pending checkout cancelled. No charge was made.'
               : body.action === 'retry'
                 ? 'Retry requested. Cashfree will notify you before collection. Your allowance updates after verified payment.'
                 : body.action === 'change_plan'
@@ -254,47 +403,57 @@ export function BillingPanel({
         }
         setConfirmation(null)
       } catch (e) {
+        setConfirmation(null)
         setError(e instanceof Error ? e.message : 'Please try again.')
-      } finally {
-        setBusy(false)
       }
     },
-    [load],
+    [load, runBillingAction],
   )
   useEffect(() => {
-    const checkout = new URLSearchParams(window.location.search).get('checkout')
-    if (!checkout || !/^[\da-f-]{36}$/.test(checkout)) return
+    if (!returnCheckoutId) return
     const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout> | undefined
     let attempts = 0
     const refresh = async () => {
       try {
-        const response = await fetch('/api/billing', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'refresh', checkoutId: checkout }),
+        const data = await refreshCheckoutRef.current({
+          checkoutId: returnCheckoutId,
           signal: controller.signal,
         })
-        const data = await response.json()
-        if (!response.ok) throw new Error(data.error)
-        await refetch()
         if (controller.signal.aborted) return
-        if (['active', 'paid'].includes(data.checkoutStatus)) {
-          setNotice('Payment verified. Your updated allowance is ready.')
-        } else if (['failed', 'cancelled'].includes(data.checkoutStatus)) {
+        const checkoutStatus = data.checkoutStatus || ''
+        const terminalMessage = checkoutMessage(checkoutStatus)
+        if (terminalMessage) {
+          setNoticeTone(terminalMessage.tone)
+          setNotice(terminalMessage.message)
+        } else if (checkoutStatus === 'pending') {
+          setNoticeTone('info')
           setNotice(
-            'Payment was not completed. You can review it below and try again.',
+            'Payment is pending with Cashfree. This page will update automatically after confirmation.',
           )
+          if (++attempts < 24) timer = setTimeout(refresh, 5000)
+          else {
+            setNoticeTone('warning')
+            setNotice(
+              'Payment is still pending with Cashfree. Use Refresh payment status to check again.',
+            )
+          }
         } else if (++attempts < 24) {
+          setNoticeTone('info')
           setNotice(
             'Waiting for payment confirmation. This page will update automatically.',
           )
           timer = setTimeout(refresh, 5000)
         } else {
+          setNoticeTone('warning')
           setNotice(
             'Payment confirmation is still pending. Use Refresh status to check again.',
           )
         }
+        void queryClient.invalidateQueries(
+          { queryKey: ['billing-summary'] },
+          { cancelRefetch: false },
+        )
       } catch (error) {
         if (!(error instanceof Error)) return
         if (!controller.signal.aborted) setError(error.message)
@@ -305,7 +464,7 @@ export function BillingPanel({
       controller.abort()
       if (timer) clearTimeout(timer)
     }
-  }, [refetch])
+  }, [queryClient, returnCheckoutId])
   const ask = (value: NonNullable<typeof confirmation>) => {
     if (
       value.action === 'checkout' &&
@@ -335,25 +494,32 @@ export function BillingPanel({
             </Button>
           </div>
         ) : (
-          <div
-            role="status"
-            className="flex items-center gap-3 text-sm text-muted-foreground"
-          >
-            <Loader2 className="size-4 animate-spin" />
-            Loading your organization’s billing…
-          </div>
+          <AppLoader label="Loading your organization’s billing" />
         )}
       </div>
     )
   const { account, period, usage, canManage, quotes } = summary
   const current = PLANS[account.planId] || PLANS.trial
+  const returnCheckoutStatus = summary.checkouts.find(
+    (checkout) => checkout.id === returnCheckoutId,
+  )?.status
+  const returnCheckoutMessage =
+    dismissedCheckoutStatus === returnCheckoutStatus
+      ? null
+      : checkoutMessage(returnCheckoutStatus)
+  const visibleNotice = notice || returnCheckoutMessage?.message || ''
+  const visibleNoticeTone = notice
+    ? noticeTone
+    : returnCheckoutMessage?.tone || 'info'
   const selectedPending =
     confirmation?.action === 'checkout'
       ? summary.checkouts.find(
           (c) =>
             c.kind === confirmation.kind &&
             c.planId === confirmation.planId &&
-            ['creating', 'ready', 'authorized', 'failed'].includes(c.status) &&
+            ['creating', 'ready', 'pending', 'authorized', 'failed'].includes(
+              c.status,
+            ) &&
             new Date(c.expiresAt) > new Date(),
         )
       : undefined
@@ -365,7 +531,7 @@ export function BillingPanel({
         ? quotes[confirmation.planId]
         : null)
   const pending = summary.checkouts.find((c) =>
-    ['creating', 'ready', 'authorized', 'failed'].includes(c.status),
+    ['creating', 'ready', 'pending', 'authorized', 'failed'].includes(c.status),
   )
   return (
     <>
@@ -378,29 +544,33 @@ export function BillingPanel({
           )
         }
       />
-      {summary.mode === 'sandbox' && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-200">
-          <ShieldCheck className="size-4 shrink-0" />
-          Sandbox billing · Use Cashfree test payment details. No real money is
-          collected.
-        </div>
+      {summary.mode === 'sandbox' && sandboxVisible && (
+        <MessageBar tone="warning" onClose={() => setSandboxVisible(false)}>
+          <span className="flex items-start gap-2 text-xs">
+            <ShieldCheck className="size-4 shrink-0" />
+            <span>
+              Sandbox billing · Use Cashfree test payment details. No real money
+              is collected.
+            </span>
+          </span>
+        </MessageBar>
       )}
       {error && (
-        <div
-          role="alert"
-          className="flex gap-2 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:bg-red-950/30 dark:text-red-200"
-        >
-          <AlertCircle className="size-4 shrink-0" />
+        <MessageBar tone="error" onClose={() => setError('')}>
           {error}
-        </div>
+        </MessageBar>
       )}
-      {notice && (
-        <p
-          role="status"
-          className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200"
+      {visibleNotice && (
+        <MessageBar
+          tone={visibleNoticeTone}
+          onClose={() => {
+            setNotice('')
+            if (returnCheckoutStatus)
+              setDismissedCheckoutStatus(returnCheckoutStatus)
+          }}
         >
-          {notice}
-        </p>
+          {visibleNotice}
+        </MessageBar>
       )}
       {canManage && (
         <section className="dashboard-surface flex flex-wrap items-center justify-between gap-3 rounded-xl p-5">
@@ -588,6 +758,7 @@ export function BillingPanel({
           {(['starter', 'growth'] as const).map((id) => {
             const plan = PLANS[id]
             const active = account.planId === id && !account.cancelAtPeriodEnd
+            const scheduled = account.pendingPlanId === id
             return (
               <article
                 key={id}
@@ -598,6 +769,11 @@ export function BillingPanel({
                   {active && (
                     <span className="text-xs text-sky-700 dark:text-sky-300">
                       Current plan
+                    </span>
+                  )}
+                  {scheduled && (
+                    <span className="text-xs text-amber-700 dark:text-amber-300">
+                      Next renewal
                     </span>
                   )}
                 </div>
@@ -629,7 +805,8 @@ export function BillingPanel({
                     busy ||
                     !summary.configured ||
                     !sdkReady ||
-                    active
+                    active ||
+                    scheduled
                   }
                   onClick={() =>
                     ask({
@@ -646,6 +823,8 @@ export function BillingPanel({
                 >
                   {active
                     ? 'Current plan'
+                    : scheduled
+                      ? 'Scheduled for next renewal'
                     : account.paidThrough && !account.cancelAtPeriodEnd
                       ? 'Change at next renewal'
                       : 'Choose plan'}
@@ -819,8 +998,23 @@ function BillingDetails({
   onSaved: () => Promise<void>
   onError: (message: string) => void
 }) {
-  const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const saveDetails = useMutation({
+    mutationFn: (details: Record<string, FormDataEntryValue>) =>
+      billingRequest<{ ok: true }>('PATCH', details),
+    onMutate: () => setSaved(false),
+    onSuccess: async () => {
+      await onSaved()
+      setSaved(true)
+    },
+    onError: (error) =>
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Could not save billing details.',
+      ),
+  })
+  const saving = saveDetails.isPending
   const details = summary.account.billingDetails
   return (
     <section className="dashboard-surface rounded-xl p-5">
@@ -831,30 +1025,10 @@ function BillingDetails({
       </p>
       <form
         className="mt-5 grid gap-4 sm:grid-cols-2"
-        onSubmit={async (e) => {
+        onSubmit={(e) => {
           e.preventDefault()
           const form = new FormData(e.currentTarget)
-          setSaving(true)
-          setSaved(false)
-          try {
-            const response = await fetch('/api/billing', {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(Object.fromEntries(form)),
-            })
-            const data = await response.json()
-            if (!response.ok) throw new Error(data.error)
-            await onSaved()
-            setSaved(true)
-          } catch (error) {
-            onError(
-              error instanceof Error
-                ? error.message
-                : 'Could not save billing details.',
-            )
-          } finally {
-            setSaving(false)
-          }
+          saveDetails.mutate(Object.fromEntries(form))
         }}
       >
         {(
@@ -954,7 +1128,24 @@ function InvoiceDownload({
   payment: Payment
   onError: (value: string) => void
 }) {
-  const [downloading, setDownloading] = useState(false)
+  const download = useMutation({
+    mutationFn: () => fetchInvoice(payment.id),
+    onSuccess: ({ blob, filename }) => {
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      link.click()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    },
+    onError: (error) =>
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Could not download the invoice.',
+      ),
+  })
+  const downloading = download.isPending
   const available = invoiceAvailableAt(payment.paidAt!)
   if (available > new Date())
     return (
@@ -967,37 +1158,7 @@ function InvoiceDownload({
       type="button"
       disabled={downloading}
       className="mt-2 inline-flex items-center gap-1 whitespace-nowrap text-sky-700 disabled:opacity-50 dark:text-sky-300"
-      onClick={async () => {
-        setDownloading(true)
-        try {
-          const response = await fetch(
-            `/api/billing/invoices/${encodeURIComponent(payment.id)}`,
-            { cache: 'no-store' },
-          )
-          if (!response.ok) {
-            const body = await response.json()
-            throw new Error(body.error || 'Could not download the invoice.')
-          }
-          const blob = await response.blob()
-          const url = URL.createObjectURL(blob)
-          const link = document.createElement('a')
-          link.href = url
-          link.download =
-            response.headers
-              .get('content-disposition')
-              ?.match(/filename="([^"]+)"/)?.[1] || 'invoice.pdf'
-          link.click()
-          setTimeout(() => URL.revokeObjectURL(url), 1000)
-        } catch (error) {
-          onError(
-            error instanceof Error
-              ? error.message
-              : 'Could not download the invoice.',
-          )
-        } finally {
-          setDownloading(false)
-        }
-      }}
+      onClick={() => download.mutate()}
     >
       <Download className="size-3.5" />
       {downloading ? 'Generating…' : 'Download PDF'}
@@ -1103,7 +1264,8 @@ export function BillingManagement({
 }: {
   intent?: { plan: 'starter' | 'growth'; kind: 'pack' | 'subscription' } | null
 }) {
-  const { data: summary, error: loadError, refetch } = useBillingSummary()
+  const { data: summary, error: loadError } = useBillingSummary()
+  const queryClient = useQueryClient()
   const [error, setError] = useState('')
   const router = useRouter()
   if (!summary)
@@ -1145,7 +1307,9 @@ export function BillingManagement({
             onError={setError}
             continueCheckout={Boolean(intent)}
             onSaved={async () => {
-              await refetch()
+              await queryClient.invalidateQueries({
+                queryKey: ['billing-summary'],
+              })
               if (intent)
                 router.push(
                   `/dashboard/subscription?review=1&plan=${intent.plan}&kind=${intent.kind}`,

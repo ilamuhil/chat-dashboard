@@ -19,6 +19,7 @@ import {
 import {
   eventId,
   normalizePayment,
+  paymentStatus,
   record,
   string,
   providerDate,
@@ -111,7 +112,7 @@ export async function createCheckout(
         organizationId: orgId,
         kind,
         OR: [
-          { status: { in: ['creating', 'ready', 'authorized'] } },
+          { status: { in: ['creating', 'ready', 'pending', 'authorized'] } },
           { status: 'failed', sessionId: { not: null } },
         ],
         expiresAt: { gt: new Date() },
@@ -326,9 +327,14 @@ export async function applySubscriptionPayment(
       )
     }
     if (
-      !['SUCCESS', 'FAILED', 'CANCELLED', 'PENDING', 'INITIALIZED'].includes(
-        fact.status,
-      )
+      ![
+        'SUCCESS',
+        'FAILED',
+        'USER_DROPPED',
+        'CANCELLED',
+        'PENDING',
+        'INITIALIZED',
+      ].includes(fact.status)
     )
       return
     const savedBilling = record(checkout.billingSnapshot)
@@ -391,6 +397,23 @@ export async function applySubscriptionPayment(
       await tx.billingCheckout.update({
         where: { id: checkout.id },
         data: { status: renewal || account.paidThrough ? 'active' : 'failed' },
+      })
+      return
+    }
+    if (fact.status === 'USER_DROPPED' || fact.status === 'CANCELLED') {
+      await tx.billingCheckout.update({
+        where: { id: checkout.id },
+        data: {
+          status:
+            fact.status === 'USER_DROPPED' ? 'user_dropped' : 'cancelled',
+        },
+      })
+      return
+    }
+    if (fact.status === 'PENDING') {
+      await tx.billingCheckout.update({
+        where: { id: checkout.id },
+        data: { status: 'pending' },
       })
       return
     }
@@ -535,10 +558,13 @@ export async function processCashfreeEvent(
               status: [
                 'CANCELLED',
                 'CUSTOMER_CANCELLED',
+                'USER_DROPPED',
                 'LINK_EXPIRED',
                 'FAILED',
               ].includes(status)
-                ? 'cancelled'
+                ? status === 'USER_DROPPED'
+                  ? 'user_dropped'
+                  : 'cancelled'
                 : checkout.status === 'active'
                   ? 'active'
                   : status === 'ACTIVE'
@@ -730,9 +756,18 @@ export async function applyCreditPackPayment(
   })
   if (!checkout) throw new BillingError('Credit pack checkout not found.', 404)
   const item = record(raw)
-  const status = string(item.payment_status)
+  const status = paymentStatus(item.payment_status)
   const cfId = string(item.cf_payment_id)
-  if (!cfId || !['SUCCESS', 'FAILED', 'CANCELLED', 'PENDING'].includes(status))
+  if (
+    !cfId ||
+    ![
+      'SUCCESS',
+      'FAILED',
+      'USER_DROPPED',
+      'CANCELLED',
+      'PENDING',
+    ].includes(status)
+  )
     return
   if (
     Math.round(Number(item.payment_amount) * 100) !== checkout.totalPaise ||
@@ -790,6 +825,31 @@ export async function applyCreditPackPayment(
       },
       update: values,
     })
+    if (
+      status === 'FAILED' ||
+      status === 'USER_DROPPED' ||
+      status === 'CANCELLED'
+    ) {
+      await tx.billingCheckout.update({
+        where: { id: checkoutId },
+        data: {
+          status:
+            status === 'FAILED'
+              ? 'failed'
+              : status === 'USER_DROPPED'
+                ? 'user_dropped'
+                : 'cancelled',
+        },
+      })
+      return
+    }
+    if (status === 'PENDING') {
+      await tx.billingCheckout.update({
+        where: { id: checkoutId },
+        data: { status: 'pending' },
+      })
+      return
+    }
     if (paidAt) {
       await tx.billingCreditPack.create({
         data: {
@@ -960,6 +1020,7 @@ export async function schedulePlan(
   planId: 'starter' | 'growth',
 ) {
   const account = await withBillingLock(orgId, (tx) => ensureBilling(tx, orgId))
+  if (account.pendingPlanId === planId) return
   if (
     !account.providerSubscriptionId ||
     !account.paidThrough ||

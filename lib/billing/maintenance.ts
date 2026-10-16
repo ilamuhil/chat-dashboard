@@ -38,7 +38,7 @@ export async function maintainBilling() {
     const checkouts = await prisma.billingCheckout.findMany({
       where: {
         organizationId: org.id,
-        status: { notIn: ['cancelled', 'paid', 'failed'] },
+        status: { notIn: ['cancelled', 'user_dropped', 'paid', 'failed'] },
       },
       orderBy: { createdAt: 'desc' },
       take: 3,

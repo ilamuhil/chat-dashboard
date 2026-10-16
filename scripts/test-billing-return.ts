@@ -28,13 +28,17 @@ async function main() {
     ])
     let calls = 0
     let outcome = 'active'
+    let intermediate = 'ready'
     await context.route('**/api/billing', async (route) => {
       if (route.request().method() !== 'POST') return route.continue()
       calls++
       const body = route.request().postDataJSON()
       assert.equal(body.action, 'refresh')
       await route.fulfill({
-        json: { ok: true, checkoutStatus: calls < 3 ? 'ready' : outcome },
+        json: {
+          ok: true,
+          checkoutStatus: calls < 3 ? intermediate : outcome,
+        },
       })
     })
     const page = await context.newPage()
@@ -53,16 +57,33 @@ async function main() {
     )
     calls = 0
     outcome = 'failed'
+    intermediate = 'pending'
     await page.goto(base + '/dashboard/subscription?checkout=' + randomUUID())
     await page
       .getByText(
-        'Payment was not completed. You can review it below and try again.',
+        'Payment is pending with Cashfree. This page will update automatically after confirmation.',
+      )
+      .waitFor({ timeout: 30000 })
+    await page
+      .getByText(
+        'Payment failed. No allowance was added. Review the payment details below and try again.',
       )
       .waitFor({ timeout: 30000 })
     assert.equal(calls, 3)
     passed.push(
-      'Failed checkout return stops polling and offers a clear retry message',
+      'Pending checkout keeps polling and failed checkout shows an error',
     )
+    calls = 0
+    outcome = 'user_dropped'
+    intermediate = 'ready'
+    await page.goto(base + '/dashboard/subscription?checkout=' + randomUUID())
+    await page
+      .getByText(
+        'You left the Cashfree checkout before completing payment. No charge was made. You can try again when ready.',
+      )
+      .waitFor({ timeout: 30000 })
+    assert.equal(calls, 3)
+    passed.push('User-dropped checkout stops polling and shows a warning')
     await writeFile(
       output + '/billing-return-results.json',
       JSON.stringify({ passed }, null, 2),
