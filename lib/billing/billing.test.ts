@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createHmac, randomUUID } from 'node:crypto'
-import { quote, nextMonth, PLANS, PLAN_VERSION } from './catalog'
+import {
+  quote,
+  nextMonth,
+  PLANS,
+  PLAN_VERSION,
+  creditPackPrice,
+} from './catalog'
 import { verifyCashfreeWebhook } from './cashfree'
 import { validCollection, normalizePayment } from './events'
 import { prisma } from '../prisma'
@@ -30,6 +36,10 @@ test('money is integer paise and monthly dates clamp at month end', () => {
     '2028-02-29T12:00:00.000Z',
   )
   assert.throws(() => quote(1, -1))
+  assert.equal(creditPackPrice(1000), 69900)
+  assert.equal(creditPackPrice(1500), 104900)
+  assert.throws(() => creditPackPrice(999))
+  assert.throws(() => creditPackPrice(1250))
 })
 test('GST components and invoice delay preserve exact paise', () => {
   const same = gstBreakdown(35982, 1800, '29', '29')
@@ -263,6 +273,41 @@ test(
         }),
         2,
       )
+      const replacementCheckout = await prisma.billingCheckout.create({
+        data: {
+          organizationId: id,
+          providerId: `sub_replacement_${randomUUID()}`,
+          planId: 'growth',
+          firstChargeAt: nextMonth(new Date()),
+          expiresAt: new Date(Date.now() + 1800000),
+          ...quote(PLANS.growth.pricePaise),
+        },
+      })
+      await applySubscriptionPayment({
+        subscription_id: replacementCheckout.providerId,
+        cf_payment_id: 'replacement-auth-failed',
+        payment_type: 'AUTH',
+        payment_amount: PLANS.growth.pricePaise / 100,
+        payment_currency: 'INR',
+        payment_status: 'FAILED',
+        authorization_details: { authorization_amount_refund: false },
+      })
+      assert.equal(
+        (
+          await prisma.billingCheckout.findUniqueOrThrow({
+            where: { id: replacementCheckout.id },
+          })
+        ).status,
+        'failed',
+      )
+      assert.equal(
+        (
+          await prisma.billingAccount.findUniqueOrThrow({
+            where: { organizationId: id },
+          })
+        ).providerSubscriptionId,
+        checkout.providerId,
+      )
       await assert.rejects(
         applySubscriptionPayment({
           ...renewal,
@@ -319,6 +364,15 @@ test(
       const actualPack = await prisma.billingCreditPack.findFirstOrThrow({
         where: { organizationId: id },
       })
+      assert.equal(actualPack.replies, 1000)
+      const packLifetime =
+        actualPack.expiresAt.getTime() -
+        (
+          await prisma.billingPayment.findUniqueOrThrow({
+            where: { id: actualPack.id },
+          })
+        ).paidAt!.getTime()
+      assert.equal(packLifetime, 90 * 86400000)
       const refundBase = {
         subscription_id: pack.providerId,
         cf_payment_id: actualPack.id.split(':').at(-1),

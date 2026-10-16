@@ -38,6 +38,7 @@ import {
 import {
   PLANS,
   CREDIT_PACK,
+  creditPackPrice,
   money,
   type Limits,
   type PlanId,
@@ -112,6 +113,7 @@ type Summary = {
     status: string
     planId: string
     expiresAt: string
+    packReplies: number
   })[]
   active: boolean
   canManage: boolean
@@ -141,7 +143,7 @@ declare global {
     Cashfree?: (options: { mode: 'sandbox' | 'production' }) => CashfreeInstance
   }
 }
-const date = (value: string | null) =>
+const date = (value: string | Date | null) =>
   value
     ? new Date(value).toLocaleDateString('en-IN', {
         day: 'numeric',
@@ -150,6 +152,46 @@ const date = (value: string | null) =>
         timeZone: 'Asia/Kolkata',
       })
     : '—'
+const cancellationReasons = [
+  ['too_expensive', 'Too expensive'],
+  ['not_using_enough', 'Not using it enough'],
+  ['missing_features', 'Missing features'],
+  ['technical_issues', 'Technical or reliability issues'],
+  ['difficult_to_use', 'Difficult to use'],
+  ['switched_provider', 'Switched to another provider'],
+  ['temporary_pause', 'Temporary pause or seasonal need'],
+  ['other', 'Other'],
+] as const
+function packQuote(quote: TaxQuote, replies: number): TaxQuote {
+  const tax = quote.taxBreakdown
+  const subtotalPaise = creditPackPrice(replies)
+  const rateBps =
+    tax?.rateBps ||
+    (quote.subtotalPaise
+      ? Math.round((quote.taxPaise * 10000) / quote.subtotalPaise)
+      : 0)
+  const taxPaise = Math.round((subtotalPaise * rateBps) / 10000)
+  const central = Math.round(taxPaise / 2)
+  return {
+    subtotalPaise,
+    taxPaise,
+    totalPaise: subtotalPaise + taxPaise,
+    taxBreakdown: tax
+      ? {
+          ...tax,
+          cgstPaise:
+            tax.kind === 'cgst_sgst' || tax.kind === 'cgst_utgst'
+              ? central
+              : 0,
+          sgstPaise:
+            tax.kind === 'cgst_sgst' ? taxPaise - central : 0,
+          utgstPaise:
+            tax.kind === 'cgst_utgst' ? taxPaise - central : 0,
+          igstPaise: tax.kind === 'igst' ? taxPaise : 0,
+        }
+      : tax,
+  }
+}
 const inputClass =
   'mt-1.5 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/15'
 async function billingRequest<T>(
@@ -206,7 +248,7 @@ function checkoutMessage(status?: string): {
       tone: 'warning',
       message:
         status === 'user_dropped'
-          ? 'You left the Cashfree checkout before completing payment. No charge was made. You can try again when ready.'
+          ? 'You left the payment checkout before completing payment. No charge was made. You can try again when ready.'
           : 'Payment was cancelled before completion. No charge was made. You can try again when ready.',
     }
   if (status === 'active' || status === 'paid')
@@ -327,16 +369,31 @@ export function BillingPanel({
   const [sandboxVisible, setSandboxVisible] = useState(true)
   const [dismissedCheckoutStatus, setDismissedCheckoutStatus] = useState('')
   const [sdkReady, setSdkReady] = useState(false)
+  const [finishingAction, setFinishingAction] = useState(false)
+  const [confirmingReturn, setConfirmingReturn] = useState(
+    Boolean(returnCheckoutId),
+  )
   const [confirmation, setConfirmation] = useState<{
-    action: 'checkout' | 'change_plan' | 'cancel'
+    action:
+      | 'checkout'
+      | 'change_plan'
+      | 'cancel'
+      | 'resume'
+      | 'resume_change_plan'
     planId?: 'starter' | 'growth'
     kind?: 'pack' | 'subscription'
+    packReplies?: number
   } | null>(checkoutReview ? { action: 'checkout', ...checkoutReview } : null)
   const [accepted, setAccepted] = useState(false)
-  const { mutateAsync: runBillingAction, isPending: busy } = useMutation({
+  const [packReplies, setPackReplies] = useState(CREDIT_PACK.replies)
+  const [cancellationReason, setCancellationReason] = useState('')
+  const [cancellationFeedback, setCancellationFeedback] = useState('')
+  const { mutateAsync: runBillingAction, isPending: mutationPending } =
+    useMutation({
     mutationFn: (body: BillingAction) =>
       billingRequest<BillingActionResult>('POST', body),
   })
+  const busy = mutationPending || finishingAction
   const { mutateAsync: refreshCheckout } = useMutation({
     mutationFn: ({
       checkoutId,
@@ -362,9 +419,14 @@ export function BillingPanel({
     async (body: BillingAction) => {
       setError('')
       setNotice('')
+      setFinishingAction(true)
       try {
         const result = await runBillingAction(body)
-        if (body.action === 'checkout') {
+        if (
+          body.action === 'checkout' ||
+          body.action === 'resume' ||
+          body.action === 'resume_change_plan'
+        ) {
           if (!window.Cashfree)
             throw new Error(
               'Secure checkout is still loading. Please try again.',
@@ -394,9 +456,9 @@ export function BillingPanel({
               : body.action === 'abandon'
                 ? 'Pending checkout cancelled. No charge was made.'
               : body.action === 'retry'
-                ? 'Retry requested. Cashfree will notify you before collection. Your allowance updates after verified payment.'
+                ? 'Retry requested. Your payment provider will notify you before collection. Your allowance updates after verified payment.'
                 : body.action === 'change_plan'
-                  ? 'Your plan change is scheduled for the next successful renewal.'
+                  ? 'Your renewal plan has been updated.'
                   : 'Payment status refreshed.',
           )
           await load()
@@ -405,12 +467,15 @@ export function BillingPanel({
       } catch (e) {
         setConfirmation(null)
         setError(e instanceof Error ? e.message : 'Please try again.')
+      } finally {
+        setFinishingAction(false)
       }
     },
     [load, runBillingAction],
   )
   useEffect(() => {
     if (!returnCheckoutId) return
+    setConfirmingReturn(true)
     const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout> | undefined
     let attempts = 0
@@ -423,20 +488,23 @@ export function BillingPanel({
         if (controller.signal.aborted) return
         const checkoutStatus = data.checkoutStatus || ''
         const terminalMessage = checkoutMessage(checkoutStatus)
+        let finished = false
         if (terminalMessage) {
           setNoticeTone(terminalMessage.tone)
           setNotice(terminalMessage.message)
+          finished = true
         } else if (checkoutStatus === 'pending') {
           setNoticeTone('info')
           setNotice(
-            'Payment is pending with Cashfree. This page will update automatically after confirmation.',
+            'Payment is pending with the payment provider. This page will update automatically after confirmation.',
           )
           if (++attempts < 24) timer = setTimeout(refresh, 5000)
           else {
             setNoticeTone('warning')
             setNotice(
-              'Payment is still pending with Cashfree. Use Refresh payment status to check again.',
+              'Payment is still pending with the payment provider. Use Refresh payment status to check again.',
             )
+            finished = true
           }
         } else if (++attempts < 24) {
           setNoticeTone('info')
@@ -449,14 +517,19 @@ export function BillingPanel({
           setNotice(
             'Payment confirmation is still pending. Use Refresh status to check again.',
           )
+          finished = true
         }
-        void queryClient.invalidateQueries(
+        await queryClient.invalidateQueries(
           { queryKey: ['billing-summary'] },
           { cancelRefetch: false },
         )
+        if (finished && !controller.signal.aborted) setConfirmingReturn(false)
       } catch (error) {
         if (!(error instanceof Error)) return
-        if (!controller.signal.aborted) setError(error.message)
+        if (!controller.signal.aborted) {
+          setError(error.message)
+          setConfirmingReturn(false)
+        }
       }
     }
     void refresh()
@@ -475,10 +548,25 @@ export function BillingPanel({
       )
       return
     }
+    if (value.action === 'cancel') {
+      setCancellationReason('')
+      setCancellationFeedback('')
+    }
+    if (value.kind === 'pack')
+      setPackReplies(value.packReplies || CREDIT_PACK.replies)
     setAccepted(false)
     setConfirmation(value)
   }
-  if (!summary)
+  const confirmationLoader = (
+    <section className="dashboard-surface overflow-hidden rounded-xl">
+      <AppLoader
+        label="Waiting for confirmation from the payment provider"
+        description="Please do not refresh, close this page, or navigate elsewhere while your payment is being verified."
+      />
+    </section>
+  )
+  if (!summary) {
+    if (confirmingReturn) return confirmationLoader
     return (
       <div className="dashboard-surface rounded-xl p-8">
         {error || loadError ? (
@@ -498,6 +586,7 @@ export function BillingPanel({
         )}
       </div>
     )
+  }
   const { account, period, usage, canManage, quotes } = summary
   const current = PLANS[account.planId] || PLANS.trial
   const returnCheckoutStatus = summary.checkouts.find(
@@ -512,7 +601,9 @@ export function BillingPanel({
     ? noticeTone
     : returnCheckoutMessage?.tone || 'info'
   const selectedPending =
-    confirmation?.action === 'checkout'
+    confirmation?.action === 'checkout' ||
+    confirmation?.action === 'resume' ||
+    confirmation?.action === 'resume_change_plan'
       ? summary.checkouts.find(
           (c) =>
             c.kind === confirmation.kind &&
@@ -526,13 +617,36 @@ export function BillingPanel({
   const selected =
     selectedPending ||
     (confirmation?.kind === 'pack'
-      ? quotes.pack
+      ? packQuote(quotes.pack, packReplies)
       : confirmation?.planId
         ? quotes[confirmation.planId]
         : null)
+  const replacingCancelledRenewal =
+    confirmation?.action === 'resume' ||
+    confirmation?.action === 'resume_change_plan'
+  const undoingPlanChange =
+    confirmation?.action === 'change_plan' &&
+    confirmation.planId === account.planId &&
+    Boolean(account.pendingPlanId)
+  const replacementIsDowngrade =
+    confirmation?.action === 'resume_change_plan' &&
+    Boolean(
+      confirmation.planId &&
+        PLANS[confirmation.planId].pricePaise < current.pricePaise,
+    )
   const pending = summary.checkouts.find((c) =>
     ['creating', 'ready', 'pending', 'authorized', 'failed'].includes(c.status),
   )
+  const packReplyLimit = summary.packs.reduce(
+    (total, pack) => total + pack.replies,
+    0,
+  )
+  const packReplyUsed = summary.packs.reduce(
+    (total, pack) => total + pack.used + pack.reserved,
+    0,
+  )
+  if (confirmingReturn)
+    return confirmationLoader
   return (
     <>
       <Script
@@ -549,7 +663,7 @@ export function BillingPanel({
           <span className="flex items-start gap-2 text-xs">
             <ShieldCheck className="size-4 shrink-0" />
             <span>
-              Sandbox billing · Use Cashfree test payment details. No real money
+              Sandbox billing · Use test payment details. No real money
               is collected.
             </span>
           </span>
@@ -632,7 +746,7 @@ export function BillingPanel({
         {account.status === 'past_due' && (
           <p className="mt-4 text-sm text-amber-700 dark:text-amber-300">
             Your renewal payment failed. Remaining replies stay available until{' '}
-            {date(account.graceUntil)}. Update your payment through Cashfree or
+            {date(account.graceUntil)}. Update your payment through the payment provider or
             retry the payment below.
           </p>
         )}
@@ -675,6 +789,7 @@ export function BillingPanel({
                     action: 'checkout',
                     planId: pending.planId as 'starter' | 'growth',
                     kind: pending.kind as 'pack' | 'subscription',
+                    packReplies: pending.packReplies,
                   })
                 }
               >
@@ -698,8 +813,12 @@ export function BillingPanel({
         <div className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           <Meter
             label="AI replies"
-            used={(period?.repliesUsed || 0) + (period?.repliesReserved || 0)}
-            limit={period?.replyLimit || 0}
+            used={
+              (period?.repliesUsed || 0) +
+              (period?.repliesReserved || 0) +
+              packReplyUsed
+            }
+            limit={(period?.replyLimit || 0) + packReplyLimit}
           />
           <Meter
             label="Team members"
@@ -758,6 +877,10 @@ export function BillingPanel({
           {(['starter', 'growth'] as const).map((id) => {
             const plan = PLANS[id]
             const active = account.planId === id && !account.cancelAtPeriodEnd
+            const canKeepCurrentPlan =
+              active && Boolean(account.pendingPlanId)
+            const ending = account.planId === id && account.cancelAtPeriodEnd
+            const isDowngrade = plan.pricePaise < current.pricePaise
             const scheduled = account.pendingPlanId === id
             return (
               <article
@@ -804,25 +927,46 @@ export function BillingPanel({
                     !canManage ||
                     busy ||
                     !summary.configured ||
-                    !sdkReady ||
-                    active ||
-                    scheduled
-                  }
-                  onClick={() =>
-                    ask({
-                      action:
+                    (!sdkReady &&
+                      !(
                         account.providerSubscriptionId &&
                         !account.cancelAtPeriodEnd &&
                         account.paidThrough
-                          ? 'change_plan'
-                          : 'checkout',
-                      planId: id,
-                      kind: 'subscription',
-                    })
+                      )) ||
+                    (active && !canKeepCurrentPlan) ||
+                    scheduled
                   }
+                  onClick={() => {
+                    if (account.cancelAtPeriodEnd)
+                      ask({
+                        action: ending ? 'resume' : 'resume_change_plan',
+                        planId: id,
+                        kind: 'subscription',
+                      })
+                    else
+                      ask({
+                        action:
+                          canKeepCurrentPlan ||
+                          (account.providerSubscriptionId &&
+                          !account.cancelAtPeriodEnd &&
+                          account.paidThrough)
+                            ? 'change_plan'
+                            : 'checkout',
+                        planId: id,
+                        kind: 'subscription',
+                      })
+                  }}
                 >
                   {active
-                    ? 'Current plan'
+                    ? canKeepCurrentPlan
+                      ? `Keep ${plan.name}`
+                      : 'Current plan'
+                    : ending
+                      ? 'Resume renewal'
+                    : account.cancelAtPeriodEnd
+                      ? isDowngrade
+                        ? 'Renew & downgrade plan'
+                        : 'Renew & upgrade plan'
                     : scheduled
                       ? 'Scheduled for next renewal'
                     : account.paidThrough && !account.cancelAtPeriodEnd
@@ -835,7 +979,7 @@ export function BillingPanel({
         </div>
         {!summary.configured && (
           <p className="mt-3 text-xs text-amber-700">
-            Checkout will be available once Cashfree sandbox credentials are
+            Checkout will be available once payment provider credentials are
             configured.
           </p>
         )}
@@ -887,16 +1031,32 @@ export function BillingPanel({
           )}
           {canManage &&
             account.providerSubscriptionId &&
-            !account.cancelAtPeriodEnd && (
+            (account.cancelAtPeriodEnd ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy || !summary.configured || !sdkReady}
+                onClick={() =>
+                  ask({
+                    action: 'resume',
+                    planId: account.planId as 'starter' | 'growth',
+                    kind: 'subscription',
+                  })
+                }
+              >
+                Resume renewal
+              </Button>
+            ) : (
               <Button
                 size="sm"
                 variant="outline"
                 disabled={busy}
                 onClick={() => ask({ action: 'cancel' })}
               >
+                <TriangleAlert className="mr-2 size-3.5 text-red-600 dark:text-red-400" />
                 Cancel renewal
               </Button>
-            )}
+            ))}
         </div>
       </section>
       <Dialog
@@ -906,10 +1066,25 @@ export function BillingPanel({
         }}
       >
         <DialogContent>
-          <DialogHeader>
+          <DialogHeader
+            className={
+              confirmation?.action === 'cancel' ? 'border-b-0 pb-0' : undefined
+            }
+          >
             <DialogTitle>
               {confirmation?.action === 'cancel'
-                ? 'Cancel future renewals?'
+                ? (
+                  <span className="flex items-center gap-2 text-red-700 dark:text-red-300">
+                    <TriangleAlert className="size-5" />
+                    Cancel future renewals?
+                  </span>
+                )
+                : confirmation?.action === 'resume_change_plan'
+                  ? `Resume renewal and switch to ${confirmation.planId ? PLANS[confirmation.planId].name : 'the selected plan'}?`
+                : confirmation?.action === 'resume'
+                  ? 'Resume your renewal?'
+                : undoingPlanChange
+                  ? `Keep your ${current.name} plan?`
                 : confirmation?.action === 'change_plan'
                   ? 'Confirm your next plan'
                   : 'Review your payment'}
@@ -917,17 +1092,133 @@ export function BillingPanel({
             <DialogDescription>
               {confirmation?.action === 'cancel'
                 ? `Your paid access stays available until ${date(account.paidThrough)}. No further renewals will be collected.`
+                : replacingCancelledRenewal
+                  ? `The displayed ${confirmation?.planId ? PLANS[confirmation.planId].name : 'subscription'} amount will be charged immediately after authorization and the new monthly subscription starts after verified payment. Your previous paid access through ${date(account.paidThrough)} ends when the new subscription starts; remaining time is not prorated, refunded or credited.`
+                : undoingPlanChange
+                  ? `The scheduled change to ${account.pendingPlanId ? PLANS[account.pendingPlanId].name : 'the other plan'} will be cancelled. Your ${current.name} plan, allowance and renewal price will continue unchanged.`
                 : confirmation?.action === 'change_plan'
                   ? 'Your current allowance stays unchanged. The new allowance starts after the next successful renewal payment.'
-                  : `This purchase is for ${summary.organization.name || 'your selected organization'}. Check the total before continuing to Cashfree.`}
+                  : `This purchase is for ${summary.organization.name || 'your selected organization'}. Check the total before continuing to checkout.`}
             </DialogDescription>
           </DialogHeader>
+          {confirmation?.action === 'cancel' && (
+            <div className="space-y-4">
+              <div
+                role="alert"
+                className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-200"
+              >
+                <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+                <span>
+                  If you later decide to renew before {date(account.paidThrough)}, the new
+                  subscription will be charged immediately and a new billing
+                  cycle will begin from that payment date. To preserve all paid
+                  time, cancel your subscription just before the current period ends. Your previous paid access through {date(account.paidThrough)} ends when the new subscription starts; remaining time is not prorated, refunded or credited.
+                </span>
+              </div>
+              <div className="space-y-2">
+                <label
+                  htmlFor="cancellation-reason"
+                  className="text-sm font-medium"
+                >
+                  Why are you cancelling?
+                </label>
+                <select
+                  id="cancellation-reason"
+                  value={cancellationReason}
+                  onChange={(event) =>
+                    setCancellationReason(event.target.value)
+                  }
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                >
+                  <option value="">Select a reason</option>
+                  {cancellationReasons.map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {cancellationReason && (
+                <div className="space-y-2">
+                  <label
+                    htmlFor="cancellation-feedback"
+                    className="text-sm font-medium"
+                  >
+                    Additional information
+                    {cancellationReason === 'other' && (
+                      <span className="text-red-600"> *</span>
+                    )}
+                  </label>
+                  <textarea
+                    id="cancellation-feedback"
+                    value={cancellationFeedback}
+                    onChange={(event) =>
+                      setCancellationFeedback(event.target.value)
+                    }
+                    maxLength={2000}
+                    rows={3}
+                    placeholder="What can we improve, and how could we make you stay?"
+                    className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30"
+                  />
+                </div>
+              )}
+            </div>
+          )}
           {selected && (
             <div className="rounded-lg bg-muted/50 p-4">
+              {confirmation?.kind === 'pack' && (
+                <div className="mb-4 space-y-3 border-b border-border pb-4">
+                  <div className="flex items-baseline justify-between gap-4">
+                    <p className="text-sm font-semibold">
+                      {packReplies.toLocaleString('en-IN')} additional replies
+                    </p>
+                    <p className="text-sm font-semibold tabular-nums">
+                      {money(selected.subtotalPaise)}
+                    </p>
+                  </div>
+                  <input
+                    type="range"
+                    min={CREDIT_PACK.minReplies}
+                    max={CREDIT_PACK.maxReplies}
+                    step={CREDIT_PACK.stepReplies}
+                    value={packReplies}
+                    disabled={Boolean(selectedPending)}
+                    onChange={(event) => {
+                      setPackReplies(Number(event.target.value))
+                      setAccepted(false)
+                    }}
+                    aria-label="Additional replies"
+                    aria-valuetext={`${packReplies.toLocaleString('en-IN')} replies`}
+                    className="w-full accent-sky-600 disabled:opacity-50"
+                  />
+                  <div className="flex justify-between text-[11px] text-muted-foreground">
+                    <span>
+                      {CREDIT_PACK.minReplies.toLocaleString('en-IN')}
+                    </span>
+                    <span>
+                      {CREDIT_PACK.stepReplies.toLocaleString('en-IN')}-reply
+                      steps
+                    </span>
+                    <span>
+                      {CREDIT_PACK.maxReplies.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    One-time add-on · applicable tax added below · expires 90
+                    days after payment
+                  </p>
+                  {selectedPending && (
+                    <p className="text-xs text-amber-700 dark:text-amber-300">
+                      Cancel the pending checkout to choose a different amount.
+                    </p>
+                  )}
+                </div>
+              )}
               <BillingTaxBreakdown quote={selected} />
             </div>
           )}
-          {confirmation?.action === 'checkout' &&
+          {(confirmation?.action === 'checkout' ||
+            replacingCancelledRenewal) &&
             !billingDetailsSchema.safeParse(account.billingDetails).success && (
               <Link
                 className="text-sm text-sky-700 underline"
@@ -945,7 +1236,11 @@ export function BillingPanel({
                 className="mt-1"
               />
               <span>
-                {confirmation?.kind === 'pack'
+                {replacingCancelledRenewal
+                  ? `I understand that the displayed amount is charged immediately, the new subscription begins after verified payment, and remaining time on my previous subscription is not prorated, refunded or credited.`
+                  : undoingPlanChange
+                    ? `I understand that the scheduled plan change will be removed and my ${current.name} subscription will continue renewing at the displayed amount.`
+                  : confirmation?.kind === 'pack'
                   ? 'I understand this is a one-time purchase, expires in 90 days and requires an active paid subscription to use.'
                   : 'I authorize monthly recurring billing at the displayed amount. The mandate maximum supports the Growth plan; only my selected plan is charged. I can cancel future renewals in Billing.'}{' '}
                 <Link className="underline" href="/terms" target="_blank">
@@ -965,21 +1260,55 @@ export function BillingPanel({
             <Button
               disabled={
                 busy ||
-                (confirmation?.action === 'checkout' &&
+                (confirmation?.action === 'cancel' &&
+                  (!cancellationReason ||
+                    (cancellationReason === 'other' &&
+                      !cancellationFeedback.trim()))) ||
+                ((confirmation?.action === 'checkout' ||
+                  replacingCancelledRenewal) &&
+                  !sdkReady) ||
+                ((confirmation?.action === 'checkout' ||
+                  replacingCancelledRenewal) &&
                   !billingDetailsSchema.safeParse(account.billingDetails)
                     .success) ||
                 (confirmation?.action !== 'cancel' &&
                   (!accepted ||
                     Boolean(selected?.taxPaise && !selected.taxBreakdown)))
               }
-              onClick={() => confirmation && void act(confirmation)}
+              onClick={() => {
+                if (!confirmation) return
+                void act(
+                  confirmation.action === 'cancel'
+                    ? {
+                        ...confirmation,
+                        reason: cancellationReason,
+                        feedback: cancellationFeedback.trim() || undefined,
+                      }
+                    : confirmation.action === 'checkout' &&
+                        confirmation.kind === 'pack'
+                      ? { ...confirmation, packReplies }
+                    : confirmation,
+                )
+              }}
             >
               {busy && <Loader2 className="mr-2 size-4 animate-spin" />}
-              {confirmation?.action === 'cancel'
+              {(confirmation?.action === 'checkout' ||
+                replacingCancelledRenewal) &&
+              !sdkReady
+                ? 'Loading secure checkout…'
+                : confirmation?.action === 'cancel'
                 ? 'Cancel renewal'
+                  : confirmation?.action === 'resume_change_plan'
+                    ? replacementIsDowngrade
+                      ? 'Pay now & downgrade'
+                      : 'Pay now & upgrade'
+                    : confirmation?.action === 'resume'
+                      ? 'Pay now & renew'
                 : confirmation?.action === 'change_plan'
-                  ? 'Schedule change'
-                  : 'Continue to Cashfree'}
+                  ? undoingPlanChange
+                    ? `Keep ${current.name}`
+                    : 'Schedule change'
+                  : 'Continue to checkout'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1177,7 +1506,7 @@ function PaymentHistory({
     <section className="dashboard-surface rounded-xl p-5">
       <h2 className="text-sm font-semibold">Payments & invoices</h2>
       <p className="mt-1 text-xs text-muted-foreground">
-        Payment status is verified with Cashfree. Sandbox receipts are test
+        Payment status is verified with the payment provider. Sandbox receipts are test
         documents. PDF invoices unlock seven days after payment and are
         generated when requested.
       </p>

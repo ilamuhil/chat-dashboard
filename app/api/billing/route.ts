@@ -20,6 +20,7 @@ import { PLANS, CREDIT_PACK, quote } from '@/lib/billing/catalog'
 import { record } from '@/lib/billing/events'
 import { taxForCustomer } from '@/lib/billing/vendor'
 import { billingDetailsSchema } from '@/lib/billing/details'
+import { sendSubscriptionCancellationEmail } from '@/lib/email'
 import {
   cashfree,
   cashfreeConfigured,
@@ -33,8 +34,33 @@ const actionSchema = z.discriminatedUnion('action', [
     action: z.literal('checkout'),
     planId: z.enum(['starter', 'growth']),
     kind: z.enum(['subscription', 'pack']).default('subscription'),
+    packReplies: z
+      .number()
+      .int()
+      .min(CREDIT_PACK.minReplies)
+      .max(CREDIT_PACK.maxReplies)
+      .refine((value) => value % CREDIT_PACK.stepReplies === 0)
+      .default(CREDIT_PACK.minReplies),
   }),
-  z.object({ action: z.literal('cancel') }),
+  z.object({
+    action: z.literal('cancel'),
+    reason: z.enum([
+      'too_expensive',
+      'not_using_enough',
+      'missing_features',
+      'technical_issues',
+      'difficult_to_use',
+      'switched_provider',
+      'temporary_pause',
+      'other',
+    ]),
+    feedback: z.string().trim().max(2000).optional(),
+  }),
+  z.object({ action: z.literal('resume') }),
+  z.object({
+    action: z.literal('resume_change_plan'),
+    planId: z.enum(['starter', 'growth']),
+  }),
   z.object({
     action: z.literal('change_plan'),
     planId: z.enum(['starter', 'growth']),
@@ -61,6 +87,11 @@ function failure(error: unknown) {
       : error instanceof CashfreeError
         ? 502
         : 503
+  if (error instanceof CashfreeError)
+    console.error('Payment provider billing error', {
+      status: error.status,
+      code: error.code,
+    })
   return NextResponse.json(
     {
       error:
@@ -107,6 +138,9 @@ export async function GET(request: NextRequest) {
           ({ billingSnapshot, ...checkout }) => ({
             ...checkout,
             taxBreakdown: record(billingSnapshot).taxBreakdown || null,
+            packReplies:
+              Number(record(billingSnapshot).packReplies) ||
+              CREDIT_PACK.replies,
           }),
         ),
         payments: canManage ? summary.payments : [],
@@ -140,9 +174,120 @@ export async function POST(request: NextRequest) {
           actor.userId,
           body.planId,
           body.kind,
+          false,
+          body.packReplies,
         ),
       )
-    if (body.action === 'cancel') await cancelRenewal(actor.organizationId)
+    if (body.action === 'cancel') {
+      if (body.reason === 'other' && !body.feedback)
+        throw new BillingError(
+          'Tell us what we could improve before cancelling.',
+          400,
+        )
+      const [user, organization, account] = await Promise.all([
+        prisma.users.findUnique({
+          where: { id: actor.userId },
+          select: { fullName: true, email: true },
+        }),
+        prisma.organizations.findUnique({
+          where: { id: actor.organizationId },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            address: true,
+            createdAt: true,
+          },
+        }),
+        prisma.billingAccount.findUnique({
+          where: { organizationId: actor.organizationId },
+          select: {
+            planId: true,
+            status: true,
+            paidThrough: true,
+            providerSubscriptionId: true,
+          },
+        }),
+      ])
+      await cancelRenewal(actor.organizationId)
+      const reasonLabels: Record<typeof body.reason, string> = {
+        too_expensive: 'Too expensive',
+        not_using_enough: 'Not using it enough',
+        missing_features: 'Missing features',
+        technical_issues: 'Technical or reliability issues',
+        difficult_to_use: 'Difficult to use',
+        switched_provider: 'Switched to another provider',
+        temporary_pause: 'Temporary pause or seasonal need',
+        other: 'Other',
+      }
+      if (user && organization && account)
+        await sendSubscriptionCancellationEmail({
+          organization: {
+            id: organization.id,
+            name: organization.name || 'Unnamed organization',
+            email: organization.email || '',
+            phone: organization.phone || '',
+            address: organization.address
+              ? JSON.stringify(organization.address)
+              : '',
+            createdAt: organization.createdAt,
+          },
+          cancelledBy: {
+            id: actor.userId,
+            name: user.fullName || 'Dashboard user',
+            email: user.email || '',
+            role: actor.role || 'admin',
+          },
+          subscription: {
+            plan: account.planId,
+            status: account.status,
+            paidThrough: account.paidThrough,
+            providerSubscriptionId:
+              account.providerSubscriptionId || 'Not available',
+          },
+          reason: reasonLabels[body.reason],
+          feedback: body.feedback,
+          cancelledAt: new Date(),
+          ipAddress:
+            request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+            request.headers.get('x-real-ip') ||
+            undefined,
+          userAgent: request.headers.get('user-agent') || undefined,
+        }).catch((error) =>
+          console.error('Subscription cancelled, but email failed:', error),
+        )
+    }
+    if (body.action === 'resume') {
+      const account = await prisma.billingAccount.findUnique({
+        where: { organizationId: actor.organizationId },
+        select: { planId: true, cancelAtPeriodEnd: true },
+      })
+      if (
+        !account?.cancelAtPeriodEnd ||
+        (account.planId !== 'starter' && account.planId !== 'growth')
+      )
+        throw new BillingError('There is no cancelled renewal to resume.', 409)
+      return NextResponse.json(
+        await createCheckout(
+          actor.organizationId,
+          actor.userId,
+          account.planId,
+          'subscription',
+          true,
+        ),
+      )
+    }
+    if (body.action === 'resume_change_plan')
+      return NextResponse.json(
+        await createCheckout(
+          actor.organizationId,
+          actor.userId,
+          body.planId,
+          'subscription',
+          true,
+        ),
+      )
     if (body.action === 'change_plan')
       await schedulePlan(actor.organizationId, body.planId)
     if (body.action === 'retry')

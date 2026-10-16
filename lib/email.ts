@@ -289,3 +289,93 @@ export async function sendFeedbackEmail(params: {
     replyTo: params.userEmail,
   })
 }
+
+export async function sendSubscriptionCancellationEmail(params: {
+  organization: {
+    id: string
+    name: string
+    email: string
+    phone: string
+    address: string
+    createdAt: Date
+  }
+  cancelledBy: {
+    id: string
+    name: string
+    email: string
+    role: string
+  }
+  subscription: {
+    plan: string
+    status: string
+    paidThrough: Date | null
+    providerSubscriptionId: string
+  }
+  reason: string
+  feedback?: string
+  cancelledAt: Date
+  ipAddress?: string
+  userAgent?: string
+}) {
+  const escaped = (value: string) =>
+    value.replace(
+      /[&<>"']/g,
+      character =>
+        ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;',
+        })[character] ?? character,
+    )
+  const rows: [string, string][] = [
+    ['Institution', params.organization.name],
+    ['Organization ID', params.organization.id],
+    ['Organization email', params.organization.email || 'Not provided'],
+    ['Organization phone', params.organization.phone || 'Not provided'],
+    ['Organization address', params.organization.address || 'Not provided'],
+    ['Organization created', params.organization.createdAt.toISOString()],
+    ['Plan', params.subscription.plan],
+    ['Subscription status', params.subscription.status],
+    [
+      'Paid access through',
+      params.subscription.paidThrough?.toISOString() || 'Not available',
+    ],
+    ['Subscription reference', params.subscription.providerSubscriptionId],
+    ['Cancelled by', params.cancelledBy.name],
+    ['Cancelling user email', params.cancelledBy.email],
+    ['Cancelling user ID', params.cancelledBy.id],
+    ['Organization role', params.cancelledBy.role],
+    ['Cancellation reason', params.reason],
+    ['Additional feedback', params.feedback || 'Not provided'],
+    ['Cancelled at (UTC)', params.cancelledAt.toISOString()],
+    [
+      'Cancelled at (India)',
+      params.cancelledAt.toLocaleString('en-IN', {
+        dateStyle: 'full',
+        timeStyle: 'long',
+        timeZone: 'Asia/Kolkata',
+      }),
+    ],
+    ['IP address', params.ipAddress || 'Not available'],
+    ['User agent', params.userAgent || 'Not available'],
+  ]
+  return sendEmail({
+    to: process.env.BILLING_ALERT_EMAIL || 'ilamuhil@gmail.com',
+    replyTo: params.cancelledBy.email || undefined,
+    subject: `Subscription cancelled — ${params.organization.name}`,
+    htmlBody: `
+      <h2>Subscription cancellation</h2>
+      <table cellpadding="8" cellspacing="0" style="border-collapse:collapse">
+        ${rows
+          .map(
+            ([label, value]) =>
+              `<tr><td style="border:1px solid #e2e8f0"><strong>${escaped(label)}</strong></td><td style="border:1px solid #e2e8f0">${escaped(value).replace(/\r?\n/g, '<br />')}</td></tr>`,
+          )
+          .join('')}
+      </table>
+    `,
+    textBody: rows.map(([label, value]) => `${label}: ${value}`).join('\n'),
+  })
+}

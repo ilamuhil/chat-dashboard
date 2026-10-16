@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from 'node:crypto'
+import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto'
 
 export class CashfreeError extends Error {
   constructor(
@@ -7,8 +7,8 @@ export class CashfreeError extends Error {
   ) {
     super(
       code === 'profile_inactive'
-        ? 'Cashfree Subscriptions is not activated for this sandbox merchant yet. Ask the administrator to activate it in Cashfree.'
-        : 'Cashfree could not complete this request. Please try again or contact support.',
+        ? 'Recurring payments are not activated for this sandbox account yet. Ask the administrator to activate them with the payment provider.'
+        : 'The payment provider could not complete this request. Please try again or contact support.',
     )
     this.name = 'CashfreeError'
   }
@@ -21,7 +21,7 @@ export function cashfreeConfigured() {
 export function cashfreeMode(): 'sandbox' | 'production' {
   const mode = process.env.CASHFREE_ENVIRONMENT || 'sandbox'
   if (mode !== 'sandbox' && mode !== 'production')
-    throw new Error('Invalid Cashfree environment')
+    throw new Error('Invalid payment provider environment')
   if (mode === 'production' && process.env.BILLING_ALLOW_LIVE !== 'true')
     throw new Error('Live billing is not enabled')
   return mode
@@ -34,7 +34,7 @@ export async function cashfree<T = Record<string, unknown>>(
 ): Promise<T> {
   if (!cashfreeConfigured())
     throw new Error(
-      'Cashfree sandbox is not configured. Ask an administrator to add the test credentials.',
+      'The payment provider is not configured. Ask an administrator to add the test credentials.',
     )
   const mode = cashfreeMode()
   const response = await fetch(
@@ -61,6 +61,26 @@ export async function cashfree<T = Record<string, unknown>>(
     )
   }
   return response.json() as Promise<T>
+}
+export async function cancelCashfreeSubscription(subscriptionId: string) {
+  const path = `/subscriptions/${encodeURIComponent(subscriptionId)}`
+  try {
+    await cashfree(
+      `${path}/manage`,
+      'POST',
+      { subscription_id: subscriptionId, action: 'CANCEL' },
+      randomUUID(),
+    )
+    return 'CANCELLED'
+  } catch (error) {
+    if (!(error instanceof CashfreeError)) throw error
+    // Cancellation may already have succeeded before a local save failed, or
+    // the customer may have cancelled directly with the provider.
+    const subscription = await cashfree(path).catch(() => null)
+    const status = subscription?.subscription_status
+    if (status === 'CANCELLED' || status === 'CUSTOMER_CANCELLED') return status
+    throw error
+  }
 }
 export function verifyCashfreeWebhook(
   raw: string,

@@ -4,9 +4,11 @@ import { cn } from '@/lib/utils'
 
 export function AppLoader({
   label = 'Preparing your workspace',
+  description = 'This will only take a moment',
   fullScreen = false,
 }: {
   label?: string
+  description?: string
   fullScreen?: boolean
 }) {
   return (
@@ -28,10 +30,12 @@ export function AppLoader({
           <span className='absolute top-0 left-1/2 size-2 -translate-x-1/2 rounded-full bg-sky-500 shadow-[0_0_12px_rgba(14,165,233,0.8)]' />
         </div>
 
-        <p className='mt-5 text-sm font-semibold tracking-[-0.01em] text-slate-800'>
+        <p className='mt-5 text-sm font-semibold tracking-[-0.01em] text-slate-800 dark:text-slate-100'>
           {label}
         </p>
-        <p className='mt-1.5 text-xs text-slate-500'>This will only take a moment</p>
+        <p className='mt-1.5 max-w-md text-center text-xs leading-5 text-slate-500 dark:text-slate-400'>
+          {description}
+        </p>
 
         <div className='mt-5 h-1 w-32 overflow-hidden rounded-full bg-slate-200'>
           <div className='loader-progress h-full w-1/2 rounded-full bg-linear-to-r from-sky-500 to-teal-400' />

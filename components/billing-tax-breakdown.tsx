@@ -1,5 +1,5 @@
 import { money } from '@/lib/billing/catalog'
-import { stateName, type GstBreakdown } from '@/lib/billing/tax'
+import type { GstBreakdown } from '@/lib/billing/tax'
 export type TaxQuote = {
   subtotalPaise: number
   taxPaise: number
@@ -10,10 +10,7 @@ export function BillingTaxBreakdown({ quote }: { quote: TaxQuote }) {
   const tax = quote.taxBreakdown
   const rows: [string, string][] = [['Base value', money(quote.subtotalPaise)]]
   if (tax?.kind === 'igst')
-    rows.push(
-      [`IGST (${tax.rateBps / 100}%)`, money(tax.igstPaise)],
-      ['CGST / SGST / UTGST', 'Not applicable'],
-    )
+    rows.push([`IGST (${tax.rateBps / 100}%)`, money(tax.igstPaise)])
   else if (tax?.kind === 'cgst_sgst' || tax?.kind === 'cgst_utgst')
     rows.push(
       [`CGST (${tax.rateBps / 200}%)`, money(tax.cgstPaise)],
@@ -21,7 +18,6 @@ export function BillingTaxBreakdown({ quote }: { quote: TaxQuote }) {
         `${tax.kind === 'cgst_utgst' ? 'UTGST' : 'SGST'} (${tax.rateBps / 200}%)`,
         money(tax.sgstPaise + tax.utgstPaise),
       ],
-      ['IGST', 'Not applicable'],
     )
   else if (quote.taxPaise === 0) rows.push(['GST', 'Not charged'])
   rows.push(
@@ -41,11 +37,6 @@ export function BillingTaxBreakdown({ quote }: { quote: TaxQuote }) {
           </div>
         ))}
       </dl>
-      {tax?.placeOfSupply && (
-        <p className="mt-3 text-xs text-muted-foreground">
-          Place of supply: {stateName(tax.placeOfSupply)} ({tax.placeOfSupply})
-        </p>
-      )}
       {quote.taxPaise > 0 && !tax && (
         <p className="mt-3 text-xs text-amber-700 dark:text-amber-300">
           Choose your billing state in Billing details to see the applicable GST

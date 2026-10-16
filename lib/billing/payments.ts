@@ -1,11 +1,17 @@
 import { randomUUID, createHash } from 'node:crypto'
 import { prisma } from '@/lib/prisma'
 import type { Prisma } from '@/generated/prisma/client'
-import { cashfree, cashfreeMode, CashfreeError } from './cashfree'
+import {
+  cashfree,
+  cashfreeMode,
+  CashfreeError,
+  cancelCashfreeSubscription,
+} from './cashfree'
 import {
   PLANS,
   PLAN_VERSION,
   CREDIT_PACK,
+  creditPackPrice,
   isPaidPlan,
   nextMonth,
   quote,
@@ -46,7 +52,19 @@ export async function createCheckout(
   userId: string,
   planId: 'starter' | 'growth',
   kind: 'subscription' | 'pack' = 'subscription',
+  replaceCancelled = false,
+  packReplies = CREDIT_PACK.replies,
 ) {
+  if (
+    !Number.isInteger(packReplies) ||
+    packReplies < CREDIT_PACK.minReplies ||
+    packReplies > CREDIT_PACK.maxReplies ||
+    packReplies % CREDIT_PACK.stepReplies !== 0
+  )
+    throw new BillingError(
+      'Reply add-ons must be between 1,000 and 10,000 replies in steps of 500.',
+      400,
+    )
   const mode = cashfreeMode()
   const customer = await prisma.users.findUnique({
     where: { id: userId },
@@ -85,8 +103,34 @@ export async function createCheckout(
     )
   const checkout = await withBillingLock(orgId, async (tx) => {
     const current = await ensureBilling(tx, orgId)
+    const packPrice = creditPackPrice(packReplies)
     if (kind === 'pack' && (!hasAccess(current) || current.planId === 'trial'))
       throw new BillingError('Credit packs require an active paid plan.', 402)
+    const existing = await tx.billingCheckout.findFirst({
+      where: {
+        organizationId: orgId,
+        kind,
+        OR: [
+          { status: { in: ['creating', 'ready', 'pending', 'authorized'] } },
+          { status: 'failed', sessionId: { not: null } },
+        ],
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+    if (existing) {
+      const existingReplies =
+        Number(record(existing.billingSnapshot).packReplies) ||
+        CREDIT_PACK.replies
+      if (
+        existing.planId !== planId ||
+        (kind === 'pack' && existingReplies !== packReplies)
+      )
+        throw new BillingError(
+          'Finish or cancel your pending checkout before choosing another plan.',
+        )
+      return existing
+    }
     if (
       kind === 'subscription' &&
       current.providerSubscriptionId &&
@@ -101,31 +145,13 @@ export async function createCheckout(
       kind === 'subscription' &&
       current.cancelAtPeriodEnd &&
       current.paidThrough &&
-      current.paidThrough > new Date()
+      current.paidThrough > new Date() &&
+      !replaceCancelled
     )
       throw new BillingError(
         'Your paid access continues until the displayed date. Start a new subscription after it ends to avoid paying for overlapping periods.',
         409,
       )
-    const existing = await tx.billingCheckout.findFirst({
-      where: {
-        organizationId: orgId,
-        kind,
-        OR: [
-          { status: { in: ['creating', 'ready', 'pending', 'authorized'] } },
-          { status: 'failed', sessionId: { not: null } },
-        ],
-        expiresAt: { gt: new Date() },
-      },
-      orderBy: { createdAt: 'desc' },
-    })
-    if (existing) {
-      if (existing.planId !== planId)
-        throw new BillingError(
-          'Finish or cancel your pending checkout before choosing another plan.',
-        )
-      return existing
-    }
     const id = randomUUID()
     return tx.billingCheckout.create({
       data: {
@@ -135,21 +161,26 @@ export async function createCheckout(
         kind,
         providerId: `${kind === 'pack' ? 'pack' : 'sub'}_${id.replaceAll('-', '')}`,
         ...billingQuote(
-          kind === 'pack' ? CREDIT_PACK.pricePaise : PLANS[planId].pricePaise,
+          kind === 'pack' ? packPrice : PLANS[planId].pricePaise,
         ),
         firstChargeAt: nextMonth(new Date()),
         billingSnapshot: {
           billingDetails: current.billingDetails,
+          ...(kind === 'pack'
+            ? {
+                packReplies,
+              }
+            : {}),
           seller: billingVendor(),
           taxBreakdown: taxForCustomer(
             billingQuote(
               kind === 'pack'
-                ? CREDIT_PACK.pricePaise
+                ? packPrice
                 : PLANS[planId].pricePaise,
             ).taxPaise,
             billingQuote(
               kind === 'pack'
-                ? CREDIT_PACK.pricePaise
+                ? packPrice
                 : PLANS[planId].pricePaise,
             ).taxBps,
             current.billingDetails,
@@ -253,7 +284,7 @@ export async function createCheckout(
     )
     if (!sessionId)
       throw new BillingError(
-        'Cashfree did not return a checkout session. Use Refresh payment status before retrying.',
+        'The payment provider did not return a checkout session. Use Refresh payment status before retrying.',
         502,
       )
     await prisma.billingCheckout.update({
@@ -396,7 +427,14 @@ export async function applySubscriptionPayment(
         })
       await tx.billingCheckout.update({
         where: { id: checkout.id },
-        data: { status: renewal || account.paidThrough ? 'active' : 'failed' },
+        data: {
+          status:
+            renewal ||
+            (account.providerSubscriptionId === fact.subscriptionId &&
+              account.paidThrough)
+              ? 'active'
+              : 'failed',
+        },
       })
       return
     }
@@ -418,10 +456,15 @@ export async function applySubscriptionPayment(
       return
     }
     if (fact.status !== 'SUCCESS') return
+    const replacingCancelledSubscription =
+      account.providerSubscriptionId &&
+      account.providerSubscriptionId !== fact.subscriptionId &&
+      account.cancelAtPeriodEnd
     if (
       account.providerSubscriptionId &&
       account.providerSubscriptionId !== fact.subscriptionId &&
-      hasAccess(account)
+      hasAccess(account) &&
+      !replacingCancelledSubscription
     )
       throw new BillingError(
         'A different subscription is already active for this organization.',
@@ -473,7 +516,11 @@ export async function applySubscriptionPayment(
         paymentId,
       },
     })
-    if (!account.paidThrough || endsAt > account.paidThrough)
+    if (
+      replacingCancelledSubscription ||
+      !account.paidThrough ||
+      endsAt > account.paidThrough
+    )
       await tx.billingAccount.update({
         where: { organizationId: checkout.organizationId },
         data: {
@@ -794,6 +841,9 @@ export async function applyCreditPackPayment(
       failureReason:
         string(record(item.error_details).error_description) || null,
     }
+    const packReplies =
+      Number(record(checkout.billingSnapshot).packReplies) ||
+      CREDIT_PACK.replies
     await tx.billingPayment.upsert({
       where: { id },
       create: {
@@ -807,7 +857,7 @@ export async function applyCreditPackPayment(
           subtotalPaise: checkout.subtotalPaise,
           taxPaise: checkout.taxPaise,
           totalPaise: checkout.totalPaise,
-          planName: '1,000 AI replies',
+          planName: `${packReplies.toLocaleString('en-IN')} AI replies`,
           billingDetails:
             record(checkout.billingSnapshot).billingDetails ||
             account.billingDetails,
@@ -855,7 +905,7 @@ export async function applyCreditPackPayment(
         data: {
           id,
           organizationId: orgId,
-          replies: CREDIT_PACK.replies,
+          replies: packReplies,
           expiresAt: new Date(
             paidAt.getTime() + CREDIT_PACK.expiryDays * 86400000,
           ),
@@ -940,24 +990,25 @@ export async function cancelRenewal(orgId: string) {
   const account = await withBillingLock(orgId, (tx) => ensureBilling(tx, orgId))
   if (!account.providerSubscriptionId)
     throw new BillingError('There is no recurring mandate to cancel.', 400)
-  if (!account.cancelAtPeriodEnd)
-    await cashfree(
-      `/subscriptions/${encodeURIComponent(account.providerSubscriptionId)}/manage`,
-      'POST',
-      { subscription_id: account.providerSubscriptionId, action: 'CANCEL' },
-      randomUUID(),
-    )
-  await prisma.billingAccount.update({
-    where: { organizationId: orgId },
-    data: {
-      cancelAtPeriodEnd: true,
-      pendingPlanId: null,
-      providerStatus: 'CANCELLED',
-    },
-  })
-  await prisma.billingCheckout.updateMany({
-    where: { providerId: account.providerSubscriptionId },
-    data: { status: 'cancelled' },
+  const providerId = account.providerSubscriptionId
+  const providerStatus = account.cancelAtPeriodEnd
+    ? account.providerStatus || 'CANCELLED'
+    : await cancelCashfreeSubscription(providerId)
+  await withBillingLock(orgId, async (tx) => {
+    // Do not cancel a replacement subscription created during the provider call.
+    await tx.billingAccount.updateMany({
+      where: { organizationId: orgId, providerSubscriptionId: providerId },
+      data: {
+        cancelAtPeriodEnd: true,
+        pendingPlanId: null,
+        providerStatus,
+        providerUpdatedAt: new Date(),
+      },
+    })
+    await tx.billingCheckout.updateMany({
+      where: { organizationId: orgId, providerId },
+      data: { status: 'cancelled' },
+    })
   })
 }
 
@@ -1117,6 +1168,6 @@ export async function schedulePlan(
   )
   await prisma.billingAccount.update({
     where: { organizationId: orgId },
-    data: { pendingPlanId: planId },
+    data: { pendingPlanId: planId === account.planId ? null : planId },
   })
 }

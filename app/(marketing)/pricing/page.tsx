@@ -135,7 +135,7 @@ export default function PricingPage() {
               Payments and support
             </h3>
             <p className="mt-2">
-              Checkout is handled by Cashfree. Starter includes business-hours
+              Checkout is handled securely by our payment provider. Starter includes business-hours
               email support; Growth receives priority in the same queue. You can
               review the final total before authorizing payment.
             </p>

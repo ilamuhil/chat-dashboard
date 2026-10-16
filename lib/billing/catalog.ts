@@ -82,7 +82,28 @@ export const PLANS: Record<
     },
   },
 }
-export const CREDIT_PACK = { pricePaise: 69900, replies: 1000, expiryDays: 90 }
+export const CREDIT_PACK = {
+  pricePaise: 69900,
+  replies: 1000,
+  minReplies: 1000,
+  maxReplies: 10000,
+  stepReplies: 500,
+  expiryDays: 90,
+}
+export function creditPackPrice(replies: number) {
+  if (
+    !Number.isInteger(replies) ||
+    replies < CREDIT_PACK.minReplies ||
+    replies > CREDIT_PACK.maxReplies ||
+    replies % CREDIT_PACK.stepReplies !== 0
+  )
+    throw new Error('Invalid reply add-on quantity')
+  return (
+    Math.ceil(
+      (CREDIT_PACK.pricePaise * replies) / CREDIT_PACK.replies / 100,
+    ) * 100
+  )
+}
 export function isPaidPlan(value: unknown): value is 'starter' | 'growth' {
   return value === 'starter' || value === 'growth'
 }
