@@ -173,10 +173,10 @@ export function useChatSocket({
             if (awaitingPongRef.current) {
               socket.close(4000, 'Ping timeout')
             }
-          }, 5000)
+          }, 15_000)
         }
 
-        sendPing()
+        // Let authentication and server setup finish before the first heartbeat.
         heartbeatIntervalRef.current = setInterval(sendPing, 20_000)
       }
 

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { getAuthUserIdFromCookies } from '@/lib/auth-server'
 import { nanoid } from 'nanoid'
+import { withBillingLock } from '@/lib/billing/service'
 
 export const runtime = 'nodejs'
 
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
       data: { onboardingCompleted: true },
     })
 
+    await withBillingLock(org.id, async () => undefined)
     const res = NextResponse.json({ ok: true, organizationId: org.id })
     res.cookies.set('current_organization_id', org.id, {
       httpOnly: false,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { prisma } from '@/lib/prisma'
+import { withBillingLock, assertCapacity, BillingError } from '@/lib/billing/service'
 import { requireOrganizationMembership } from '@/lib/organization-members'
 import { createMagicLink } from '@/lib/magic-link'
 import { sendOrganizationMagicLinkEmail } from '@/lib/email'
@@ -107,7 +108,10 @@ export async function POST(request: NextRequest) {
       data: { fullName },
     })
 
-    await prisma.organizationMembers.upsert({
+    await withBillingLock(actor.organizationId, async tx => {
+      const alreadyMember = await tx.organizationMembers.findFirst({ where: { organizationId: actor.organizationId, userId: user.id } })
+      if (!alreadyMember) await assertCapacity(tx, actor.organizationId, 'members')
+      return tx.organizationMembers.upsert({
       where: {
         organizationId_userId: {
           organizationId: actor.organizationId,
@@ -120,6 +124,7 @@ export async function POST(request: NextRequest) {
         role: body.role,
       },
       update: { role: body.role },
+      })
     })
 
     const organization = await prisma.organizations.findUnique({
@@ -179,7 +184,7 @@ export async function POST(request: NextRequest) {
     }
     const message =
       error instanceof Error ? error.message : 'Could not invite user'
-    const status = message.includes('Only') ? 403 : 500
+    const status = error instanceof BillingError ? error.status : message.includes('Only') ? 403 : 500
     return NextResponse.json({ error: message }, { status })
   }
 }

@@ -232,3 +232,10 @@ export async function getPresignedGetUrl(
     expiresInSeconds,
   })
 }
+
+/** Server-verified uploaded size, used before activating training sources. */
+export async function objectSize(bucket: string, key: string): Promise<number> {
+  const result = await createR2Client().send(new HeadObjectCommand({ Bucket: bucket, Key: key }))
+  if (!Number.isSafeInteger(result.ContentLength) || result.ContentLength! < 0) throw new Error('Invalid object size')
+  return result.ContentLength!
+}

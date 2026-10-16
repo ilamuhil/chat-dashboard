@@ -1,147 +1,140 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireUserOrgAndBot } from '@/lib/auth-server'
-import { uploadFile } from '@/lib/filemanagement'
+import { uploadFile, deleteFile } from '@/lib/filemanagement'
 import { prisma } from '@/lib/prisma'
-import { createHash } from 'crypto'
-import { Readable } from 'stream'
-
+import { createHash } from 'node:crypto'
+import {
+  withBillingLock,
+  assertCapacity,
+  BillingError,
+} from '@/lib/billing/service'
+import type { Limits } from '@/lib/billing/catalog'
 export const runtime = 'nodejs'
-
 const BUCKET = 'bot-files'
-const MAX_UPLOAD_SIZE = 5 * 1024 * 1024 // 5MB
-
-
-
-export async function createContentHashFromStream(
-  stream: Readable
-): Promise<string> {
-  const hash = createHash('sha256')
-
-  for await (const chunk of stream) {
-    hash.update(chunk)
-  }
-  return hash.digest('hex')
-}
-
-export async function createContentHash(file: File): Promise<string> {
-  const buffer = Buffer.from(await file.arrayBuffer())
-  return createHash('sha256').update(buffer).digest('hex')
-}
-
-
+const extensions = /\.(pdf|csv|txt|md|markdown|docx|html|htm)$/i
 export async function POST(request: NextRequest) {
-  const formData = await request.formData()
-
-  const botId = formData.get('bot_id')?.toString()
-  const files = formData.getAll('files') as File[]
-
-  if (!botId || !files || files.length === 0) {
-    return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
-  }
-
-  const auth = await requireUserOrgAndBot(request, botId)
-  if (!auth?.organizationId || !auth?.botId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  // size guard
-  for (const file of files) {
-    if (file.size > MAX_UPLOAD_SIZE) {
+  try {
+    const form = await request.formData()
+    const botId = String(form.get('bot_id') || '')
+    const files = form
+      .getAll('files')
+      .filter((file): file is File => file instanceof File)
+    if (!botId || !files.length || files.length > 20)
       return NextResponse.json(
-        { error: `File too large. Max ${MAX_UPLOAD_SIZE / 1024 / 1024}MB` },
-        { status: 400 }
+        { error: 'Select 1–20 supported files.' },
+        { status: 400 },
+      )
+    const auth = await requireUserOrgAndBot(request, botId)
+    if (!auth)
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const account = await withBillingLock(auth.organizationId, (tx) =>
+      assertCapacity(tx, auth.organizationId, 'sources', 0),
+    )
+    const limits = account.limits as Limits
+    for (const file of files) {
+      if (
+        !extensions.test(file.name) ||
+        !file.size ||
+        file.size > limits.fileBytes
+      )
+        throw new BillingError(
+          'Use PDF, CSV, TXT, Markdown, DOCX or HTML within your per-file limit.',
+          400,
+        )
+    }
+    const byHash = new Map<string, File>()
+    for (const file of files)
+      byHash.set(
+        createHash('sha256')
+          .update(Buffer.from(await file.arrayBuffer()))
+          .digest('hex'),
+        file,
+      )
+    const sources = await withBillingLock(auth.organizationId, async (tx) => {
+      const existing = await tx.trainingSources.findMany({
+        where: {
+          organizationId: auth.organizationId,
+          botId,
+          deletedAt: null,
+          type: 'file',
+          contentHash: { in: [...byHash.keys()] },
+        },
+      })
+      const missing = [...byHash].filter(
+        ([hash]) => !existing.some((source) => source.contentHash === hash),
+      )
+      await assertCapacity(tx, auth.organizationId, 'sources', missing.length)
+      await assertCapacity(
+        tx,
+        auth.organizationId,
+        'storageBytes',
+        missing.reduce((total, [, file]) => total + file.size, 0),
+      )
+      const created = await tx.trainingSources.createManyAndReturn({
+        data: missing.map(([hash, file]) => ({
+          organizationId: auth.organizationId,
+          botId,
+          type: 'file',
+          originalFilename: file.name,
+          status: 'pending',
+          sizeBytes: file.size,
+          mimeType: file.type,
+          contentHash: hash,
+          sourceValue:
+            'organizations/' +
+            auth.organizationId +
+            '/bots/' +
+            botId +
+            '/' +
+            hash,
+        })),
+      })
+      return { existing, created }
+    })
+    const uploads = await Promise.allSettled(
+      sources.created.map((source) =>
+        uploadFile(
+          byHash.get(source.contentHash!)!,
+          source.sourceValue!,
+          BUCKET,
+        ),
+      ),
+    )
+    if (uploads.some((result) => result.status === 'rejected')) {
+      // Wait for every upload before cleanup, so late uploads cannot leave untracked objects.
+      const cleanup = await Promise.allSettled(
+        sources.created.map((source) =>
+          deleteFile(BUCKET, source.sourceValue!),
+        ),
+      )
+      const removed = sources.created.filter(
+        (_, index) => cleanup[index].status === 'fulfilled',
+      )
+      await prisma.trainingSources.deleteMany({
+        where: {
+          id: { in: removed.map((source) => source.id) },
+          status: 'pending',
+        },
+      })
+      throw new BillingError(
+        'Upload did not finish. Please retry; incomplete sources were not added.',
+        502,
       )
     }
-  }
-
-  // compute hashes
-  let uploadItems: { file: File; hash: string }[]
-  try {
-    const hashes = await Promise.all(files.map(createContentHash))
-    uploadItems = files.map((file, i) => ({
-      file,
-      hash: hashes[i],
-    }))
-  } catch (err: unknown) {
-    console.error('Hashing failed', err)
-    return NextResponse.json({ error: 'Hashing failed' }, { status: 500 })
-  }
-
-  // check existing training sources
-  const existingSources = await prisma.trainingSources.findMany({
-    where: {
-      organizationId: auth.organizationId,
-      botId: auth.botId,
-      type: 'file',
-      deletedAt: null,
-      contentHash: { in: uploadItems.map(i => i.hash) },
-    },
-    select: { id: true, contentHash: true },
-  })
-
-  const existingHashSet = new Set(existingSources.map(s => s.contentHash))
-
-  const newUploadItems = uploadItems.filter(
-    item => !existingHashSet.has(item.hash)
-  )
-
-  // nothing new to upload
-  if (newUploadItems.length === 0) {
-    console.log('No new files to upload')
-    return NextResponse.json(
-      { trainingSourceIds: existingSources.map(s => s.id) },
-      { status: 200 }
-    )
-  }
-
-  // create training_sources (intent only)
-  let newSources
-  try {
-    newSources = await prisma.trainingSources.createManyAndReturn({
-      data: newUploadItems.map(item => ({
-        organizationId: auth.organizationId,
-        botId: auth.botId,
-        type: 'file',
-        originalFilename: item.file.name,
-        status: 'pending',
-        sizeBytes: item.file.size,
-        mimeType: item.file.type,
-        contentHash: item.hash,
-        sourceValue: `organizations/${auth.organizationId}/bots/${auth.botId}/${item.hash}`,
-      })),
-      select: { id: true, contentHash: true },
+    return NextResponse.json({
+      trainingSourceIds: [...sources.existing, ...sources.created].map(
+        (source) => source.id,
+      ),
     })
-  } catch {
-    // handle race via unique constraint
-    const fallback = await prisma.trainingSources.findMany({
-      where: {
-        organizationId: auth.organizationId,
-        botId: auth.botId,
-        type: 'file',
-        contentHash: { in: newUploadItems.map(i => i.hash) },
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error:
+          error instanceof BillingError
+            ? error.message
+            : 'Could not upload the files. Please retry.',
       },
-      select: { id: true },
-    })
-
-    return NextResponse.json(
-      { trainingSourceIds: [...existingSources.map(s => s.id), ...fallback.map(f => f.id)] },
-      { status: 200 }
+      { status: error instanceof BillingError ? error.status : 500 },
     )
   }
-
-  // fire-and-forget uploads using the expected R2 key
-  newUploadItems.forEach((item) => {
-    const key = `organizations/${auth.organizationId}/bots/${auth.botId}/${item.hash}`
-    uploadFile(item.file, key, BUCKET)
-  })
-
-  return NextResponse.json(
-    {
-      trainingSourceIds: [
-        ...existingSources.map(s => s.id),
-        ...newSources.map(s => s.id),
-      ],
-    },
-    { status: 200 }
-  )
 }

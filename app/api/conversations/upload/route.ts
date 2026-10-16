@@ -2,13 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/jwt'
 import { uploadFile, deleteFile } from '@/lib/filemanagement'
+import { withBillingLock, assertCapacity, BillingError } from '@/lib/billing/service'
+import type { Limits } from '@/lib/billing/catalog'
 import { corsHeaders } from '@/lib/auth-server'
 
-const FILE_UPLOAD_BUCKET =
-  process.env.CHAT_FILE_BUCKET ??
-  (() => {
-    throw new Error('CHAT_FILE_BUCKET environment variable is not set')
-  })()
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: corsHeaders })
@@ -69,26 +66,33 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const bucket = FILE_UPLOAD_BUCKET
-  const file_key = `conversations/${conversationId}/${file.name}`
+  const bucket = process.env.CHAT_FILE_BUCKET
+  if (!bucket) return NextResponse.json({ error: 'Chat attachments are temporarily unavailable.' }, { status: 503, headers: corsHeaders })
+  const safeName = file.name.replace(/[\/\\]/g, '_').slice(0, 150)
+  const file_key = `conversations/${conversationId}/${safeName}`
 
+  let reservedFileId: string | null = null
   try {
+    reservedFileId = await withBillingLock(organizationId, async tx => {
+      const account = await assertCapacity(tx, organizationId, 'storageBytes', file.size)
+      if (file.size > (account.limits as Limits).fileBytes) throw new BillingError('This attachment exceeds the plan’s per-file limit.', 413)
+      const prior = await tx.files.findFirst({ where: { organizationId, path: file_key, deletedAt: null } })
+      if (prior) throw new BillingError('A file with this name already exists in this conversation. Rename the file and try again.')
+      const row = await tx.files.create({ data: { organizationId, botId, bucket, path: file_key, originalFilename: safeName, mimeType: file.type, sizeBytes: file.size, purpose: 'conversation', status: 'uploading' } })
+      return row.id
+    })
     const { success, url } = await uploadFile(file, file_key, bucket)
-    if (!success) {
-      return NextResponse.json(
-        { error: 'Failed to upload file' },
-        { status: 500, headers: corsHeaders },
-      )
-    }
+    if (!success) throw new Error('Failed to upload file')
+    await prisma.files.update({ where: { id: reservedFileId }, data: { status: 'ready' } })
     return NextResponse.json(
       { success: true, url },
       { status: 200, headers: corsHeaders },
     )
-  } catch {
-    //no need to log here as it will be logged in the uploadFile function
+  } catch (error) {
+    if (reservedFileId) await prisma.files.deleteMany({ where: { id: reservedFileId, status: 'uploading' } })
     return NextResponse.json(
-      { error: 'Failed to upload file' },
-      { status: 500, headers: corsHeaders },
+      { error: error instanceof BillingError ? error.message : 'Failed to upload file' },
+      { status: error instanceof BillingError ? error.status : 500, headers: corsHeaders },
     )
   }
   //upload the file to R2 storage.
@@ -136,7 +140,8 @@ export async function DELETE(request: NextRequest) {
       { status: 404, headers: corsHeaders },
     )
   }
-  const bucket = FILE_UPLOAD_BUCKET
+  const bucket = process.env.CHAT_FILE_BUCKET
+  if (!bucket) return NextResponse.json({ error: 'Chat attachments are temporarily unavailable.' }, { status: 503, headers: corsHeaders })
   const key = `conversations/${conversationId}/${file_name}`
   try {
     const { success } = await deleteFile(bucket, key)
@@ -146,6 +151,7 @@ export async function DELETE(request: NextRequest) {
         { status: 500, headers: corsHeaders },
       )
     }
+    await prisma.files.updateMany({ where: { organizationId, botId, path: key }, data: { deletedAt: new Date() } })
     return NextResponse.json(
       { success: true },
       { status: 200, headers: corsHeaders },

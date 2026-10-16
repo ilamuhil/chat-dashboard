@@ -641,3 +641,31 @@ html.dark .chat-message-bubble--assistant-tail::after {
   margin: 0.12em 0 0 0.9em;
   color: var(--md-muted);
 }
+
+/* Shared counsellor summaries: compact sections with readable bullet spacing. */
+.summary-markdown {
+  line-height: 1.65;
+}
+
+.summary-markdown :is(h1, h2, h3, h4) {
+  margin: 1.25em 0 0.6em;
+  border-top: 1px solid var(--md-border);
+  padding-top: 0.85em;
+  font-size: 1em;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.summary-markdown > :is(h1, h2, h3, h4):first-child {
+  margin-top: 0;
+  border-top: 0;
+  padding-top: 0;
+}
+
+.summary-markdown li + li {
+  margin-top: 0.5em;
+}
+
+.summary-markdown strong {
+  font-weight: 650;
+}

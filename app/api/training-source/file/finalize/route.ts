@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireUserOrgAndBot } from '@/lib/auth-server'
 import { prisma } from '@/lib/prisma'
-import { fileExists } from '@/lib/filemanagement'
+import { objectSize } from '@/lib/filemanagement'
+import { withBillingLock, assertCapacity } from '@/lib/billing/service'
+import type { Limits } from '@/lib/billing/catalog'
 
 const BUCKET = 'bot-files'
 
@@ -45,7 +47,10 @@ export async function POST(request: NextRequest) {
       if (!source.sourceValue) {
         return Promise.resolve(false)
       }
-      return fileExists(BUCKET, source.sourceValue).catch(err => {
+      return objectSize(BUCKET, source.sourceValue).then(size => {
+        if (size !== Number(source.sizeBytes)) throw new Error('Uploaded size does not match the source')
+        return true
+      }).catch(err => {
         console.error('Storage error', err)
         throw err // bubble up, fail finalize
       })
@@ -58,7 +63,9 @@ export async function POST(request: NextRequest) {
     const tsIdsToBeUpdated = tsToBeUpdated.map(s => s.id)
 
     //deal with
-    await prisma.$transaction(async tx => {
+    await withBillingLock(auth.organizationId, async tx => {
+      const account = await assertCapacity(tx, auth.organizationId, 'storageBytes', 0)
+      for (const source of tsToBeUpdated) if (Number(source.sizeBytes) > (account.limits as Limits).fileBytes) throw new Error('File exceeds current plan limit')
       await tx.trainingSources.updateMany({
         where: {
           id: { in: tsIdsToBeUpdated },
@@ -68,9 +75,11 @@ export async function POST(request: NextRequest) {
           status: 'created',
         },
       })
+      const pending = await tx.trainingSources.findMany({ where: { id: { in: tsIdsToBeUpdated }, organizationId: auth.organizationId, status: 'created' } })
+      const existing = await tx.files.findMany({ where: { organizationId: auth.organizationId, path: { in: pending.map(s => s.sourceValue!).filter(Boolean) }, deletedAt: null }, select: { path: true } })
       await tx.files.createMany({
         skipDuplicates: true,
-        data: tsToBeUpdated.map(s => ({
+        data: pending.filter(s => !existing.some(file => file.path === s.sourceValue)).map(s => ({
           organizationId: auth.organizationId,
           botId: auth.botId,
           bucket: BUCKET,

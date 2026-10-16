@@ -19,8 +19,13 @@ export default async function ConversationsPage({
     )
   }
 
+  const type = (await searchParams).type
+  const filter = type === 'open' || type === 'closed' || type === 'archived' ? type : 'all'
+  const where = filter === 'archived' ? { organizationId, isArchived: true }
+    : filter === 'open' || filter === 'closed' ? { organizationId, isArchived: false, status: filter }
+    : { organizationId }
   const conversation = await prisma.conversationsMeta.findFirst({
-    where: { organizationId },
+    where,
     select: { id: true },
     orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }],
   })
@@ -42,8 +47,6 @@ export default async function ConversationsPage({
     )
   }
 
-  const type =
-    searchParams && (await searchParams).type
   const query =
     type === 'open' || type === 'closed' || type === 'archived'
       ? `?type=${type}`

@@ -14,7 +14,7 @@ function getNotificationRoute(
   metadata: Record<string, unknown>,
 ) {
   if (
-    type === 'handover_request' &&
+    (type === 'handover_request' || type === 'end_chat_request') &&
     typeof metadata.conversationId === 'string'
   ) {
     return `/dashboard/users/conversations/${metadata.conversationId}`

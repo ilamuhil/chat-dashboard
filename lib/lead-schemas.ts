@@ -10,9 +10,14 @@ export const ENQUIRER_TYPES = [
   'other',
 ] as const
 
-export const PREFERRED_MODES = ['online', 'offline', 'both'] as const
+export const PREFERRED_MODES = ['online', 'offline', 'hybrid', 'both'] as const
 
 export const JOINING_TIMELINES = [
+  'as_soon_as_possible',
+  'next_available_intake',
+  'next_academic_year',
+  'specific_period',
+  'exploring',
   'immediate',
   'within_1_week',
   'within_1_month',
@@ -23,6 +28,7 @@ export const JOINING_TIMELINES = [
 export const PRIMARY_INTENTS = [
   'course_info',
   'course_recommendation',
+  'eligibility',
   'elligibility',
   'fees',
   'batch_or_schedule',
@@ -42,6 +48,7 @@ export const RECOMMENDED_NEXT_ACTIONS = [
   'schedule_campus_visit',
   'application_follow_up',
   'send_course_details',
+  'review_eligibility',
   'review_elligibility',
   'other',
 ] as const
@@ -62,6 +69,7 @@ export const FOLLOW_UP_TYPES = [
   'campus_visit',
   'application_follow_up',
   'send_course_details',
+  'review_eligibility',
   'review_elligibility',
   'other',
 ] as const
@@ -115,10 +123,10 @@ const leadFields = {
   educationLevel: optionalText(200),
   preferredMode: optionalEnum(PREFERRED_MODES),
   joiningTimeline: optionalEnum(JOINING_TIMELINES),
+  joiningPreferenceDetails: optionalText(2_000),
   primaryIntent: optionalEnum(PRIMARY_INTENTS),
   leadPriority: optionalEnum(LEAD_PRIORITIES),
   priorityReason: optionalText(2_000),
-  aiSummary: optionalText(10_000),
   recommendedNextAction: optionalEnum(RECOMMENDED_NEXT_ACTIONS),
   pipelineStage: optionalEnum(PIPELINE_STAGES),
   consentToContact: z.boolean().optional(),

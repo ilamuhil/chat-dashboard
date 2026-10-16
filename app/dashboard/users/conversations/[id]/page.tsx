@@ -1,6 +1,7 @@
 import { requireAuthUserId } from '@/lib/auth-server'
 import { resolveCurrentOrganizationId } from '@/lib/current-organization'
 import ChatInterface from './ChatInterface'
+import type { ConversationSummaryData } from './ConversationSummary'
 import { pythonApiRequest } from '@/lib/axios-server-config'
 import { notFound } from 'next/navigation'
 import { Message } from './types'
@@ -21,6 +22,8 @@ export default async function ConversationPage({ params }: { params: { id: strin
     return notFound()
   }
 
+  let leadId: string | null = null
+  let summary: ConversationSummaryData | undefined
   let messages: Message[] = []
   let conversationMode = 'ai'
   let conversationHandOverStatus = 'none'
@@ -36,15 +39,25 @@ export default async function ConversationPage({ params }: { params: { id: strin
       where: { id: conversationId, organizationId },
       select: {
         botId: true,
+        leadId: true,
         mode: true,
         handOverStatus: true,
         status: true,
         closedBy: true,
+        aiSummary: true,
+        summaryStatus: true,
+        summaryGeneratedAt: true,
       },
     })
     if (!conversation || !conversation.botId) {
       console.error('Conversation not found')
       return notFound()
+    }
+    leadId = conversation.leadId
+    summary = {
+      id: conversationId, status: conversation.status, closedBy: conversation.closedBy,
+      aiSummary: conversation.aiSummary, summaryStatus: conversation.summaryStatus,
+      summaryGeneratedAt: conversation.summaryGeneratedAt?.toISOString() ?? null,
     }
     conversationMode = conversation.mode
     conversationHandOverStatus = conversation.handOverStatus ?? 'none'
@@ -95,6 +108,8 @@ export default async function ConversationPage({ params }: { params: { id: strin
       initialStatus={conversationStatus}
       initialClosedBy={conversationClosedBy}
       initialLoadError={messageLoadError}
+      initialSummary={summary}
+      leadId={leadId}
     />
   )
 

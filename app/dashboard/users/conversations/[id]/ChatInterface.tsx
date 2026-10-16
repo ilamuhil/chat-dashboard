@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { isAxiosError } from 'axios'
 import {
   CheckIcon,
+  CheckCircle2Icon,
   ExpandIcon,
   LoaderCircleIcon,
   Minimize2Icon,
@@ -25,6 +26,8 @@ import { clientApiAxios } from '@/lib/axios-client'
 import { useDashboardNotifications } from '@/app/dashboard/notifications/NotificationProvider'
 
 import ChatWindow from './ChatWindow'
+import LeadHistory from './LeadHistory'
+import ConversationSummary, { type ConversationSummaryData } from './ConversationSummary'
 import { useChatSocket } from './useChatSocket'
 import type { Message as ChatMessage } from './types'
 
@@ -73,6 +76,8 @@ type ChatInterfaceProps = {
   initialStatus: string
   initialClosedBy?: string | null
   initialLoadError?: string | null
+  initialSummary?: ConversationSummaryData
+  leadId?: string | null
 }
 
 export default function ChatInterface({
@@ -83,6 +88,8 @@ export default function ChatInterface({
   initialStatus,
   initialClosedBy = null,
   initialLoadError = null,
+  initialSummary,
+  leadId,
 }: ChatInterfaceProps) {
   const slotRef = React.useRef<HTMLDivElement>(null)
   const panelRef = React.useRef<HTMLElement>(null)
@@ -93,6 +100,8 @@ export default function ChatInterface({
   } | null>(null)
   const expandedChat = presentation !== null
   const [isJoining, setIsJoining] = React.useState(false)
+  const [isClosing, setIsClosing] = React.useState(false)
+  const [closeRequestedConversationId, setCloseRequestedConversationId] = React.useState<string | null>(null)
   const [socketError, setSocketError] = React.useState<string | null>(
     initialLoadError,
   )
@@ -226,7 +235,7 @@ export default function ChatInterface({
   const autoConnectPromiseRef =
     React.useRef<Promise<void> | null>(null)
 
-  const { markConversationRead } =
+  const { notifications, markConversationRead } =
     useDashboardNotifications()
 
   /*
@@ -245,6 +254,11 @@ export default function ChatInterface({
 
       const payload = data as Record<string, unknown>
 
+      if (payload.type === 'end_chat_request') {
+        setCloseRequestedConversationId(conversationId)
+        toast.info('The visitor has requested to end this conversation.')
+        return
+      }
       if (payload.type === 'error') {
         toast.error(
           typeof payload.message === 'string'
@@ -573,6 +587,24 @@ export default function ChatInterface({
     await requestAgentSocket(true, true)
   }
 
+  const closeConversation = async () => {
+    if (isClosing || conversationEnded) return
+    setIsClosing(true)
+    try {
+      await clientApiAxios.patch(`/api/dashboard/conversations/${conversationId}`, { status: 'closed' })
+      window.dispatchEvent(new CustomEvent(conversationStatusEvent, {
+        detail: { ids: [conversationId], status: 'closed', closedBy: 'support_agent' },
+      }))
+      toast.success('Conversation closed')
+    } catch {
+      toast.error('Could not close the conversation. Please try again.')
+    } finally {
+      setIsClosing(false)
+    }
+  }
+  const visitorRequestedClose = closeRequestedConversationId === conversationId || notifications.some(
+    item => item.type === 'end_chat_request' && item.metadata.conversationId === conversationId)
+
   const reportTyping = React.useCallback(
     (active: boolean) => {
       if (readyState !== 'open') return false
@@ -788,6 +820,14 @@ export default function ChatInterface({
               </Button>
             )}
 
+            {!conversationEnded && (
+              <Button type='button' size='sm' variant='outline' onClick={() => void closeConversation()}
+                disabled={isClosing} className='h-8 rounded-lg px-2.5 text-xs'>
+                {isClosing ? <LoaderCircleIcon className='mr-1.5 size-3.5 animate-spin' /> : <CheckCircle2Icon className='mr-1.5 size-3.5' />}
+                Close conversation
+              </Button>
+            )}
+
             {conversationEnded ? (
               <span className='inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2 py-1.5 text-[11px] font-medium text-slate-600'>
                 Chat closed
@@ -840,6 +880,14 @@ export default function ChatInterface({
           </div>
         </header>
 
+        {leadId && <LeadHistory key={`history:${conversationId}`} conversationId={conversationId} />}
+        <ConversationSummary key={conversationId} conversationId={conversationId}
+          initialData={initialSummary} closed={conversationEnded} />
+        {visitorRequestedClose && !conversationEnded && (
+          <p role='status' className='border-b border-amber-100 bg-amber-50 px-4 py-2 text-xs text-amber-900'>
+            The visitor has requested to end this conversation. Use Close conversation when you are ready.
+          </p>
+        )}
         <div className='min-h-0 flex-1'>
           <ChatWindow
             messages={visibleMessages}

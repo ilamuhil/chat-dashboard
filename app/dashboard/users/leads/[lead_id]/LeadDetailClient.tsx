@@ -1,5 +1,6 @@
 'use client'
 
+import SummaryMarkdown from '@/components/summary-markdown'
 import { format } from 'date-fns'
 import {
   ArrowLeftIcon,
@@ -95,6 +96,7 @@ export type LeadDetail = {
   educationLevel: NullableString
   preferredMode: NullableString
   joiningTimeline: NullableString
+  joiningPreferenceDetails: NullableString
   primaryIntent: NullableString
   leadPriority: NullableString
   priorityReason: NullableString
@@ -140,10 +142,16 @@ const enquirerTypes: Option[] = [
 const preferredModes: Option[] = [
   { value: 'online', label: 'Online' },
   { value: 'offline', label: 'Offline' },
-  { value: 'both', label: 'Online and offline' },
+  { value: 'hybrid', label: 'Hybrid' },
+  { value: 'both', label: 'Online and offline (legacy)' },
 ]
 
 const joiningTimelines: Option[] = [
+  { value: 'as_soon_as_possible', label: 'As soon as possible' },
+  { value: 'next_available_intake', label: 'Next available intake' },
+  { value: 'next_academic_year', label: 'Next academic year' },
+  { value: 'specific_period', label: 'Specific period' },
+  { value: 'exploring', label: 'Exploring' },
   { value: 'immediate', label: 'Immediately' },
   { value: 'within_1_week', label: 'Within 1 week' },
   { value: 'within_1_month', label: 'Within 1 month' },
@@ -154,7 +162,8 @@ const joiningTimelines: Option[] = [
 const primaryIntents: Option[] = [
   { value: 'course_info', label: 'Course information' },
   { value: 'course_recommendation', label: 'Course recommendation' },
-  { value: 'elligibility', label: 'Eligibility' },
+  { value: 'eligibility', label: 'Eligibility' },
+  { value: 'elligibility', label: 'Eligibility (legacy)' },
   { value: 'fees', label: 'Fees' },
   { value: 'batch_or_schedule', label: 'Batch or schedule' },
   { value: 'application', label: 'Application' },
@@ -177,7 +186,8 @@ const nextActions: Option[] = [
   { value: 'schedule_campus_visit', label: 'Schedule campus visit' },
   { value: 'application_follow_up', label: 'Application follow-up' },
   { value: 'send_course_details', label: 'Send course details' },
-  { value: 'review_elligibility', label: 'Review eligibility' },
+  { value: 'review_eligibility', label: 'Review eligibility' },
+  { value: 'review_elligibility', label: 'Review eligibility (legacy)' },
   { value: 'other', label: 'Other' },
 ]
 
@@ -197,7 +207,8 @@ const followUpTypes: Option[] = [
   { value: 'campus_visit', label: 'Campus visit' },
   { value: 'application_follow_up', label: 'Application follow-up' },
   { value: 'send_course_details', label: 'Send course details' },
-  { value: 'review_elligibility', label: 'Review eligibility' },
+  { value: 'review_eligibility', label: 'Review eligibility' },
+  { value: 'review_elligibility', label: 'Review eligibility (legacy)' },
   { value: 'other', label: 'Other' },
 ]
 
@@ -676,6 +687,7 @@ export default function LeadDetailClient({
               icon={GraduationCapIcon}>
               <div className='grid gap-3 sm:grid-cols-2'>
                 <DetailField label='Student name' value={lead.studentName} />
+                <DetailField label='Joining preference details' value={lead.joiningPreferenceDetails} />
                 <DetailField label='Age' value={lead.studentAge} kind='numeric' />
                 <DetailField label='Gender' value={lead.studentGender} />
                 <DetailField
@@ -745,14 +757,12 @@ export default function LeadDetailClient({
           </DetailSection>
 
           <DetailSection
-            title='AI insight'
-            description='AI-initialized context that your team can refine.'
+            title='Lead summary'
+            description='Consolidated across this visitor’s chats. Updated after a conversation closes.'
             icon={SparklesIcon}>
-            <DetailField
-              label='Summary'
-              value={lead.aiSummary || 'No AI summary is available for this lead.'}
-              kind='narrative'
-            />
+            {lead.aiSummary ? <SummaryMarkdown source={lead.aiSummary} /> : (
+              <p className='text-sm text-muted-foreground'>No AI summary is available for this lead.</p>
+            )}
           </DetailSection>
         </div>
 
@@ -1052,10 +1062,10 @@ type LeadFormState = {
   educationLevel: string
   preferredMode: string
   joiningTimeline: string
+  joiningPreferenceDetails: string
   primaryIntent: string
   leadPriority: string
   priorityReason: string
-  aiSummary: string
   recommendedNextAction: string
   pipelineStage: string
   consentToContact: boolean
@@ -1074,10 +1084,10 @@ function leadFormState(lead: LeadDetail): LeadFormState {
     educationLevel: lead.educationLevel ?? '',
     preferredMode: lead.preferredMode ?? 'none',
     joiningTimeline: lead.joiningTimeline ?? 'none',
+    joiningPreferenceDetails: lead.joiningPreferenceDetails ?? '',
     primaryIntent: lead.primaryIntent ?? 'none',
     leadPriority: lead.leadPriority ?? 'none',
     priorityReason: lead.priorityReason ?? '',
-    aiSummary: lead.aiSummary ?? '',
     recommendedNextAction: lead.recommendedNextAction ?? 'none',
     pipelineStage: lead.pipelineStage ?? 'none',
     consentToContact: lead.consentToContact ?? false,
@@ -1237,15 +1247,16 @@ function LeadEditDialog({
           educationLevel: optionalValue(formState.educationLevel),
           preferredMode: optionalValue(formState.preferredMode),
           joiningTimeline: optionalValue(formState.joiningTimeline),
+          joiningPreferenceDetails: optionalValue(formState.joiningPreferenceDetails),
           primaryIntent: optionalValue(formState.primaryIntent),
           leadPriority: optionalValue(formState.leadPriority),
           priorityReason: optionalValue(formState.priorityReason),
-          aiSummary: optionalValue(formState.aiSummary),
           recommendedNextAction: optionalValue(
             formState.recommendedNextAction,
           ),
           pipelineStage: optionalValue(formState.pipelineStage),
-          consentToContact: formState.consentToContact,
+          ...(formState.consentToContact !== (lead.consentToContact ?? false)
+            ? { consentToContact: formState.consentToContact } : {}),
         }),
       })
       if (!response.ok) throw new Error(await readError(response))
@@ -1413,6 +1424,11 @@ function LeadEditDialog({
               onChange={value => setField('joiningTimeline', value)}
               disabled={isSaving}
             />
+            <FormField id='edit-joining-details' label='Joining preference details'>
+              <Input id='edit-joining-details' value={formState.joiningPreferenceDetails}
+                onChange={event => setField('joiningPreferenceDetails', event.target.value)}
+                maxLength={2000} disabled={isSaving} className={formControlClass} />
+            </FormField>
             <FormSelect
               id='edit-primary-intent'
               label='Primary intent'
@@ -1465,20 +1481,6 @@ function LeadEditDialog({
                 onChange={event =>
                   setField('priorityReason', event.target.value)
                 }
-                disabled={isSaving}
-                className={formControlClass}
-              />
-            </FormField>
-            <FormField
-              id='edit-ai-summary'
-              label='AI summary'
-              className='sm:col-span-2'>
-              <Textarea
-                id='edit-ai-summary'
-                maxLength={10000}
-                rows={5}
-                value={formState.aiSummary}
-                onChange={event => setField('aiSummary', event.target.value)}
                 disabled={isSaving}
                 className={formControlClass}
               />

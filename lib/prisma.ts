@@ -11,6 +11,8 @@ if (!connectionString) {
 
 const adapter = new PrismaPg({ connectionString });
 
-const prisma = new PrismaClient({ adapter });
+const globalForPrisma = globalThis as unknown as { billingPrisma?: PrismaClient };
+const prisma = globalForPrisma.billingPrisma ?? new PrismaClient({ adapter });
+if (process.env.NODE_ENV !== 'production') globalForPrisma.billingPrisma = prisma;
 
 export { prisma }

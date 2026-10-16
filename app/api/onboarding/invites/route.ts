@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { withBillingLock, assertCapacity } from '@/lib/billing/service'
 import { getAuthUserIdFromCookies } from '@/lib/auth-server'
 import { z } from 'zod'
 
@@ -16,7 +17,7 @@ export async function GET() {
   if (!user?.email) return NextResponse.json({ ok: true, invites: [] })
 
   const invites = await prisma.organizationInvites.findMany({
-    where: { email: user.email.toLowerCase(), acceptedAt: null },
+    where: { email: user.email.toLowerCase(), acceptedAt: null, createdAt: { gt: new Date(Date.now() - 14 * 86400000) } },
     include: { organization: { select: { name: true } } },
     orderBy: { createdAt: 'desc' },
   })
@@ -52,29 +53,21 @@ export async function POST(request: NextRequest) {
     }
 
     const invite = await prisma.organizationInvites.findFirst({
-      where: { id: body.inviteId, email: user.email.toLowerCase(), acceptedAt: null },
+      where: { id: body.inviteId, email: user.email.toLowerCase(), acceptedAt: null, createdAt: { gt: new Date(Date.now() - 14 * 86400000) } },
     })
     if (!invite) {
       return NextResponse.json({ ok: false, error: 'Invite not found' }, { status: 404 })
     }
 
-    const existingMember = await prisma.organizationMembers.findFirst({
-      where: { organizationId: invite.organizationId, userId },
-      select: { id: true },
-    })
-    if (!existingMember) {
-      await prisma.organizationMembers.create({
-        data: {
-          organizationId: invite.organizationId,
-          userId,
-          role: 'editor',
-        },
-      })
-    }
-
-    await prisma.organizationInvites.update({
-      where: { id: invite.id },
-      data: { acceptedAt: new Date() },
+    await withBillingLock(invite.organizationId, async tx => {
+      const pending = await tx.organizationInvites.findFirst({ where: { id: invite.id, acceptedAt: null } })
+      if (!pending) throw new Error('Invitation is no longer available')
+      const existing = await tx.organizationMembers.findFirst({ where: { organizationId: invite.organizationId, userId } })
+      if (!existing) {
+        await assertCapacity(tx, invite.organizationId, 'members', 0)
+        await tx.organizationMembers.create({ data: { organizationId: invite.organizationId, userId, role: invite.role } })
+      }
+      await tx.organizationInvites.update({ where: { id: invite.id }, data: { acceptedAt: new Date() } })
     })
 
     await prisma.users.update({

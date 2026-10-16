@@ -19,7 +19,7 @@ function getNotificationRoute(
   type: string,
   metadata: Record<string, unknown>,
 ): string | null {
-  if (type === 'handover_request') {
+  if ((type === 'handover_request' || type === 'end_chat_request')) {
     const conversationId = metadata.conversationId
 
     if (typeof conversationId === 'string') {

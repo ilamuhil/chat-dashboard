@@ -33,6 +33,9 @@ export async function GET(request: NextRequest) {
     where,
     select: {
       id: true,
+      leadId: true,
+      botId: true,
+      createdAt: true,
       lastMessageAt: true,
       lastMessageSnippet: true,
       status: true,
@@ -52,6 +55,9 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(
     conversations.map(conversation => ({
       id: conversation.id,
+      leadId: conversation.leadId,
+      botId: conversation.botId,
+      createdAt: conversation.createdAt.toISOString(),
       name: conversation.lead?.name || 'Unknown',
       email: conversation.lead?.email || 'Unknown',
       phone: conversation.lead?.phone || 'Unknown',

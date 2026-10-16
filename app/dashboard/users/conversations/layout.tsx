@@ -17,6 +17,9 @@ export default async function ConversationsLayout({
         where: { organizationId },
         select: {
           id: true,
+          leadId: true,
+          botId: true,
+          createdAt: true,
           lastMessageAt: true,
           lastMessageSnippet: true,
           status: true,
@@ -30,13 +33,16 @@ export default async function ConversationsLayout({
             },
           },
         },
-        orderBy: { lastMessageAt: 'desc' },
+        orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }],
       })
     : []
   const chats = conversations.map(c => {
     const lead = c.lead
     return {
       id: c.id,
+      leadId: c.leadId,
+      botId: c.botId,
+      createdAt: c.createdAt.toISOString(),
       name: lead?.name || 'Unknown',
       email: lead?.email || 'Unknown',
       phone: lead?.phone || 'Unknown',
@@ -51,9 +57,9 @@ export default async function ConversationsLayout({
   return (
     <DashboardPageHeader
       title='Conversations'
-      description='Review live and recent chats between visitors and your bots.'
+      description='One place for each lead, with every conversation and the latest information.'
       scrollable={false}>
-      <ConversationShell chats={chats}>{children}</ConversationShell>
+      <ConversationShell key={organizationId} organizationId={organizationId} chats={chats}>{children}</ConversationShell>
     </DashboardPageHeader>
   )
 }

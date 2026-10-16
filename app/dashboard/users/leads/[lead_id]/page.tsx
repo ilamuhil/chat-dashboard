@@ -46,6 +46,7 @@ export default async function LeadDetailPage({
         educationLevel: true,
         preferredMode: true,
         joiningTimeline: true,
+        joiningPreferenceDetails: true,
         primaryIntent: true,
         leadPriority: true,
         priorityReason: true,

@@ -45,3 +45,11 @@ next-env.d.ts
 /lib/generated/prisma
 
 /generated/prisma
+
+# Local package store and browser test reports
+.pnpm-store/
+playwright-report/
+test-results/
+
+# Private sandbox fixtures and verification artifacts
+.billing-test/

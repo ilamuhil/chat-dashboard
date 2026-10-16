@@ -114,6 +114,28 @@ function isThematicBreakMessage(content: string) {
   return /^(?:\s*-\s*){3,}$/.test(content)
 }
 
+function leadFormFields(content: string): Array<{ label: string; value: string }> | null {
+  if (!content.trimStart().startsWith('{')) return null
+  try {
+    const payload: unknown = JSON.parse(content)
+    if (!payload || typeof payload !== 'object' || !('event' in payload) || payload.event !== 'lead_form') return null
+    const profile = 'profile' in payload ? payload.profile : null
+    if (!profile || typeof profile !== 'object' || Array.isArray(profile)) return null
+    const values = profile as Record<string, unknown>
+    const contactValue = (key: string) => typeof values[key] === 'string' && values[key].trim()
+      ? values[key].trim() : 'Not provided'
+    return [
+      { label: 'Name', value: contactValue('name') },
+      { label: 'Email', value: contactValue('email') },
+      { label: 'Phone', value: contactValue('phone') },
+      { label: 'Contact consent', value: values.consent_to_contact === true ? 'Granted'
+        : values.consent_to_contact === false ? 'Not granted' : 'Not specified' },
+    ]
+  } catch {
+    return null
+  }
+}
+
 export default function ChatWindow(props: ChatWindowProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const scrollAnchorRef = useRef<HTMLDivElement>(null)
@@ -223,6 +245,7 @@ export default function ChatWindow(props: ChatWindowProps) {
     }
 
     const isUser = message.role === 'user'
+    const formFields = isUser ? leadFormFields(message.content) : null
     const visualRole = isUser ? 'user' : 'assistant'
     const isLastMessage = index === messages.length - 1
     const nextMessage = messages[index + 1]
@@ -307,12 +330,26 @@ export default function ChatWindow(props: ChatWindowProps) {
                 ? 'bg-[#e9e9eb] text-[#1e293b]'
                 : 'bg-sky-700 text-white'
             )}>
-            <div
-              className='chat-markdown wrap-break-word'
-              dangerouslySetInnerHTML={{
-                __html: renderChatMarkdown(message.content),
-              }}
-            />
+            {formFields ? (
+              <div className='space-y-2 text-[#0f172a]'>
+                <p className='font-semibold'>Visitor details</p>
+                <dl className='space-y-1.5'>
+                  {formFields.map(field => (
+                    <div key={field.label} className='grid grid-cols-[auto_1fr] items-baseline gap-x-3'>
+                      <dt className='font-semibold'>{field.label}</dt>
+                      <dd className='min-w-0 whitespace-pre-wrap wrap-break-word'>{field.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            ) : (
+              <div
+                className='chat-markdown wrap-break-word'
+                dangerouslySetInnerHTML={{
+                  __html: renderChatMarkdown(message.content),
+                }}
+              />
+            )}
           </div>
           {showTimestamp && (
             <time className='mt-1 px-1 text-[11px] text-muted-foreground'>

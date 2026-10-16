@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { resolveCurrentOrganizationId } from '@/lib/current-organization'
 import { requireAuthUserId } from '@/lib/auth-server'
 import { prisma } from '@/lib/prisma'
+import { withBillingLock, assertCapacity } from '@/lib/billing/service'
 import { getSecretKey } from '@/lib/jwt'
 import { pythonApiRequest } from '@/lib/axios-server-config'
 import { signToken } from '@/lib/jwt'
@@ -298,7 +299,9 @@ export async function updateBotInteractions(
       nonce,
     }
   } else {
-    const newBot = await prisma.bots.create({
+    const newBot = await withBillingLock(organizationId, async tx => {
+      await assertCapacity(tx, organizationId, 'bots')
+      return tx.bots.create({
       data: dbData,
       select: {
         id: true,
@@ -319,6 +322,7 @@ export async function updateBotInteractions(
         createdAt: true,
         updatedAt: true,
       },
+      })
     })
 
     // call python server and create a new records for the model config version.

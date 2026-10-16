@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { withBillingLock, assertCapacity, BillingError } from '@/lib/billing/service'
 import { requireUserOrgAndBot } from '@/lib/auth-server'
 export async function POST(request: NextRequest) { 
   const { bot_id, url } = await request.json()
@@ -35,7 +36,9 @@ export async function POST(request: NextRequest) {
     )
   }
   try {
-    const source = await prisma.trainingSources.create({
+    const source = await withBillingLock(auth.organizationId, async tx => {
+      await assertCapacity(tx, auth.organizationId, 'sources')
+      return tx.trainingSources.create({
       data: {
         organizationId: auth.organizationId,
         botId: auth.botId,
@@ -45,8 +48,10 @@ export async function POST(request: NextRequest) {
       },
       select: { id: true },
     })
+    })
     return NextResponse.json({message: 'URL added successfully', id: source.id})
   } catch (e: unknown) { 
+    if (e instanceof BillingError) return NextResponse.json({ error: e.message }, { status: e.status })
     console.error('Error adding URL:', e)
     return NextResponse.json({ error: 'Failed to add URL' }, { status: 500 })
   }

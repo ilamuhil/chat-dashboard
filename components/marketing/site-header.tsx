@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 const links = [
   { href: '/#features', label: 'Features' },
   { href: '/#workflow', label: 'How it works' },
+  { href: '/pricing', label: 'Pricing' },
   { href: '/docs', label: 'Docs' },
 ]
 
@@ -41,8 +42,8 @@ export function SiteHeader() {
         <nav aria-label='Main navigation' className='hidden items-center gap-1 md:flex'>
           {links.map(link => {
             const active =
-              link.href === '/docs'
-                ? pathname.startsWith('/docs')
+              link.href === '/docs' || link.href === '/pricing'
+                ? pathname.startsWith(link.href)
                 : false
             return (
               <Link

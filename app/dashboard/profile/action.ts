@@ -185,6 +185,11 @@ async function createOrUpdateOrganization(
 }> {
   try {
     const orgId = id || nanoid()
+    if (id) {
+      const userId = await requireAuthUserId()
+      const member = await prisma.organizationMembers.findFirst({ where: { organizationId: id, userId, role: 'admin' } })
+      if (!member) return { error: 'Only organization administrators can update this profile.' }
+    }
     const address: {
       address_line1: string
       address_line2: string | null

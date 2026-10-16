@@ -13,6 +13,8 @@ import { verifyAuthToken } from '@/lib/auth-token'
 import { prisma } from '@/lib/prisma'
 import { getOnboardingStatus } from '@/lib/auth-server'
 import Boot from '@/app/boot'
+import { BillingIntent } from '@/components/billing-intent'
+import { BillingStatus } from '@/components/billing-status'
 import { NotificationProvider } from '@/app/dashboard/notifications/NotificationProvider'
 import DashboardNotifications from '@/components/dashboard-notifications'
 import DashboardFeedback from '@/components/dashboard-feedback'
@@ -75,6 +77,7 @@ export default async function DashboardLayout({
       <NotificationProvider>
         <SidebarProvider className='h-svh overflow-hidden'>
           <Boot />
+          <BillingIntent />
           <AppSidebar user={user} organizations={organizations} />
           <SidebarInset className='min-h-0 overflow-hidden bg-slate-50'>
             <header className='flex h-14 shrink-0 items-center border-b border-slate-200/80 bg-linear-to-r from-white via-white to-sky-50/40 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 dark:to-slate-900/40'>
@@ -93,6 +96,7 @@ export default async function DashboardLayout({
               </div>
             </header>
             <main className='flex min-h-0 flex-1 flex-col overflow-hidden bg-linear-to-b from-slate-50 via-slate-50 to-sky-50/30 px-4 py-6 dark:to-slate-900/30'>
+              <BillingStatus />
               {children}
             </main>
           </SidebarInset>

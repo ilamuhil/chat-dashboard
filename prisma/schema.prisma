@@ -1,7 +1,202 @@
-
 generator client {
-  provider = "prisma-client-js"
-  output   = "../generated/prisma"
+  provider        = "prisma-client-js"
+  previewFeatures = ["partialIndexes"]
+  output          = "../generated/prisma"
+}
+
+// Organization-scoped billing. Prisma owns these tables; chat_api mirrors them.
+model BillingAccount {
+  organization           Organizations        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  periods                BillingPeriod[]
+  checkouts              BillingCheckout[]
+  payments               BillingPayment[]
+  usage                  BillingUsage[]
+  packs                  BillingCreditPack[]
+  sources                BillingSourceUsage[]
+  notices                BillingNotice[]
+  organizationId         String               @id @map("organization_id")
+  planId                 String               @default("trial") @map("plan_id")
+  planVersion            String               @map("plan_version")
+  limits                 Json                 @db.JsonB
+  status                 String               @default("trialing")
+  trialEndsAt            DateTime             @map("trial_ends_at") @db.Timestamptz(6)
+  paidThrough            DateTime?            @map("paid_through") @db.Timestamptz(6)
+  graceUntil             DateTime?            @map("grace_until") @db.Timestamptz(6)
+  currentPeriodId        String?              @map("current_period_id") @db.Uuid
+  providerSubscriptionId String?              @unique @map("provider_subscription_id")
+  providerStatus         String?              @map("provider_status")
+  providerUpdatedAt      DateTime?            @map("provider_updated_at") @db.Timestamptz(6)
+  cancelAtPeriodEnd      Boolean              @default(false) @map("cancel_at_period_end")
+  pendingPlanId          String?              @map("pending_plan_id")
+  billingDetails         Json                 @default("{}") @map("billing_details") @db.JsonB
+  createdAt              DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("billing_accounts")
+  @@schema("public")
+}
+
+model BillingTrialClaim {
+  userId         String         @id @map("user_id") @db.Uuid
+  organizationId String         @map("organization_id")
+  claimedAt      DateTime       @default(now()) @map("claimed_at") @db.Timestamptz(6)
+
+  @@map("billing_trial_claims")
+  @@schema("public")
+}
+
+model BillingPeriod {
+  account          BillingAccount @relation(fields: [organizationId], references: [organizationId], onDelete: Cascade)
+  id               String         @id @default(uuid()) @db.Uuid
+  organizationId   String         @map("organization_id")
+  planId           String         @map("plan_id")
+  planVersion      String         @map("plan_version")
+  startsAt         DateTime       @map("starts_at") @db.Timestamptz(6)
+  endsAt           DateTime       @map("ends_at") @db.Timestamptz(6)
+  replyLimit       Int            @map("reply_limit")
+  repliesUsed      Int            @default(0) @map("replies_used")
+  repliesReserved  Int            @default(0) @map("replies_reserved")
+  trainingLimit    BigInt         @map("training_limit")
+  trainingUsed     BigInt         @default(0) @map("training_used")
+  trainingReserved BigInt         @default(0) @map("training_reserved")
+  paymentId        String?        @unique @map("payment_id")
+
+  @@unique([organizationId, startsAt])
+  @@map("billing_periods")
+  @@schema("public")
+}
+
+model BillingCheckout {
+  account        BillingAccount @relation(fields: [organizationId], references: [organizationId], onDelete: Cascade)
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id")
+  planId         String         @map("plan_id")
+  kind           String         @default("subscription")
+  providerId     String         @unique @map("provider_id")
+  sessionId      String?        @map("session_id")
+  billingSnapshot Json          @default("{}") @map("billing_snapshot") @db.JsonB
+  status         String         @default("creating")
+  subtotalPaise  Int            @map("subtotal_paise")
+  taxPaise       Int            @map("tax_paise")
+  totalPaise     Int            @map("total_paise")
+  taxBps         Int            @map("tax_bps")
+  firstChargeAt  DateTime       @map("first_charge_at") @db.Timestamptz(6)
+  expiresAt      DateTime       @map("expires_at") @db.Timestamptz(6)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([organizationId, createdAt])
+  @@map("billing_checkouts")
+  @@schema("public")
+}
+
+model BillingPayment {
+  refunds                BillingRefund[]
+  account                BillingAccount @relation(fields: [organizationId], references: [organizationId], onDelete: Cascade)
+  id                     String         @id
+  organizationId         String         @map("organization_id")
+  providerSubscriptionId String?        @map("provider_subscription_id")
+  checkoutId             String         @map("checkout_id") @db.Uuid
+  kind                   String
+  status                 String
+  amountPaise            Int            @map("amount_paise")
+  refundedPaise          Int            @default(0) @map("refunded_paise")
+  currency               String         @default("INR")
+  scheduledAt            DateTime?      @map("scheduled_at") @db.Timestamptz(6)
+  paidAt                 DateTime?      @map("paid_at") @db.Timestamptz(6)
+  failureReason          String?        @map("failure_reason")
+  receiptNumber          String?        @unique @map("receipt_number")
+  invoiceNumber          String         @unique @default(dbgenerated("('INV'::text || lpad((nextval('billing_invoice_number_seq'::regclass))::text, 10, '0'::text))")) @map("invoice_number")
+  snapshot               Json           @default("{}") @db.JsonB
+  updatedAt              DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([organizationId, paidAt])
+  @@map("billing_payments")
+  @@schema("public")
+}
+
+model BillingRefund {
+  payment     BillingPayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  id          String         @id
+  paymentId   String         @map("payment_id")
+  amountPaise Int            @map("amount_paise")
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([paymentId])
+  @@map("billing_refunds")
+  @@schema("public")
+}
+
+model BillingEvent {
+  id          String    @id
+  eventType   String    @map("event_type")
+  providerId  String?   @map("provider_id")
+  payload     Json      @db.JsonB
+  receivedAt  DateTime  @default(now()) @map("received_at") @db.Timestamptz(6)
+  processedAt DateTime? @map("processed_at") @db.Timestamptz(6)
+  error       String?
+
+  @@map("billing_events")
+  @@schema("public")
+}
+
+model BillingUsage {
+  account        BillingAccount @relation(fields: [organizationId], references: [organizationId], onDelete: Cascade)
+  id             String         @id
+  organizationId String         @map("organization_id")
+  periodId       String         @map("period_id") @db.Uuid
+  kind           String
+  status         String         @default("reserved")
+  amount         BigInt
+  packId         String?        @map("pack_id")
+  response       Json?          @db.JsonB
+  cost           Json           @default("{}") @db.JsonB
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  completedAt    DateTime?      @map("completed_at") @db.Timestamptz(6)
+
+  @@index([organizationId, createdAt])
+  @@index([status, createdAt])
+  @@map("billing_usage")
+  @@schema("public")
+}
+
+model BillingCreditPack {
+  account        BillingAccount @relation(fields: [organizationId], references: [organizationId], onDelete: Cascade)
+  id             String         @id
+  organizationId String         @map("organization_id")
+  replies        Int
+  used           Int            @default(0)
+  reserved       Int            @default(0)
+  expiresAt      DateTime       @map("expires_at") @db.Timestamptz(6)
+  revoked        Boolean        @default(false)
+
+  @@index([organizationId, expiresAt])
+  @@map("billing_credit_packs")
+  @@schema("public")
+}
+
+model BillingSourceUsage {
+  account        BillingAccount @relation(fields: [organizationId], references: [organizationId], onDelete: Cascade)
+  sourceId       String         @id @map("source_id") @db.Uuid
+  organizationId String         @map("organization_id")
+  tokens         BigInt
+  pendingTokens  BigInt         @default(0) @map("pending_tokens")
+  contentHash    String?        @map("content_hash")
+
+  @@index([organizationId])
+  @@map("billing_source_usage")
+  @@schema("public")
+}
+
+model BillingNotice {
+  account        BillingAccount @relation(fields: [organizationId], references: [organizationId], onDelete: Cascade)
+  id             String         @id
+  organizationId String         @map("organization_id")
+  kind           String
+  sentAt         DateTime?      @map("sent_at") @db.Timestamptz(6)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("billing_notices")
+  @@schema("public")
 }
 
 datasource db {
@@ -10,7 +205,6 @@ datasource db {
   // Note: In Prisma 7, the 'url' field is deprecated in the schema file.
   // Database URL is now configured in prisma.config.ts instead.
 }
-
 
 enum OtpType {
   EMAIL
@@ -33,15 +227,16 @@ enum OtpPurpose {
 // ============================================================================
 
 model Organizations {
-  id              String   @id
-  createdAt       DateTime @default(now()) @map("created_at")
-  isEmailVerified Boolean  @default(false) @map("is_email_verified")
-  name            String?  @db.Text
-  logoUrl         String?  @map("logo_url") @db.Text
-  address         Json?    @db.JsonB
-  email           String?  @db.Text
-  phone           String?  @db.Text
-  emailToken      String?  @map("email_token") @db.Text
+  billingAccount  BillingAccount?
+  id              String          @id
+  createdAt       DateTime        @default(now()) @map("created_at")
+  isEmailVerified Boolean         @default(false) @map("is_email_verified")
+  name            String?         @db.Text
+  logoUrl         String?         @map("logo_url") @db.Text
+  address         Json?           @db.JsonB
+  email           String?         @db.Text
+  phone           String?         @db.Text
+  emailToken      String?         @map("email_token") @db.Text
 
   // Relations
   bots                Bots[]
@@ -103,9 +298,9 @@ model OrganizationMembers {
   organization Organizations? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user         Users?         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([organizationId, userId])
   @@index([userId])
   @@index([organizationId])
-  @@unique([organizationId, userId])
   @@map("organization_members")
   @@schema("public")
 }
@@ -224,7 +419,7 @@ model MagicLinks {
   expiresAt      DateTime  @map("expires_at")
   usedAt         DateTime? @map("used_at")
 
-  user         Users         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         Users          @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization Organizations? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -283,7 +478,7 @@ model TrainingSources {
   id               String    @id @default(uuid()) @db.Uuid
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
-  lastTrainedAt     DateTime? @map("last_trained_at")
+  lastTrainedAt    DateTime? @map("last_trained_at")
   organizationId   String?   @map("organization_id")
   botId            String?   @map("bot_id") @db.Uuid
   type             String?   @db.Text
@@ -295,7 +490,7 @@ model TrainingSources {
   sizeBytes        BigInt?   @map("size_bytes")
   mimeType         String?   @map("mime_type") @db.Text
   qualityStatus    String?   @map("quality_status") @db.Text //! good, warning, poor
-  qualitySummary   Json?     @map("quality_summary") @db.JsonB 
+  qualitySummary   Json?     @map("quality_summary") @db.JsonB
   deletedAt        DateTime? @map("deleted_at")
   deletedBy        String?   @map("deleted_by") @db.Text
   // deletedBy can be a user_id or "system"
@@ -326,6 +521,12 @@ model ConversationsMeta {
   lastMessageSnippet String?   @map("last_message_snippet") @db.Text
   lastMessageAt      DateTime? @map("last_message_at")
 
+  leadCaptureState        Json?     @map("lead_capture_state") @db.JsonB
+  aiSummary               String?   @map("ai_summary") @db.Text
+  summaryStatus           String    @default("pending") @map("summary_status") @db.Text
+  summaryThroughMessageId String?   @map("summary_through_message_id") @db.Uuid
+  summaryGeneratedAt      DateTime? @map("summary_generated_at")
+
   // Relations
   apiKey       ApiKeys?       @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
   bot          Bots?          @relation(fields: [botId], references: [id], onDelete: SetNull)
@@ -337,39 +538,43 @@ model ConversationsMeta {
 }
 
 model Leads {
-  id             String   @id @default(uuid()) @db.Uuid
-  name           String?  @db.Text
-  email          String?  @db.Text
-  phone          String?  @db.Text
-  enquirerType   String?  @db.Text @map("enquirer_type") //!parent | guardian | student | friend | relative | other 
-  studentName    String?  @map("student_name") @db.Text
-  studentAge     String?  @map("student_age") @db.Text
-  studentGender  String?  @map("student_gender") @db.Text
-  courseInterest String?  @map("course_interest") @db.Text
-  educationLevel String?  @map("education_level") @db.Text
-  preferredMode  String?  @map("preferred_mode") @db.Text //! online | offline | both
-  joiningTimeline String?  @map("joining_timeline") @db.Text //! immediate | within_1_week | within_1_month | within_3_months | beyond_3_months
-  primaryIntent String?  @map("primary_intent") @db.Text //! course_info, course_recommendation, elligibility, fees, batch_or_schedule, application, counselling, demo, campus_visit, general_enquiry, other
-  leadPriority  String?  @map("lead_priority") @db.Text //! hot warm cold
-  priorityReason String?  @map("priority_reason") @db.Text
-  aiSummary      String?  @map("ai_summary") @db.Text
-  recommendedNextAction String?  @map("recommended_next_action") @db.Text //! schedule_callback, schedule_demo, schedule_campus_visit, application_follow_up, send_course_details, review_elligibility, other
-  pipelineStage  String?  @map("pipeline_stage") @db.Text //! new_enquiry, qualified, counselling_requested, contacted, application_started, enrolled, lost
-  consent_to_contact Boolean? @default(false) @map("consent_to_contact")
-  updatedAt        DateTime @updatedAt @map("updated_at") 
-  capturedAt     DateTime @default(now()) @map("captured_at")
-  deletedAt      DateTime? @map("deleted_at")
-  deletedById    String?   @map("deleted_by_id") @db.Uuid
-  visitorId      String?   @map("visitor_id") @db.Uuid
-  organizationId String?  @map("organization_id")
-  botId          String?  @map("bot_id") @db.Uuid
+  id                       String    @id @default(uuid()) @db.Uuid
+  name                     String?   @db.Text
+  email                    String?   @db.Text
+  phone                    String?   @db.Text
+  enquirerType             String?   @map("enquirer_type") @db.Text //!parent | guardian | student | friend | relative | other
+  studentName              String?   @map("student_name") @db.Text
+  studentAge               String?   @map("student_age") @db.Text
+  studentGender            String?   @map("student_gender") @db.Text
+  courseInterest           String?   @map("course_interest") @db.Text
+  educationLevel           String?   @map("education_level") @db.Text
+  preferredMode            String?   @map("preferred_mode") @db.Text //! online | offline | both
+  joiningTimeline          String?   @map("joining_timeline") @db.Text //! immediate | within_1_week | within_1_month | within_3_months | beyond_3_months
+  joiningPreferenceDetails String?   @map("joining_preference_details") @db.Text
+  profileMetadata          Json      @default("{}") @map("profile_metadata") @db.JsonB
+  profileVersion           Int       @default(0) @map("profile_version")
+  primaryIntent            String?   @map("primary_intent") @db.Text //! course_info, course_recommendation, elligibility, fees, batch_or_schedule, application, counselling, demo, campus_visit, general_enquiry, other
+  leadPriority             String?   @map("lead_priority") @db.Text //! hot warm cold
+  priorityReason           String?   @map("priority_reason") @db.Text
+  aiSummary                String?   @map("ai_summary") @db.Text
+  recommendedNextAction    String?   @map("recommended_next_action") @db.Text //! schedule_callback, schedule_demo, schedule_campus_visit, application_follow_up, send_course_details, review_elligibility, other
+  pipelineStage            String?   @map("pipeline_stage") @db.Text //! new_enquiry, qualified, counselling_requested, contacted, application_started, enrolled, lost
+  consent_to_contact       Boolean?  @map("consent_to_contact")
+  updatedAt                DateTime  @updatedAt @map("updated_at")
+  capturedAt               DateTime  @default(now()) @map("captured_at")
+  deletedAt                DateTime? @map("deleted_at")
+  deletedById              String?   @map("deleted_by_id") @db.Uuid
+  visitorId                String?   @map("visitor_id") @db.Uuid
+  organizationId           String?   @map("organization_id")
+  botId                    String?   @map("bot_id") @db.Uuid
 
   // Relations
-  bot          Bots?              @relation(fields: [botId], references: [id], onDelete: SetNull)
+  bot           Bots?               @relation(fields: [botId], references: [id], onDelete: SetNull)
   conversations ConversationsMeta[]
-  organization Organizations?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization  Organizations?      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   leadFollowUps LeadFollowUps[]
 
+  @@unique([organizationId, botId, visitorId], map: "leads_active_visitor_key", where: raw("(deleted_at IS NULL)"))
   @@index([organizationId, deletedAt, capturedAt(sort: Desc)], name: "leads_org_deleted_captured_idx")
   @@index([organizationId, deletedAt, pipelineStage], name: "leads_org_deleted_stage_idx")
   @@map("leads")
@@ -393,25 +598,25 @@ model Notifications {
   @@schema("public")
 }
 
-
 model LeadFollowUps {
-  id             String    @id @default(uuid()) @db.Uuid
-  counsellorId   String?   @map("counsellor_id") @db.Uuid
-  followUpType   String?   @map("follow_up_type") @db.Text //! callback, demo, campus_visit, application_follow_up, send_course_details, review_elligibility, other
-  status         String?   @map("status") @db.Text //! pending, complete, cancelled
-  scheduledFor   DateTime? @map("scheduled_for")
-  completedAt    DateTime? @map("completed_at")
-  outcome        String?   @map("outcome") @db.Text //! contacted not_interested, interested, no_answer, follow_up_again, application_started, enrolled, lost
-  notes          String?   @map("notes") @db.Text
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at") @default(now())
-  leadId         String   @map("lead_id") @db.Uuid
-  lead           Leads    @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  deletedAt      DateTime? @map("deleted_at")
-  deletedById    String?   @map("deleted_by_id") @db.Uuid
+  id              String    @id @default(uuid()) @db.Uuid
+  sourceRequestId String?   @unique(map: "lead_follow_ups_source_request_key") @map("source_request_id") @db.Uuid
+  counsellorId    String?   @map("counsellor_id") @db.Uuid
+  followUpType    String?   @map("follow_up_type") @db.Text //! callback, demo, campus_visit, application_follow_up, send_course_details, review_elligibility, other
+  status          String?   @map("status") @db.Text //! pending, complete, cancelled
+  scheduledFor    DateTime? @map("scheduled_for")
+  completedAt     DateTime? @map("completed_at")
+  outcome         String?   @map("outcome") @db.Text //! contacted not_interested, interested, no_answer, follow_up_again, application_started, enrolled, lost
+  notes           String?   @map("notes") @db.Text
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
+  leadId          String    @map("lead_id") @db.Uuid
+  lead            Leads     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  deletedAt       DateTime? @map("deleted_at")
+  deletedById     String?   @map("deleted_by_id") @db.Uuid
 
   @@index([leadId])
   @@index([leadId, deletedAt, scheduledFor], name: "lead_follow_ups_lead_deleted_scheduled_idx")
-  @@schema("public")
   @@map("lead_follow_ups")
+  @@schema("public")
 }

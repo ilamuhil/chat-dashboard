@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { prisma } from '@/lib/prisma'
+import { getSecretKey, signToken } from '@/lib/jwt'
+import { pythonApiRequest } from '@/lib/axios-server-config'
 import { requireAuthUserId } from '@/lib/auth-server'
 import { resolveCurrentOrganizationId } from '@/lib/current-organization'
 
@@ -9,6 +11,25 @@ const updateSchema = z.object({
   status: z.enum(['open', 'closed']).optional(),
   isArchived: z.boolean().optional(),
 })
+
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ conversation_id: string }> },
+) {
+  const userId = await requireAuthUserId()
+  const organizationId = await resolveCurrentOrganizationId({ userId })
+  const { conversation_id: conversationId } = await params
+  if (!organizationId) return NextResponse.json({ error: 'Organization not found' }, { status: 403 })
+  const conversation = await prisma.conversationsMeta.findFirst({
+    where: { id: conversationId, organizationId },
+    select: {
+      id: true, status: true, closedBy: true, aiSummary: true,
+      summaryStatus: true, summaryGeneratedAt: true,
+    },
+  })
+  if (!conversation) return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
+  return NextResponse.json(conversation, { headers: { 'Cache-Control': 'no-store' } })
+}
 
 export async function PATCH(
   request: NextRequest,
@@ -29,7 +50,7 @@ export async function PATCH(
 
     const conversation = await prisma.conversationsMeta.findFirst({
       where: { id: conversationId, organizationId },
-      select: { id: true },
+      select: { id: true, botId: true },
     })
 
     if (!conversation) {
@@ -39,18 +60,25 @@ export async function PATCH(
       )
     }
 
+    if (body.status === 'closed') {
+      const key = getSecretKey()
+      if (!key) return NextResponse.json({ error: 'Chat service is not configured' }, { status: 503 })
+      const token = signToken({ organization_id: organizationId, bot_id: conversation.botId ?? '',
+        conversation_id: conversation.id, type: 'support_agent', sub: userId }, key)
+      await pythonApiRequest('POST', `/api/conversations/${conversation.id}/close`, token)
+    }
+
     const updated = await prisma.conversationsMeta.update({
       where: { id: conversation.id },
       data: {
         ...(body.status === 'closed'
-          ? {
-              status: 'closed' as const,
-              closedBy: 'support_agent',
-              closedAt: new Date(),
-            }
+          ? {}
           : body.status === 'open'
             ? {
                 status: 'open' as const,
+                mode: 'ai',
+                handOverStatus: 'none',
+                summaryStatus: 'pending',
                 closedBy: null,
                 closedAt: null,
               }
