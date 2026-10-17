@@ -258,6 +258,12 @@ model Bots {
   createdAt           DateTime  @default(now()) @map("created_at")
   name                String    @db.Text
   instituteName       String?   @map("institute_name") @db.Text
+  avatarUrl           String?   @map("avatar_url") @db.VarChar(2048)
+  supportEmail        String?   @map("support_email") @db.VarChar(254)
+  supportTeamName     String?   @map("support_team_name") @db.VarChar(60)
+  humanReplyMinutes   Int?      @map("human_reply_minutes")
+  supportHours        String?   @map("support_hours") @db.VarChar(120)
+  helpCenterUrl       String?   @map("help_center_url") @db.VarChar(2048)
   captureLeads        Boolean   @default(false) @map("capture_leads")
   updatedAt           DateTime  @default(now()) @map("updated_at")
   organizationId      String?   @map("organization_id")

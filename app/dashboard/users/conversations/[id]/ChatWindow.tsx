@@ -16,12 +16,13 @@ import {
   isConversationEndedMessage,
 } from '../conversation-status'
 import { useTypingActivity } from './useTypingActivity'
+import RichMediaMessage from './RichMediaMessage'
 
 type ChatWindowProps = {
   messages: Message[]
   expanded?: boolean
   onSendMessage?: (content: string) => void
-  onSendFile?: (fileName: string) => void
+  onSendFile?: (file: { name: string; url?: string; type: string }) => void
   uploadToken?: string | null
   onTypingActivity?: (active: boolean) => boolean
   isVisitorTyping?: boolean
@@ -77,10 +78,19 @@ async function uploadConversationFile(file: File, token: string) {
     throw new Error('File size must be less than 5MB')
   }
 
-  const allowedExtensions = ['pdf', 'docx', 'img', 'txt']
+  const allowedExtensions = [
+    'pdf',
+    'docx',
+    'txt',
+    'jpg',
+    'jpeg',
+    'png',
+    'gif',
+    'webp',
+  ]
   const extension = file.name.split('.').pop()?.toLowerCase()
   if (!extension || !allowedExtensions.includes(extension)) {
-    throw new Error('Allowed file types are pdf, docx, img, txt')
+    throw new Error('Allowed file types are images, pdf, docx, and txt')
   }
 
   const formData = new FormData()
@@ -107,11 +117,69 @@ async function uploadConversationFile(file: File, token: string) {
     throw new Error(serverMessage ?? 'Failed to upload file')
   }
 
-  return file.name
+  const body = (await response.json()) as { url?: unknown }
+  return {
+    name: file.name,
+    type: file.type,
+    url: typeof body.url === 'string' ? body.url : undefined,
+  }
 }
 
 function isThematicBreakMessage(content: string) {
   return /^(?:\s*-\s*){3,}$/.test(content)
+}
+
+function isSafeImageUrl(
+  url: string | null | undefined
+): url is string {
+  if (!url) return false
+  try {
+    const parsed = new URL(url, window.location.href)
+    return (
+      (parsed.protocol === 'https:' || parsed.protocol === 'http:') &&
+      true
+    )
+  } catch {
+    return false
+  }
+}
+
+const imageExtensions = /\.(?:avif|gif|jpe?g|png|webp)(?:$|[?#])/i
+
+function isKnownImageProxy(url: URL) {
+  return (
+    (url.hostname.startsWith('encrypted-tbn') &&
+      url.hostname.endsWith('.gstatic.com')) ||
+    url.hostname === 'external-content.duckduckgo.com'
+  )
+}
+
+function extractImagePreview(content: string) {
+  const candidates = content.match(/https?:\/\/\S+/gi) ?? []
+  for (const candidate of candidates) {
+    const value = candidate.replace(/[),.!?]+$/, '')
+    try {
+      const url = new URL(value)
+      let imageUrl: string | null = null
+      if (imageExtensions.test(url.pathname) || isKnownImageProxy(url)) {
+        imageUrl = url.toString()
+      } else {
+        const nestedUrl = url.searchParams.get('u')
+        if (nestedUrl && imageExtensions.test(new URL(nestedUrl).pathname)) {
+          imageUrl = nestedUrl
+        }
+      }
+      if (imageUrl) {
+        return {
+          url: imageUrl,
+          caption: content.replace(candidate, '').trim(),
+        }
+      }
+    } catch {
+      // Continue searching for another URL in the message.
+    }
+  }
+  return null
 }
 
 function leadFormFields(content: string): Array<{ label: string; value: string }> | null {
@@ -199,8 +267,8 @@ export default function ChatWindow(props: ChatWindowProps) {
         throw new Error('Join the conversation before uploading a file')
       }
       setFileUploading(true)
-      const fileName = await uploadConversationFile(file, props.uploadToken)
-      props.onSendFile?.(fileName)
+      const uploadedFile = await uploadConversationFile(file, props.uploadToken)
+      props.onSendFile?.(uploadedFile)
       toast.success('File uploaded successfully')
     } catch (error) {
       toast.error(
@@ -273,6 +341,15 @@ export default function ChatWindow(props: ChatWindowProps) {
       nextMessage &&
       (nextMessage.role === 'user') === (message.role === 'user')
 
+    const imagePreview =
+      message.file_url && message.mime_type?.startsWith('image/')
+      ? { url: message.file_url, caption: '' }
+      : extractImagePreview(message.content)
+    const imageUrl = imagePreview?.url
+    const captionHtml = imagePreview?.caption
+      ? renderChatMarkdown(imagePreview.caption)
+      : ''
+
     let borderRadiusClasses = ''
 
     if (visualRole === 'user') {
@@ -344,11 +421,26 @@ export default function ChatWindow(props: ChatWindowProps) {
               </div>
             ) : (
               <div
-                className='chat-markdown wrap-break-word'
-                dangerouslySetInnerHTML={{
-                  __html: renderChatMarkdown(message.content),
-                }}
-              />
+                className={cn(
+                  'chat-markdown wrap-break-word',
+                  imagePreview && 'chat-bubble-rich-media'
+                )}>
+                {isSafeImageUrl(imageUrl) ? (
+                  <RichMediaMessage
+                    url={imageUrl}
+                    alt={message.file_name || 'Image attachment'}
+                    captionHtml={captionHtml}
+                  />
+                ) : (
+                  message.content && (
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html: renderChatMarkdown(message.content),
+                      }}
+                    />
+                  )
+                )}
+              </div>
             )}
           </div>
           {showTimestamp && (

@@ -5,6 +5,9 @@ export type Message = {
   agent_id: string
   content_type: string
   content: string
+  file_url?: string | null
+  file_name?: string | null
+  mime_type?: string | null
   role: 'user' | 'support_agent' | 'ai' | 'system'
   closed_by?: string | null
 }

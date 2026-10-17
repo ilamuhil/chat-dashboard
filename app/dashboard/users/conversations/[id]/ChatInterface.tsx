@@ -287,6 +287,11 @@ export default function ChatInterface({
 
       if (!content) return
 
+      const fileUrl =
+        typeof payload.file_url === 'string' ? payload.file_url : null
+      const mimeType =
+        typeof payload.mime_type === 'string' ? payload.mime_type : null
+
       const payloadClosedBy =
         typeof payload.closed_by === 'string' ? payload.closed_by : null
       if (payloadClosedBy) {
@@ -377,6 +382,12 @@ export default function ChatInterface({
                     ? payload.type as string
                     : 'text',
               content,
+              file_url: fileUrl,
+              file_name:
+                typeof payload.file_name === 'string'
+                  ? payload.file_name
+                  : null,
+              mime_type: mimeType,
               role,
               closed_by: payloadClosedBy,
             },
@@ -661,14 +672,36 @@ export default function ChatInterface({
     })
   }
 
-  const sendFile = (fileName: string) => {
-    if (!socketEnabled || readyState !== 'open' || !fileName) return
+  const sendFile = (file: { name: string; url?: string; type: string }) => {
+    if (!socketEnabled || readyState !== 'open' || !file.name) return
     sendJsonMessage({
       type: 'file',
-      message: fileName,
-      content: fileName,
+      message: file.name,
+      content: file.url || file.name,
+      file_url: file.url,
+      file_name: file.name,
+      mime_type: file.type,
     })
-    appendLocalMessage(fileName, 'file')
+    setMessageState(current => ({
+      conversationId,
+      messages: [
+        ...(current.conversationId === conversationId
+          ? current.messages
+          : messages),
+        {
+          id: `local:${Date.now()}:${Math.random()}`,
+          conversation_id: conversationId,
+          created_at: new Date().toISOString(),
+          agent_id: '',
+          content_type: file.type || 'file',
+          content: file.name,
+          file_url: file.url ?? null,
+          file_name: file.name,
+          mime_type: file.type,
+          role: 'support_agent',
+        },
+      ],
+    }))
   }
 
   React.useLayoutEffect(() => {

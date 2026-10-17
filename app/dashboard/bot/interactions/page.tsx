@@ -20,6 +20,12 @@ export default async function BotInteractionsPage() {
   })
 
   const bots: Bot[] = botsRaw.map(b => ({
+    avatar_url: b.avatarUrl,
+    support_email: b.supportEmail,
+    support_team_name: b.supportTeamName,
+    human_reply_minutes: b.humanReplyMinutes,
+    support_hours: b.supportHours,
+    help_center_url: b.helpCenterUrl,
     id: b.id,
     organization_id: b.organizationId ?? organizationId,
     name: b.name,

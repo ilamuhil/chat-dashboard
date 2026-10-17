@@ -1,6 +1,7 @@
 'use server'
 
 import { z } from 'zod'
+import { widgetSettingsSchema } from '@/lib/widget-profile'
 import { resolveCurrentOrganizationId } from '@/lib/current-organization'
 import { requireAuthUserId } from '@/lib/auth-server'
 import { prisma } from '@/lib/prisma'
@@ -12,6 +13,12 @@ import { signToken } from '@/lib/jwt'
 export type Bot = {
   id: string
   organization_id: string
+  avatar_url: string | null
+  support_email: string | null
+  support_team_name: string | null
+  human_reply_minutes: number | null
+  support_hours: string | null
+  help_center_url: string | null
   name: string
   tone: string | null
   role: string | null
@@ -38,6 +45,12 @@ export type BotResult = {
 }
 
 export type BotFormValues = {
+  avatar_url: string
+  support_email: string
+  support_team_name: string
+  human_reply_minutes: string
+  support_hours: string
+  help_center_url: string
   name: string
   institute_name: string
   tone: string
@@ -53,46 +66,48 @@ export type BotFormValues = {
   capture_phone: boolean
 }
 
-const botMetSchema = z.object({
-  name: z.string().min(3, 'Bot name must be at least 3 characters').max(50),
-  tone: z.enum([
-    'friendly',
-    'professional',
-    'enthusiastic',
-    'casual',
-    'concise',
-    'empathetic',
-    'humorous',
-    'authoritative',
-    'formal',
-    'neutral',
-  ]),
-  role: z.enum([
-    'customer-support',
-    'sales',
-    'marketing',
-    'technical-support',
-    'other',
-  ]),
-  first_message: z.string().min(3).max(500),
-  institute_name: z.string().min(3).max(75).optional(),
-  lead_capture_message: z.string().optional(),
-  confirmation_message: z.string().optional(),
-  business_description: z
-    .string()
-    .min(3)
-    .refine(
-      value => value.trim().split(/\s+/).filter(Boolean).length <= 600,
-      'Business description must be 600 words or fewer',
-    ),
-  capture_leads: z.boolean(),
-  lead_capture_timing: z
-    .enum(['before-conversation', 'after-first-message'])
-    .optional(),
-  capture_name: z.boolean().optional(),
-  capture_email: z.boolean().optional(),
-  capture_phone: z.boolean().optional(),
-})
+const botMetSchema = z
+  .object({
+    name: z.string().min(3, 'Bot name must be at least 3 characters').max(50),
+    tone: z.enum([
+      'friendly',
+      'professional',
+      'enthusiastic',
+      'casual',
+      'concise',
+      'empathetic',
+      'humorous',
+      'authoritative',
+      'formal',
+      'neutral',
+    ]),
+    role: z.enum([
+      'customer-support',
+      'sales',
+      'marketing',
+      'technical-support',
+      'other',
+    ]),
+    first_message: z.string().min(3).max(500),
+    institute_name: z.string().min(3).max(75).optional(),
+    lead_capture_message: z.string().optional(),
+    confirmation_message: z.string().optional(),
+    business_description: z
+      .string()
+      .min(3)
+      .refine(
+        (value) => value.trim().split(/\s+/).filter(Boolean).length <= 600,
+        'Business description must be 600 words or fewer',
+      ),
+    capture_leads: z.boolean(),
+    lead_capture_timing: z
+      .enum(['before-conversation', 'after-first-message'])
+      .optional(),
+    capture_name: z.boolean().optional(),
+    capture_email: z.boolean().optional(),
+    capture_phone: z.boolean().optional(),
+  })
+  .extend(widgetSettingsSchema.shape)
 
 export async function updateBotInteractions(
   prevState: BotResult | null,
@@ -135,30 +150,38 @@ export async function updateBotInteractions(
     capturePhoneValue?.toString() === 'true'
 
   const formValues: BotFormValues = {
+    avatar_url: String(formData.get('avatar_url') ?? '').trim(),
+    support_email: String(formData.get('support_email') ?? '').trim(),
+    support_team_name: String(formData.get('support_team_name') ?? '').trim(),
+    human_reply_minutes: String(
+      formData.get('human_reply_minutes') ?? '',
+    ).trim(),
+    support_hours: String(formData.get('support_hours') ?? '').trim(),
+    help_center_url: String(formData.get('help_center_url') ?? '').trim(),
     name: String(formData.get('name') ?? ''),
     institute_name: String(formData.get('institute_name') ?? ''),
     tone: String(formData.get('tone') ?? ''),
     role: String(formData.get('role') ?? ''),
     first_message: String(formData.get('first_message') ?? ''),
-    lead_capture_message: String(
-      formData.get('lead_capture_message') ?? '',
-    ),
-    confirmation_message: String(
-      formData.get('confirmation_message') ?? '',
-    ),
-    business_description: String(
-      formData.get('business_description') ?? '',
-    ),
+    lead_capture_message: String(formData.get('lead_capture_message') ?? ''),
+    confirmation_message: String(formData.get('confirmation_message') ?? ''),
+    business_description: String(formData.get('business_description') ?? ''),
     capture_leads: captureLeads,
-    lead_capture_timing: String(
-      formData.get('lead_capture_timing') ?? '',
-    ),
+    lead_capture_timing: String(formData.get('lead_capture_timing') ?? ''),
     capture_name: captureName,
     capture_email: captureEmail,
     capture_phone: capturePhone,
   }
 
   const validatedFields = botMetSchema.safeParse({
+    avatar_url: String(formData.get('avatar_url') ?? '').trim(),
+    support_email: String(formData.get('support_email') ?? '').trim(),
+    support_team_name: String(formData.get('support_team_name') ?? '').trim(),
+    human_reply_minutes: String(
+      formData.get('human_reply_minutes') ?? '',
+    ).trim(),
+    support_hours: String(formData.get('support_hours') ?? '').trim(),
+    help_center_url: String(formData.get('help_center_url') ?? '').trim(),
     name: formData.get('name'),
     institute_name: formData.get('institute_name'),
     tone: formData.get('tone'),
@@ -176,7 +199,7 @@ export async function updateBotInteractions(
 
   if (!validatedFields.success) {
     const fieldErrors: Record<string, string[]> = {}
-    validatedFields.error.issues.forEach(issue => {
+    validatedFields.error.issues.forEach((issue) => {
       const path = issue.path.join('.')
       if (!fieldErrors[path]) {
         fieldErrors[path] = []
@@ -201,6 +224,14 @@ export async function updateBotInteractions(
   const botId = formData.get('bot_id')?.toString()
 
   const dbData = {
+    updatedAt: new Date(),
+    avatarUrl: data.avatar_url || null,
+    supportEmail: data.support_email || null,
+    supportTeamName: data.support_team_name || null,
+    humanReplyMinutes:
+      data.human_reply_minutes === '' ? null : data.human_reply_minutes,
+    supportHours: data.support_hours || null,
+    helpCenterUrl: data.help_center_url || null,
     organizationId,
     name: data.name,
     instituteName: data.institute_name,
@@ -218,6 +249,12 @@ export async function updateBotInteractions(
   }
 
   const mapBot = (b: {
+    avatarUrl: string | null
+    supportEmail: string | null
+    supportTeamName: string | null
+    humanReplyMinutes: number | null
+    supportHours: string | null
+    helpCenterUrl: string | null
     id: string
     organizationId: string | null
     name: string
@@ -236,6 +273,12 @@ export async function updateBotInteractions(
     createdAt: Date
     updatedAt: Date
   }): Bot => ({
+    avatar_url: b.avatarUrl,
+    support_email: b.supportEmail,
+    support_team_name: b.supportTeamName,
+    human_reply_minutes: b.humanReplyMinutes,
+    support_hours: b.supportHours,
+    help_center_url: b.helpCenterUrl,
     id: b.id,
     organization_id: b.organizationId ?? organizationId,
     institute_name: b.instituteName,
@@ -273,6 +316,12 @@ export async function updateBotInteractions(
       where: { id: botId },
       data: dbData,
       select: {
+        avatarUrl: true,
+        supportEmail: true,
+        supportTeamName: true,
+        humanReplyMinutes: true,
+        supportHours: true,
+        helpCenterUrl: true,
         id: true,
         organizationId: true,
         instituteName: true,
@@ -299,29 +348,35 @@ export async function updateBotInteractions(
       nonce,
     }
   } else {
-    const newBot = await withBillingLock(organizationId, async tx => {
+    const newBot = await withBillingLock(organizationId, async (tx) => {
       await assertCapacity(tx, organizationId, 'bots')
       return tx.bots.create({
-      data: dbData,
-      select: {
-        id: true,
-        organizationId: true,
-        instituteName: true,
-        name: true,
-        tone: true,
-        role: true,
-        businessDescription: true,
-        firstMessage: true,
-        confirmationMessage: true,
-        leadCaptureMessage: true,
-        captureLeads: true,
-        leadCaptureTiming: true,
-        captureName: true,
-        captureEmail: true,
-        capturePhone: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+        data: dbData,
+        select: {
+          avatarUrl: true,
+          supportEmail: true,
+          supportTeamName: true,
+          humanReplyMinutes: true,
+          supportHours: true,
+          helpCenterUrl: true,
+          id: true,
+          organizationId: true,
+          instituteName: true,
+          name: true,
+          tone: true,
+          role: true,
+          businessDescription: true,
+          firstMessage: true,
+          confirmationMessage: true,
+          leadCaptureMessage: true,
+          captureLeads: true,
+          leadCaptureTiming: true,
+          captureName: true,
+          captureEmail: true,
+          capturePhone: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       })
     })
 
