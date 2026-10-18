@@ -4,13 +4,10 @@ import { prisma } from '@/lib/prisma'
 import { getSecretKey, signToken } from '@/lib/jwt'
 import { pythonApiRequest } from '@/lib/axios-server-config'
 import { deleteFile, fileExists } from '@/lib/filemanagement'
-import { getAuthUserIdFromCookies } from '@/lib/auth-server'
 import { isAxiosError } from 'axios'
 
 const BUCKET = 'bot-files'
 // source status is created or pending (No training performed on resource) -> file type -> remove file from storage and delete transaction records, file records from db. url type -> delete transaction record from db.
-
-//TODO: trained resource deletion flow yet to be implemented.
 
 export async function DELETE(request: NextRequest) {
   // Authorization complete
@@ -25,10 +22,9 @@ export async function DELETE(request: NextRequest) {
 
   //Authorization check
   console.log('Authorization completed')
-  const userId = await getAuthUserIdFromCookies()
   const guard = await requireUserOrgAndBot(request, bot_id)
   if (!guard.ok) return guard.response
-  const { organizationId } = guard
+  const { organizationId, userId } = guard
 
   const source = await prisma.trainingSources.findFirst({
     where: { id: source_id, botId: bot_id, organizationId },
@@ -43,19 +39,23 @@ export async function DELETE(request: NextRequest) {
   }
 
   const isFile = source.type === 'file'
-  
+
 
 
   // Pre training source deletion logic
 
-  if (!isFile) { 
-    if (source.status === 'created' || source.status === 'pending') { 
+  if (!isFile) {
+    if (!source.deletedAt && (source.status === 'created' || source.status === 'pending')) {
       try {
-      await prisma.trainingSources.delete({
-        where: {
-            id: source.id,
-          }
+        const removed = await prisma.trainingSources.deleteMany({
+          where: {
+            id: source.id, botId: bot_id, organizationId, deletedAt: null,
+            status: { in: ['created', 'pending'] },
+          },
         })
+        if (removed.count === 0) {
+          return NextResponse.json({ error: 'Source changed. Refresh and retry.' }, { status: 409 })
+        }
         return NextResponse.json({ message: 'URL deleted successfully' }, { status: 200 })
       } catch (err: unknown) {
         console.error('URL deletion failed', err)
@@ -67,8 +67,15 @@ export async function DELETE(request: NextRequest) {
   if (isFile) {
     const deletionPath = source.sourceValue!
     try {
-      if (source.status === 'created' || source.status === 'pending') {
-        await prisma.$transaction(async tx => {
+      if (!source.deletedAt && (source.status === 'created' || source.status === 'pending')) {
+        const removed = await prisma.$transaction(async tx => {
+          const result = await tx.trainingSources.deleteMany({
+            where: {
+              id: source.id, botId: bot_id, organizationId, deletedAt: null,
+              status: { in: ['created', 'pending'] },
+            },
+          })
+          if (result.count === 0) return false
           await tx.files.deleteMany({
             where: {
               path: deletionPath,
@@ -77,12 +84,11 @@ export async function DELETE(request: NextRequest) {
             },
           })
 
-          await tx.trainingSources.delete({
-            where: {
-              id: source.id,
-            },
-          })
+          return true
         })
+        if (!removed) {
+          return NextResponse.json({ error: 'Source changed. Refresh and retry.' }, { status: 409 })
+        }
         console.log('transaction successful')
         //delete file from storage
         try {
@@ -130,44 +136,17 @@ export async function DELETE(request: NextRequest) {
   }
 
   const token = signToken(
-    { organization_id: organizationId, bot_id, type: 'support_agent' },
+    { organization_id: organizationId, bot_id, type: 'support_agent', sub: userId },
     privateKey,
     '5m'
   )
 
   try {
-    await prisma.$transaction(async tx => {
-      //get user id performing this action
-      await tx.trainingSources.update({
-        where: { id: source_id },
-        data: {
-          deletedAt: new Date(),
-          deletedBy: userId
-        }
-      })
-      if (isFile && source.sourceValue) {
-        // Find the file record by path, not by source_id
-        const fileRecord = await tx.files.findFirst({
-          where: {
-            path: source.sourceValue,
-            botId: bot_id,
-            organizationId: organizationId,
-            deletedAt: null,
-          },
-        })
-        if (fileRecord) {
-          await tx.files.update({
-            where: { id: fileRecord.id },
-            data: {
-              deletedAt: new Date(),
-              deletedBy: userId
-            }
-          })
-        }
-      }
-    })
-    await pythonApiRequest('DELETE', `/api/training/delete/${source_id}`, token)
-    return NextResponse.json({ message: 'Training source deleted successfully' }, { status: 200 })
+    // The chat API disables retrieval before committing the deletion metadata.
+    const result = await pythonApiRequest<{ message: string; job_id: string }>(
+      'DELETE', `/api/training/delete/${source_id}`, token,
+    )
+    return NextResponse.json(result, { status: 200 })
   } catch (error: unknown) {
     if (isAxiosError(error)) {
       return NextResponse.json({ error: error.response?.data?.error || 'Delete failed. If this issue persists, please contact support.' }, { status: error.response?.status ?? 500 })

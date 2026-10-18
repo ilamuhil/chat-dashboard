@@ -36,10 +36,10 @@ export async function POST(request: NextRequest) {
 
   const conversation = await prisma.conversationsMeta.findUnique({
     where: { id: conversation_id },
-    select: { id: true, botId: true, organizationId: true },
+    select: { id: true, botId: true, organizationId: true, status: true, handoverVersion: true },
   })
 
-  if (!conversation || !conversation.organizationId || !conversation.botId) {
+  if (!conversation || !conversation.organizationId || !conversation.botId || conversation.status !== 'open') {
     return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
   }
 
@@ -57,13 +57,6 @@ export async function POST(request: NextRequest) {
     select: { fullName: true, email: true },
   })
 
-  if (agent_takeover) {
-    await prisma.conversationsMeta.update({
-      where: { id: conversation.id },
-      data: { mode: 'human', handOverStatus: 'accepted' },
-    })
-  }
-
   const privateKey = getSecretKey()
   if (!privateKey) {
     return NextResponse.json({ error: 'Failed to create token' }, { status: 500 })
@@ -76,6 +69,8 @@ export async function POST(request: NextRequest) {
       conversation_id: conversation.id,
       type: 'support_agent',
       sub: userId,
+      agent_takeover: agent_takeover === true,
+      handover_version: conversation.handoverVersion,
     },
     privateKey
   )

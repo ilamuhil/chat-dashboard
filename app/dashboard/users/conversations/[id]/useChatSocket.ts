@@ -36,6 +36,7 @@ export function useChatSocket({
   onCloseCleanUp,
 }: UseChatSocketParams) {
   const socketRef = useRef<WebSocket | null>(null)
+  const authenticatedRef = useRef(false)
   const pendingMessagesRef = useRef<Array<Record<string, unknown>>>([])
   const onServerMessageRef = useRef(onServerMessage)
   const onCloseRef = useRef(onCloseCleanUp)
@@ -96,7 +97,7 @@ export function useChatSocket({
 
   const sendJsonMessage = useCallback((payload: Record<string, unknown>) => {
     const socket = socketRef.current
-    if (!socket || socket.readyState !== WebSocket.OPEN) {
+    if (!socket || socket.readyState !== WebSocket.OPEN || !authenticatedRef.current) {
       pendingMessagesRef.current.push(payload)
       return
     }
@@ -114,13 +115,13 @@ export function useChatSocket({
       const socket = new WebSocket(socketUrl)
       let stableConnectionTimer: ReturnType<typeof setTimeout> | undefined
       socketRef.current = socket
+      authenticatedRef.current = false
       setReadyState('connecting')
 
       socket.onopen = () => {
         if (cancelled || socketRef.current !== socket) return
 
         clearHeartbeat()
-        setReadyState('open')
 
         /*
          * Do not reset retries immediately on open. The server can accept
@@ -148,11 +149,6 @@ export function useChatSocket({
             conversation_id: activeConversationId,
           }),
         )
-
-        for (const payload of pendingMessagesRef.current) {
-          socket.send(JSON.stringify(payload))
-        }
-        pendingMessagesRef.current = []
 
         const sendPing = () => {
           if (
@@ -191,6 +187,16 @@ export function useChatSocket({
 
         try {
           const parsed = JSON.parse(raw) as { type?: unknown }
+          if (parsed.type === 'agent_ready') {
+            authenticatedRef.current = true
+            setReadyState('open')
+            for (const payload of pendingMessagesRef.current) {
+              if (payload.conversation_id && payload.conversation_id !== conversationIdRef.current) continue
+              socket.send(JSON.stringify(payload))
+            }
+            pendingMessagesRef.current = []
+            return
+          }
           if (parsed.type === 'pong') {
             awaitingPongRef.current = false
             if (watchDogTimerRef.current) {
@@ -212,6 +218,8 @@ export function useChatSocket({
       }
 
       socket.onclose = event => {
+        if (cancelled || socketRef.current !== socket) return
+        authenticatedRef.current = false
         clearHeartbeat()
         if (stableConnectionTimer) {
           clearTimeout(stableConnectionTimer)
@@ -223,7 +231,8 @@ export function useChatSocket({
           socketRef.current = null
         }
 
-        if (!manualCloseRef.current && attempt < 5) {
+        const permanent = event.code === 1000 || event.code === 1008 || event.code === 4001
+        if (!permanent && !manualCloseRef.current && attempt < 5) {
           const delay = Math.min(30_000, 2_000 * 2 ** attempt)
           attempt += 1
           setReadyState('connecting')

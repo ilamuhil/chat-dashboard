@@ -278,6 +278,20 @@ export default function ChatInterface({
         return
       }
 
+      if (payload.type === 'conversation_history' && Array.isArray(payload.messages)) {
+        const history = payload.messages.filter((item): item is ChatMessage =>
+          typeof item === 'object' && item !== null &&
+          typeof item.id === 'string' && item.conversation_id === conversationId)
+        setMessageState(current => {
+          const existing = current.conversationId === conversationId ? current.messages : messages
+          const merged = new Map(existing.filter(item => !item.id.startsWith('local:')).map(item => [item.id, item]))
+          for (const item of history) merged.set(item.id, item)
+          return { conversationId, messages: [...merged.values()].sort((a, b) =>
+            (a.created_at ?? '').localeCompare(b.created_at ?? '')) }
+        })
+        return
+      }
+
       const content =
         typeof payload.content === 'string'
           ? payload.content
@@ -404,6 +418,8 @@ export default function ChatInterface({
       showVisitorTyping,
     ],
   )
+
+  const autoConnectedConversationRef = React.useRef<string | null>(null)
 
   const handleSocketClosed = React.useCallback((reason?: string) => {
     setSocketEnabled(false)
@@ -564,11 +580,13 @@ export default function ChatInterface({
       !shouldAutoConnect ||
       socketEnabled ||
       isJoining ||
-      autoConnectPromiseRef.current
+      autoConnectPromiseRef.current ||
+      autoConnectedConversationRef.current === conversationId
     ) {
       return
     }
 
+    autoConnectedConversationRef.current = conversationId
     const promise = requestAgentSocket(
       false,
       false,
@@ -584,6 +602,7 @@ export default function ChatInterface({
       }
     })
   }, [
+    conversationId,
     initiallyClosed,
     initialHandOverStatus,
     initialMode,

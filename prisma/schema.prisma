@@ -513,6 +513,10 @@ model ConversationsMeta {
   id                 String    @id @default(uuid()) @db.Uuid
   createdAt          DateTime  @default(now()) @map("created_at")
   mode               String    @default("ai") @db.Text
+  handoverVersion    Int       @default(0) @map("handover_version")
+  visitorConnectionId String?  @map("visitor_connection_id") @db.Uuid
+  agentConnectionId  String?   @map("agent_connection_id") @db.Uuid
+  activeAgentId      String?   @map("active_agent_id") @db.Uuid
   organizationId     String    @map("organization_id")
   botId              String?   @map("bot_id") @db.Uuid
   leadId             String?   @map("lead_id") @db.Uuid

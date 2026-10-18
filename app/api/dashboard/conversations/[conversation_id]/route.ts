@@ -77,6 +77,10 @@ export async function PATCH(
             ? {
                 status: 'open' as const,
                 mode: 'ai',
+                handoverVersion: { increment: 1 },
+                visitorConnectionId: null,
+                agentConnectionId: null,
+                activeAgentId: null,
                 handOverStatus: 'none',
                 summaryStatus: 'pending',
                 closedBy: null,
