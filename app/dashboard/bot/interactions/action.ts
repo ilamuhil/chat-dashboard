@@ -380,6 +380,20 @@ export async function updateBotInteractions(
       })
     })
 
+    // Only an authenticated organization administrator may provision model configs.
+    const adminMembership = await prisma.organizationMembers.findFirst({
+      where: { organizationId, userId, role: 'admin' },
+      select: { id: true },
+    })
+    if (!adminMembership) {
+      await prisma.bots.delete({ where: { id: newBot.id } })
+      return {
+        error: 'Organization administrator required to create a bot',
+        nonce,
+        formValues,
+      }
+    }
+
     // call python server and create a new records for the model config version.
     const privateKey = getSecretKey()
     if (!privateKey) {
@@ -394,9 +408,11 @@ export async function updateBotInteractions(
       {
         organization_id: organizationId,
         bot_id: newBot.id,
-        type: 'support_agent',
+        type: 'dashboard_admin',
+        user_id: userId,
       },
       privateKey,
+      '5m',
     )
 
     try {
