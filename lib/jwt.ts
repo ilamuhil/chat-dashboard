@@ -24,7 +24,7 @@ export function signToken(
     organization_id: string
     bot_id: string
     conversation_id?: string
-    type: 'user' | 'support_agent'
+    type: 'user' | 'support_agent' | 'dashboard_admin'
     [key: string]: unknown
   },
   privateKey: string,
@@ -49,7 +49,7 @@ export type ChatTokenPayload = {
   organization_id: string
   bot_id: string
   conversation_id?: string
-  type: 'user' | 'support_agent'
+  type: 'user' | 'support_agent' | 'dashboard_admin'
   [key: string]: unknown
 }
 
