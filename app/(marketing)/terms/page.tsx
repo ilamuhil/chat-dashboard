@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { contactEmail } from '@/lib/marketing'
 
 import {
   LegalPage,
@@ -132,7 +133,7 @@ const sections: LegalSection[] = [
     paragraphs: [
       'We may update these terms from time to time. Updated terms take effect when posted or on a later stated date. Material changes may be communicated through the service or by email. Continued use after the effective date means you accept the updated terms.',
       'These terms are governed by applicable law and mandatory consumer protections that cannot be excluded. Disputes should first be raised with us in good faith so the parties can attempt an informal resolution.',
-      'Questions about these terms may be sent to support@aichatbot.example.',
+      `Questions about these terms may be sent to ${contactEmail()}.`,
     ],
   },
 ]

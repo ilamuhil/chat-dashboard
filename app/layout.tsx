@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     "education chatbot",
     "admissions automation",
     "student enquiry chatbot",
-    "admissions CRM",
+    "admissions lead management",
   ],
 
   icons: {

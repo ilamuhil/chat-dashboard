@@ -1,525 +1,585 @@
 import type { Metadata } from 'next'
-import Image from 'next/image'
 import Link from 'next/link'
 import {
+  ArrowDown,
   ArrowRight,
+  ArrowUpRight,
   BellRing,
+  BookOpen,
   Check,
-  CircleCheck,
-  FileSearch,
+  CheckCircle2,
+  ChevronDown,
+  Clock3,
+  FileText,
+  Globe2,
   GraduationCap,
-  Handshake,
   Languages,
-  MessageSquareText,
-  Plus,
+  ListChecks,
+  MessageCircle,
+  Palette,
   ShieldCheck,
-  Sparkles,
-  UploadCloud,
-  UserRoundCheck,
   Users,
+  UserRoundCheck,
 } from 'lucide-react'
-
-import { Button } from '@/components/ui/button'
-
-const siteUrl = (
-  process.env.APP_URL ||
-  process.env.NEXT_PUBLIC_APP_URL ||
-  'http://localhost:4000'
-).replace(/\/$/, '')
+import { ProductDemo } from '@/components/marketing/product-demo'
+import { admissionsFaqs, siteUrl } from '@/lib/marketing'
 
 export const metadata: Metadata = {
-  title: 'AI Admissions Chatbot & Lead Management for Institutes',
+  title: 'AI Admissions Chatbot for Colleges & Institutes',
   description:
-    'Answer student enquiries around the clock, capture admissions leads, and connect applicants with counsellors using an AI admissions chatbot grounded in your institute content.',
+    'Answer student enquiries with your institute’s knowledge, capture admissions leads, and connect students with counsellors. Try AI Chat Bot free for 14 days.',
   alternates: { canonical: '/' },
   openGraph: {
-    title: 'AI Admissions Chatbot for Academic Institutes',
+    title: 'Better admissions conversations. Better next steps.',
     description:
-      'Turn student questions into informed admissions conversations and counsellor-ready leads.',
+      'An AI admissions chatbot, student lead management, and human counsellor handoff in one workspace.',
     url: '/',
     images: [
       {
-        url: '/marketing/admissions-ai-hero.png',
-        width: 1536,
-        height: 864,
-        alt: 'AI admissions chatbot and student enquiry workflow',
+        url: '/opengraph-image',
+        width: 1200,
+        height: 630,
+        alt: 'AI Chat Bot — admissions conversations that move students forward',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'AI Admissions Chatbot for Academic Institutes',
+    title: 'AI Admissions Chatbot for Colleges & Institutes',
     description:
-      'Grounded student answers, lead capture, and human counsellor handoff in one workspace.',
-    images: ['/marketing/admissions-ai-hero.png'],
+      'Your institute’s knowledge. Your team’s next admissions conversation.',
+    images: ['/opengraph-image'],
   },
 }
 
-const features = [
+const capabilities = [
   {
-    icon: FileSearch,
-    title: 'Answers grounded in your institute',
-    description:
-      'Use approved program, eligibility, fee, scholarship, policy, and application content instead of generic guesses.',
-  },
-  {
-    icon: UserRoundCheck,
-    title: 'Natural admissions lead capture',
-    description:
-      'Collect a prospective student’s name, email, and phone at the right point in the conversation.',
-  },
-  {
-    icon: Handshake,
-    title: 'Human counsellor handoff',
-    description:
-      'Let students request a counsellor and notify your team when a conversation needs a person.',
-  },
-  {
-    icon: MessageSquareText,
-    title: 'Live conversation workspace',
-    description:
-      'Review enquiries, join active chats, share clear responses, and keep the student journey moving.',
+    icon: Palette,
+    title: 'An assistant that feels like you',
+    copy: 'Set its name, avatar, greeting, tone, and institute context. Choose light or dark styling for the website widget.',
+    href: '/docs/chatbot-customization',
   },
   {
     icon: Languages,
-    title: 'Student-friendly communication',
-    description:
-      'Configure tone and persona, with practical multilingual replies when the conversation calls for them.',
+    title: 'More approachable conversations',
+    copy: 'Support student conversations in their preferred language when practical. Test the languages your audience uses before launch.',
+    href: '/docs/markdown-responses',
+  },
+  {
+    icon: Clock3,
+    title: 'Clear support expectations',
+    copy: 'Show your team’s support hours, time zone, reply estimate, email, and help link right in the chat experience.',
+    href: '/docs/chatbot-customization#support-settings',
   },
   {
     icon: Users,
-    title: 'Admin and editor collaboration',
-    description:
-      'Invite teammates, assign roles, manage organization access, and keep admissions work shared.',
-  },
-]
-
-const workflow = [
-  {
-    step: '01',
-    title: 'Add institute knowledge',
-    description:
-      'Upload prospectuses and admissions material or add website pages.',
+    title: 'A shared admissions workspace',
+    copy: 'Invite colleagues, manage admin and editor roles, and keep bots, enquiries, and conversations in the right organization.',
+    href: '/docs/team-roles',
   },
   {
-    step: '02',
-    title: 'Shape your admissions assistant',
-    description:
-      'Choose its name, tone, role, greeting, and lead-capture behaviour.',
+    icon: ListChecks,
+    title: 'Follow-ups with an owner',
+    copy: 'Record the next action, assign responsibility, track its status, and keep notes with the student enquiry.',
+    href: '/docs/leads-and-follow-ups',
   },
   {
-    step: '03',
-    title: 'Embed it on your website',
-    description:
-      'Create a bot-specific key and add the chat experience to your site.',
-  },
-  {
-    step: '04',
-    title: 'Guide and qualify enquiries',
-    description:
-      'Answer questions, capture contact details, and route high-intent students to counsellors.',
-  },
-]
-
-const faqs = [
-  {
-    question: 'What is an AI admissions chatbot?',
-    answer:
-      'An AI admissions chatbot helps prospective students find institute-specific information about programs, eligibility, fees, scholarships, schedules, application steps, and related policies. AI Chat Bot uses approved institute content and can route a student to a human counsellor when the answer needs confirmation.',
-  },
-  {
-    question: 'Can the chatbot capture admissions leads?',
-    answer:
-      'Yes. You can configure the chatbot to collect a student’s name, email address, and phone number naturally during the enquiry. Your team can then review captured leads and their conversation context from the dashboard.',
-  },
-  {
-    question: 'Which knowledge formats can I use?',
-    answer:
-      'The knowledge workflow supports PDF, TXT, Markdown, CSV, and DOC/DOCX files. HTML content is ingested by adding the relevant public website URL.',
-  },
-  {
-    question: 'Can a counsellor take over an AI conversation?',
-    answer:
-      'Yes. Students can ask for a human counsellor, your organization can receive a handoff notification, and an available team member can join the conversation.',
-  },
-  {
-    question: 'Does the chatbot guarantee that every answer is correct?',
-    answer:
-      'No AI system can guarantee every response. The assistant is designed to use approved institute information, avoid unsupported guarantees, and offer a counsellor handoff when information is missing, ambiguous, or conflicting.',
+    icon: ShieldCheck,
+    title: 'Visibility into your capacity',
+    copy: 'Review AI replies, training sources, storage, and team allowances. Export records your organization needs to keep.',
+    href: '/docs/storage-and-limits',
   },
 ]
 
 export default function MarketingHomePage() {
-  const softwareJsonLd = {
+  const structuredData = {
     '@context': 'https://schema.org',
-    '@type': 'SoftwareApplication',
-    name: 'AI Chat Bot',
-    applicationCategory: 'BusinessApplication',
-    operatingSystem: 'Web',
-    url: siteUrl,
-    description:
-      'AI admissions chatbot and admissions lead-management workspace for academic institutes.',
-    featureList: [
-      'Institute-grounded admissions answers',
-      'Student enquiry lead capture',
-      'Human counsellor handoff',
-      'Website chatbot embedding',
-      'Conversation management',
-      'Organization roles',
+    '@graph': [
+      {
+        '@type': 'SoftwareApplication',
+        name: 'AI Chat Bot',
+        applicationCategory: 'BusinessApplication',
+        operatingSystem: 'Web',
+        url: siteUrl(),
+        description:
+          'AI admissions chatbot, student enquiry management, and counsellor handoff for colleges and academic institutes.',
+        featureList: [
+          'Answers from institute knowledge',
+          'Configurable student lead capture',
+          'Human counsellor handoff',
+          'Conversation history and summaries',
+          'Lead follow-up tracking',
+          'Embeddable website chat widget',
+          'Organization roles and team collaboration',
+        ],
+      },
+      {
+        '@type': 'FAQPage',
+        mainEntity: admissionsFaqs.map((item) => ({
+          '@type': 'Question',
+          name: item.question,
+          acceptedAnswer: { '@type': 'Answer', text: item.answer },
+        })),
+      },
     ],
   }
 
-  const faqJsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'FAQPage',
-    mainEntity: faqs.map(item => ({
-      '@type': 'Question',
-      name: item.question,
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: item.answer,
-      },
-    })),
-  }
-
   return (
-    <main>
+    <main id='main-content' className='marketing-home'>
       <script
         type='application/ld+json'
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareJsonLd) }}
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structuredData).replace(/</g, '\\u003c'),
+        }}
       />
-      <script
-        type='application/ld+json'
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
-      />
-
-      <section className='relative overflow-hidden bg-[radial-gradient(circle_at_top_left,#e0f2fe_0,transparent_38%),linear-gradient(to_bottom,#fff,#f8fafc)]'>
-        <div className='pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,#0f172a08_1px,transparent_1px),linear-gradient(to_bottom,#0f172a08_1px,transparent_1px)] bg-size-[32px_32px] mask-[linear-gradient(to_bottom,black,transparent_85%)]' />
-        <div className='relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-20 sm:px-6 sm:py-24 lg:grid-cols-[0.92fr_1.08fr] lg:px-8 lg:py-28'>
-          <div>
-            <div className='inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-sky-800 shadow-sm'>
-              <Sparkles className='size-3.5' aria-hidden='true' />
-              Admissions conversations that move students forward
-            </div>
-            <h1 className='mt-6 max-w-3xl text-4xl font-bold tracking-[-0.045em] text-balance text-slate-950 sm:text-5xl lg:text-[64px] lg:leading-[1.02]'>
-              An AI admissions chatbot built for{' '}
-              <span className='bg-linear-to-r from-sky-700 to-teal-600 bg-clip-text text-transparent'>
-                academic institutes
-              </span>
-            </h1>
-            <p className='mt-6 max-w-2xl text-lg leading-8 text-slate-600'>
-              Give prospective students clear answers from your approved
-              content, capture high-intent enquiries, and connect the right
-              applicants with your admissions counsellors.
+      <section className='home-hero'>
+        <div className='marketing-container hero-grid'>
+          <div className='hero-copy'>
+            <p className='marketing-eyebrow'>
+              <span className='eyebrow-line' /> AI admissions chatbot for
+              academic institutes
             </p>
-            <div className='mt-8 flex flex-col gap-3 sm:flex-row'>
-              <Button
-                asChild
-                size='lg'
-                className='h-12 rounded-xl bg-sky-700 px-6 text-white shadow-lg shadow-sky-900/15 hover:bg-sky-800'>
-                <Link href='/auth/signup'>
-                  Build your admissions bot
-                  <ArrowRight className='ml-2 size-4' aria-hidden='true' />
-                </Link>
-              </Button>
-              <Button
-                asChild
-                size='lg'
-                variant='outline'
-                className='h-12 rounded-xl border-slate-300 bg-white/80 px-6'>
-                <Link href='/docs'>Explore the documentation</Link>
-              </Button>
+            <h1>
+              Every student question.
+              <br />
+              <span>A better next step.</span>
+            </h1>
+            <p className='hero-description'>
+              Turn your institute’s knowledge into helpful admissions
+              conversations. Answer student enquiries, capture leads, and bring
+              in a counsellor when it matters.
+            </p>
+            <div className='marketing-actions'>
+              <Link href='/auth/signup' className='marketing-button primary'>
+                Start your free trial{' '}
+                <ArrowUpRight size={18} aria-hidden='true' />
+              </Link>
+              <Link href='#product-demo' className='marketing-button secondary'>
+                Explore the experience{' '}
+                <ArrowDown size={16} aria-hidden='true' />
+              </Link>
             </div>
-            <ul className='mt-7 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-600'>
-              {['No-code setup', 'Grounded responses', 'Human handoff'].map(
-                item => (
-                  <li key={item} className='flex items-center gap-1.5'>
-                    <CircleCheck
-                      className='size-4 text-emerald-600'
-                      aria-hidden='true'
-                    />
-                    {item}
-                  </li>
-                ),
-              )}
-            </ul>
+            <p className='hero-trial-note'>
+              <Check size={14} aria-hidden='true' /> 14-day trial <span>·</span>{' '}
+              No credit card required <span>·</span> For eligible accounts
+            </p>
+            <div className='hero-audience'>
+              <span>Built around your admissions day</span>
+              <p>
+                Colleges <i /> Training institutes <i /> Course providers
+              </p>
+            </div>
           </div>
-
-          <div className='relative'>
-            <div className='overflow-hidden rounded-4xl border border-white/80 bg-white p-2 shadow-2xl shadow-slate-900/15 ring-1 ring-slate-200/70'>
-              <Image
-                src='/marketing/admissions-ai-hero.png'
-                alt='AI admissions chatbot helping an institute manage student enquiries'
-                width={1536}
-                height={864}
-                priority
-                className='aspect-video w-full rounded-[1.55rem] object-cover'
-              />
-            </div>
-            <div className='absolute -bottom-6 left-3 max-w-60 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl sm:left-8'>
-              <div className='flex items-center gap-3'>
-                <span className='grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700'>
-                  <UserRoundCheck className='size-4' aria-hidden='true' />
-                </span>
-                <div>
-                  <p className='text-xs font-semibold text-slate-900'>
-                    Enquiry captured
-                  </p>
-                  <p className='mt-0.5 text-[11px] text-slate-500'>
-                    Ready for counsellor follow-up
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className='absolute -top-5 right-3 hidden rounded-2xl border border-sky-200 bg-sky-950 px-4 py-3 text-white shadow-xl sm:block'>
-              <div className='flex items-center gap-2'>
-                <BellRing className='size-4 text-sky-300' aria-hidden='true' />
-                <span className='text-xs font-medium'>Counsellor requested</span>
-              </div>
-            </div>
+          <div className='hero-product'>
+            <ProductDemo />
           </div>
         </div>
       </section>
 
-      <section className='border-y border-slate-200/70 bg-white'>
-        <div className='mx-auto grid max-w-7xl gap-6 px-4 py-8 sm:grid-cols-3 sm:px-6 lg:px-8'>
+      <section className='journey-strip' aria-label='The admissions journey'>
+        <div className='marketing-container journey-items'>
           {[
-            ['Always available', 'Answer common student questions beyond office hours.'],
-            ['Institute grounded', 'Retrieve answers from the sources your team approves.'],
-            ['Counsellor connected', 'Move complex or high-intent enquiries to a person.'],
-          ].map(([title, copy]) => (
-            <div key={title} className='flex items-start gap-3'>
-              <Check
-                className='mt-0.5 size-4 shrink-0 text-sky-700'
-                aria-hidden='true'
-              />
+            {
+              icon: BookOpen,
+              title: 'Your knowledge',
+              copy: 'Approved sources, connected',
+            },
+            {
+              icon: MessageCircle,
+              title: 'Useful answers',
+              copy: 'Student questions, understood',
+            },
+            {
+              icon: UserRoundCheck,
+              title: 'Leads with context',
+              copy: 'An enquiry your team can act on',
+            },
+            {
+              icon: Users,
+              title: 'Your people',
+              copy: 'A counsellor when it counts',
+            },
+          ].map((item, index) => (
+            <div className='journey-item' key={item.title}>
+              <item.icon size={21} aria-hidden='true' />
               <div>
-                <p className='text-sm font-semibold text-slate-900'>{title}</p>
-                <p className='mt-1 text-xs leading-5 text-slate-500'>{copy}</p>
+                <strong>{item.title}</strong>
+                <span>{item.copy}</span>
               </div>
+              {index < 3 ? (
+                <ArrowRight
+                  className='journey-arrow'
+                  size={16}
+                  aria-hidden='true'
+                />
+              ) : null}
             </div>
           ))}
         </div>
       </section>
 
-      <section id='features' className='scroll-mt-24 bg-white py-20 sm:py-24'>
-        <div className='mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
-          <div className='max-w-3xl'>
-            <p className='text-xs font-bold tracking-[0.16em] text-sky-700 uppercase'>
-              Admissions automation with a human path
-            </p>
-            <h2 className='mt-4 text-3xl font-bold tracking-[-0.035em] text-slate-950 sm:text-4xl'>
-              Help every student get a useful next step
-            </h2>
-            <p className='mt-4 text-base leading-7 text-slate-600'>
-              Handle routine enquiries with AI while keeping your admissions
-              team visible, informed, and ready to step in.
-            </p>
-          </div>
-          <div className='mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3'>
-            {features.map(feature => (
-              <article
-                key={feature.title}
-                className='group rounded-2xl border border-slate-200 bg-linear-to-b from-white to-slate-50/70 p-6 transition duration-300 hover:-translate-y-1 hover:border-sky-200 hover:shadow-xl hover:shadow-sky-900/5'>
-                <span className='grid size-11 place-items-center rounded-xl bg-sky-50 text-sky-700 ring-1 ring-sky-100 transition group-hover:bg-sky-700 group-hover:text-white'>
-                  <feature.icon className='size-5' aria-hidden='true' />
-                </span>
-                <h3 className='mt-5 text-base font-semibold text-slate-950'>
-                  {feature.title}
-                </h3>
-                <p className='mt-2 text-sm leading-6 text-slate-600'>
-                  {feature.description}
-                </p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section
-        id='workflow'
-        className='scroll-mt-24 overflow-hidden bg-slate-950 py-20 text-white sm:py-24'>
-        <div className='mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
-          <div className='grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-end'>
+      <section id='features' className='marketing-section'>
+        <div className='marketing-container'>
+          <div className='section-heading split-heading'>
             <div>
-              <p className='text-xs font-bold tracking-[0.16em] text-sky-300 uppercase'>
-                From content to conversations
+              <p className='marketing-eyebrow'>
+                Less repetition. More meaningful conversations.
               </p>
-              <h2 className='mt-4 text-3xl font-bold tracking-[-0.035em] sm:text-4xl'>
-                Launch an admissions assistant without rebuilding your website
+              <h2>
+                Give your admissions team
+                <br />a stronger starting point.
               </h2>
             </div>
-            <p className='max-w-2xl text-base leading-7 text-slate-300 lg:justify-self-end'>
-              Bring your institute knowledge together, configure the student
-              experience, and give counsellors context when an enquiry becomes
-              a serious admissions opportunity.
+            <p>
+              Students need clarity before they apply. Your team needs more than
+              a name and a missed chat. Bring both sides of the conversation
+              together.
             </p>
           </div>
-
-          <div className='mt-12 grid gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10 md:grid-cols-2 lg:grid-cols-4'>
-            {workflow.map(item => (
-              <article key={item.step} className='bg-slate-950 p-6'>
-                <span className='font-mono text-xs font-semibold text-sky-300'>
-                  {item.step}
-                </span>
-                <h3 className='mt-8 text-base font-semibold'>{item.title}</h3>
-                <p className='mt-2 text-sm leading-6 text-slate-400'>
-                  {item.description}
-                </p>
-              </article>
-            ))}
+          <div className='feature-story-grid'>
+            <article className='feature-story knowledge-story'>
+              <div className='story-number'>
+                01 <span>KNOWLEDGE → ANSWERS</span>
+              </div>
+              <h3>
+                Your prospectus.
+                <br />
+                Now part of the conversation.
+              </h3>
+              <p>
+                Help students explore programmes, fees, eligibility,
+                scholarships, and application steps using information you
+                approve. Supporting sources give the answer context.
+              </p>
+              <div
+                className='knowledge-visual'
+                aria-label='Illustrative knowledge sources'
+              >
+                <div className='knowledge-source'>
+                  <span className='source-file'>
+                    <FileText size={20} aria-hidden='true' />
+                  </span>
+                  <div>
+                    <strong>Programme guide.pdf</strong>
+                    <span>Courses & eligibility</span>
+                  </div>
+                  <CheckCircle2 size={17} aria-hidden='true' />
+                </div>
+                <div className='knowledge-source'>
+                  <span className='source-file teal'>
+                    <Globe2 size={20} aria-hidden='true' />
+                  </span>
+                  <div>
+                    <strong>Admissions website page</strong>
+                    <span>Application steps & important dates</span>
+                  </div>
+                  <CheckCircle2 size={17} aria-hidden='true' />
+                </div>
+                <div className='knowledge-answer'>
+                  <span>
+                    <BookOpen size={15} aria-hidden='true' /> Retrieved from
+                    your trained sources
+                  </span>
+                  <p>Helpful answers start with the knowledge you put in.</p>
+                </div>
+              </div>
+              <p className='source-formats'>
+                PDF · DOCX · CSV · TXT · Markdown · HTML · Public web pages
+              </p>
+              <Link
+                href='/docs/institute-knowledge'
+                className='marketing-text-link'
+              >
+                Explore knowledge training{' '}
+                <ArrowUpRight size={16} aria-hidden='true' />
+              </Link>
+            </article>
+            <article className='feature-story lead-story'>
+              <div className='story-number'>
+                02 <span>ENQUIRIES → FOLLOW-UPS</span>
+              </div>
+              <h3>
+                Start the follow-up
+                <br />
+                with the full picture.
+              </h3>
+              <p>
+                Capture contact details and keep the conversation close. Review
+                student interests, chat history, and summaries before deciding
+                the next useful action.
+              </p>
+              <div
+                className='lead-visual'
+                aria-label='Illustrative student enquiry record'
+              >
+                <div className='lead-visual-header'>
+                  <span className='student-avatar'>AS</span>
+                  <div>
+                    <strong>Alex S.</strong>
+                    <span>Example student enquiry</span>
+                  </div>
+                  <span className='record-tag'>New lead</span>
+                </div>
+                <div className='lead-detail'>
+                  <span>Interested in</span>
+                  <strong>Data analytics programme</strong>
+                </div>
+                <div className='lead-detail'>
+                  <span>Conversation context</span>
+                  <p>Exploring entry requirements and application support.</p>
+                </div>
+                <div className='lead-followup'>
+                  <ListChecks size={17} aria-hidden='true' />
+                  <div>
+                    <strong>Next step: application guidance</strong>
+                    <span>Assign a counsellor · Track the outcome</span>
+                  </div>
+                  <ArrowUpRight size={16} aria-hidden='true' />
+                </div>
+              </div>
+              <Link
+                href='/docs/leads-and-follow-ups'
+                className='marketing-text-link'
+              >
+                See the lead management workflow{' '}
+                <ArrowUpRight size={16} aria-hidden='true' />
+              </Link>
+            </article>
           </div>
         </div>
       </section>
 
-      <section className='bg-slate-50 py-20 sm:py-24'>
-        <div className='mx-auto grid max-w-7xl gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:items-center lg:px-8'>
-          <div className='rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-900/5 sm:p-8'>
-            <div className='flex items-center justify-between border-b border-slate-100 pb-5'>
-              <div>
-                <p className='text-sm font-semibold text-slate-950'>
-                  Institute knowledge
-                </p>
-                <p className='mt-1 text-xs text-slate-500'>
-                  Sources used for grounded answers
-                </p>
-              </div>
-              <span className='rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700'>
-                Trained
-              </span>
-            </div>
-            <div className='mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3'>
-              {['PDF', 'DOCX', 'Markdown', 'TXT', 'CSV', 'Website URL'].map(
-                format => (
-                  <div
-                    key={format}
-                    className='flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs font-semibold text-slate-700'>
-                    <UploadCloud
-                      className='size-3.5 text-sky-700'
-                      aria-hidden='true'
-                    />
-                    {format}
-                  </div>
-                ),
-              )}
-            </div>
-            <div className='mt-5 rounded-xl bg-sky-50 p-4 text-xs leading-5 text-sky-900'>
-              HTML content is collected from the public website pages you add as
-              URL sources.
-            </div>
-          </div>
-
-          <div>
-            <p className='text-xs font-bold tracking-[0.16em] text-sky-700 uppercase'>
-              A knowledge layer for admissions
-            </p>
-            <h2 className='mt-4 text-3xl font-bold tracking-[-0.035em] text-slate-950 sm:text-4xl'>
-              Put approved institute information behind every answer
+      <section className='human-section'>
+        <div className='marketing-container human-grid'>
+          <div className='human-copy'>
+            <p className='marketing-eyebrow'>03 / AI + your admissions team</p>
+            <h2>
+              Let AI handle the everyday.
+              <br />
+              <span>Keep people in the moments that matter.</span>
             </h2>
-            <p className='mt-5 text-base leading-7 text-slate-600'>
-              Train each bot with the sources relevant to its institute or
-              program. The admissions assistant retrieves matching information
-              before responding and offers a counsellor when details are absent
-              or conflicting.
+            <p>
+              A student has a specific situation. An answer needs confirmation.
+              Or they simply want to talk to someone. Give them a path to your
+              team from the same conversation.
             </p>
-            <ul className='mt-7 space-y-3'>
+            <ul className='marketing-checks'>
               {[
-                'Program, eligibility, fee, and scholarship guidance',
-                'Application steps, schedules, modes, and locations',
-                'No unsupported admission, placement, or outcome guarantees',
-              ].map(item => (
-                <li
-                  key={item}
-                  className='flex items-start gap-3 text-sm leading-6 text-slate-700'>
-                  <ShieldCheck
-                    className='mt-0.5 size-4 shrink-0 text-emerald-600'
-                    aria-hidden='true'
-                  />
+                'Get notified when a student requests a counsellor.',
+                'Review the conversation before an available teammate joins.',
+                'Keep transcripts, summaries, and lead context together.',
+              ].map((item) => (
+                <li key={item}>
+                  <CheckCircle2 size={17} aria-hidden='true' />
                   {item}
                 </li>
               ))}
             </ul>
             <Link
-              href='/docs/institute-knowledge'
-              className='mt-7 inline-flex items-center gap-2 text-sm font-semibold text-sky-700 hover:text-sky-900'>
-              Learn about training data
-              <ArrowRight className='size-4' aria-hidden='true' />
+              href='/docs/counsellor-handoff'
+              className='marketing-text-link'
+            >
+              Explore human handoff{' '}
+              <ArrowUpRight size={16} aria-hidden='true' />
             </Link>
           </div>
-        </div>
-      </section>
-
-      <section className='bg-white py-20 sm:py-24'>
-        <div className='mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
-          <div className='rounded-4xl bg-linear-to-br from-sky-700 via-sky-800 to-slate-950 px-6 py-12 text-white shadow-2xl shadow-sky-900/15 sm:px-10 lg:flex lg:items-center lg:justify-between lg:px-14'>
-            <div className='max-w-2xl'>
-              <div className='flex items-center gap-2 text-sky-200'>
-                <GraduationCap className='size-5' aria-hidden='true' />
-                <span className='text-xs font-bold tracking-[0.14em] uppercase'>
-                  Built for admissions teams
-                </span>
+          <div className='team-visual'>
+            <div className='team-visual-top'>
+              <span>
+                <span className='team-status-dot' /> Admissions workspace
+              </span>
+              <span>Illustrative example</span>
+            </div>
+            <div className='team-inbox-row'>
+              <span className='student-avatar'>AS</span>
+              <div>
+                <strong>Application guidance</strong>
+                <p>“I’d like to speak with a counsellor.”</p>
               </div>
-              <h2 className='mt-4 text-3xl font-bold tracking-[-0.035em] sm:text-4xl'>
-                Turn more student questions into informed conversations
-              </h2>
-              <p className='mt-4 text-base leading-7 text-sky-100/85'>
-                Start with one bot, add your institute knowledge, and create a
-                clearer path from first enquiry to counsellor follow-up.
-              </p>
+              <span className='handoff-tag'>Human requested</span>
             </div>
-            <div className='mt-8 flex shrink-0 flex-col gap-3 sm:flex-row lg:mt-0 lg:ml-10'>
-              <Button
-                asChild
-                size='lg'
-                className='h-12 rounded-xl bg-white px-6 text-sky-900 hover:bg-sky-50'>
-                <Link href='/auth/signup'>Start building</Link>
-              </Button>
-              <Button
-                asChild
-                size='lg'
-                variant='outline'
-                className='h-12 rounded-xl border-white/25 bg-white/5 px-6 text-white hover:bg-white/10 hover:text-white'>
-                <Link href='/docs/admissions-chatbot-setup'>Read setup guide</Link>
-              </Button>
+            <div className='team-context'>
+              <span className='team-context-label'>CONVERSATION CONTEXT</span>
+              <h3>A useful place to pick up.</h3>
+              <p>
+                Student interest: Data analytics
+                <br />
+                Question: Entry requirements
+                <br />
+                Next step: Application guidance
+              </p>
+              <div className='team-context-footer'>
+                <MessageCircle size={16} aria-hidden='true' />
+                <span>Same student. Same conversation.</span>
+              </div>
+            </div>
+            <div className='team-notification'>
+              <BellRing size={19} aria-hidden='true' />
+              <div>
+                <strong>Your team has been notified</strong>
+                <span>Live handoff depends on teammate availability.</span>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section id='faq' className='scroll-mt-24 bg-slate-50 py-20 sm:py-24'>
-        <div className='mx-auto grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[0.7fr_1.3fr] lg:px-8'>
-          <div>
-            <p className='text-xs font-bold tracking-[0.16em] text-sky-700 uppercase'>
-              Questions from admissions teams
+      <section className='marketing-section capabilities-section'>
+        <div className='marketing-container'>
+          <div className='section-heading'>
+            <p className='marketing-eyebrow'>
+              Thoughtful details. Everyday control.
             </p>
-            <h2 className='mt-4 text-3xl font-bold tracking-[-0.035em] text-slate-950'>
-              What to know before you begin
+            <h2>
+              An AI admissions chatbot.
+              <br />A workspace for your team.
             </h2>
-            <p className='mt-4 text-sm leading-6 text-slate-600'>
-              For setup instructions and product details, visit the complete
-              documentation.
+            <p>
+              The tools around the conversation make it useful for your students
+              and manageable for your team.
             </p>
-            <Button asChild variant='outline' className='mt-6 rounded-lg bg-white'>
-              <Link href='/docs'>Browse all docs</Link>
-            </Button>
           </div>
-          <div className='divide-y divide-slate-200 rounded-2xl border border-slate-200 bg-white px-5 shadow-sm sm:px-7'>
-            {faqs.map(item => (
-              <details key={item.question} className='group py-5'>
-                <summary className='flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-semibold text-slate-950'>
+          <div className='capabilities-grid'>
+            {capabilities.map((item) => (
+              <article key={item.title}>
+                <item.icon
+                  className='capability-icon'
+                  size={23}
+                  aria-hidden='true'
+                />
+                <h3>{item.title}</h3>
+                <p>{item.copy}</p>
+                <Link
+                  href={item.href}
+                  aria-label={`Learn about ${item.title.toLowerCase()}`}
+                  className='capability-link'
+                >
+                  Explore <ArrowUpRight size={15} aria-hidden='true' />
+                </Link>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id='workflow' className='launch-section'>
+        <div className='marketing-container'>
+          <div className='section-heading split-heading'>
+            <div>
+              <p className='marketing-eyebrow'>
+                From your content to your website
+              </p>
+              <h2>Start with what you already know.</h2>
+            </div>
+            <Link
+              href='/docs/admissions-chatbot-setup'
+              className='marketing-text-link'
+            >
+              Read the setup guide <ArrowUpRight size={16} aria-hidden='true' />
+            </Link>
+          </div>
+          <ol className='launch-steps'>
+            {[
+              [
+                'Bring your knowledge',
+                'Add approved documents and the public website pages you want the assistant to use.',
+              ],
+              [
+                'Make it your assistant',
+                'Set the greeting, identity, contact capture, and support details. Train your sources.',
+              ],
+              [
+                'Install. Test. Welcome students.',
+                'Have your website maintainer add the widget, then test answers, leads, and handoff.',
+              ],
+            ].map(([title, copy], index) => (
+              <li key={title}>
+                <span>0{index + 1}</span>
+                <h3>{title}</h3>
+                <p>{copy}</p>
+              </li>
+            ))}
+          </ol>
+          <div className='launch-note'>
+            <ShieldCheck size={18} aria-hidden='true' />
+            <p>
+              <strong>Your content stays the foundation.</strong> Replace
+              outdated sources and retrain when fees, dates, or admission
+              policies change.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id='faq' className='marketing-section faq-section'>
+        <div className='marketing-container faq-grid'>
+          <div className='faq-intro'>
+            <p className='marketing-eyebrow'>Before you get started</p>
+            <h2>
+              Good questions.
+              <br />
+              Useful answers.
+            </h2>
+            <p>
+              What admissions teams want to know before bringing an AI chatbot
+              to their website.
+            </p>
+            <Link href='/contact' className='marketing-text-link'>
+              Ask us something else{' '}
+              <ArrowUpRight size={16} aria-hidden='true' />
+            </Link>
+          </div>
+          <div className='faq-list'>
+            {admissionsFaqs.map((item, index) => (
+              <details
+                key={item.question}
+                className='faq-item'
+                open={index === 0}
+              >
+                <summary>
                   {item.question}
-                  <span className='grid size-6 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-500'>
-                    <Plus
-                      className='size-3.5 transition-transform group-open:rotate-45'
-                      aria-hidden='true'
-                    />
-                  </span>
+                  <ChevronDown size={18} aria-hidden='true' />
                 </summary>
-                <p className='mt-3 max-w-3xl pr-8 text-sm leading-6 text-slate-600'>
-                  {item.answer}
-                </p>
+                <div>
+                  <p>{item.answer}</p>
+                  <Link href={item.href}>
+                    {item.label} <ArrowRight size={14} aria-hidden='true' />
+                  </Link>
+                </div>
               </details>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section className='final-cta-section'>
+        <div className='marketing-container'>
+          <div className='final-cta'>
+            <div>
+              <p className='marketing-eyebrow'>
+                <GraduationCap size={17} aria-hidden='true' /> Built for your
+                next intake
+              </p>
+              <h2>
+                Make the first conversation
+                <br />a helpful one.
+              </h2>
+              <p>
+                Try an AI admissions assistant with your own institute’s
+                content.
+              </p>
+            </div>
+            <div className='final-cta-actions'>
+              <Link href='/auth/signup' className='marketing-button primary'>
+                Start your 14-day trial{' '}
+                <ArrowUpRight size={18} aria-hidden='true' />
+              </Link>
+              <Link href='/contact' className='marketing-text-link'>
+                Talk about your institute{' '}
+                <ArrowRight size={16} aria-hidden='true' />
+              </Link>
+              <span>No card required · Eligible accounts</span>
+            </div>
           </div>
         </div>
       </section>

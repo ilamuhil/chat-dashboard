@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { contactEmail } from '@/lib/marketing'
 
 import {
   LegalPage,
@@ -89,7 +90,7 @@ const sections: LegalSection[] = [
     title: 'Data access and deletion requests',
     paragraphs: [
       'We will comply with valid data deletion requests, subject to identity verification, applicable law, customer instructions, security requirements, and limited records we must retain. Deletion from active systems may occur before deletion from encrypted backups, which are removed through normal backup cycles.',
-      'Chatbot visitors should normally direct requests to the institute that operates the chatbot because that organization controls the admissions relationship. Account holders may contact support@aichatbot.example to request access, correction, deletion, or other applicable privacy rights.',
+      `Chatbot visitors should normally direct requests to the institute that operates the chatbot because that organization controls the admissions relationship. Account holders may contact ${contactEmail()} to request access, correction, deletion, or other applicable privacy rights.`,
     ],
   },
   {
@@ -128,7 +129,7 @@ const sections: LegalSection[] = [
     title: 'Policy changes and contact',
     paragraphs: [
       'We may update this policy as the service, providers, and law change. The effective date above identifies the latest version. Material changes may be communicated through the service or by email.',
-      'Questions or privacy requests may be sent to support@aichatbot.example. We may ask for information reasonably necessary to verify identity, authority, and the organization connected to a request.',
+      `Questions or privacy requests may be sent to ${contactEmail()}. We may ask for information reasonably necessary to verify identity, authority, and the organization connected to a request.`,
     ],
   },
 ]

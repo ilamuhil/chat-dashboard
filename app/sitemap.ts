@@ -1,4 +1,5 @@
 import type { MetadataRoute } from 'next'
+import { docsPages } from '@/lib/docs'
 
 const baseUrl = (
   process.env.APP_URL ||
@@ -8,18 +9,12 @@ const baseUrl = (
 
 const routes = [
   '',
+  '/contact',
+  '/pricing',
   '/terms',
   '/privacy',
   '/docs',
-  '/docs/admissions-chatbot-setup',
-  '/docs/chatbot-customization',
-  '/docs/institute-knowledge',
-  '/docs/website-embedding',
-  '/docs/conversations-and-leads',
-  '/docs/counsellor-handoff',
-  '/docs/team-roles',
-  '/docs/markdown-responses',
-  '/docs/troubleshooting',
+  ...docsPages.filter(page => page.slug).map(page => `/docs/${page.slug}`),
 ]
 
 export default function sitemap(): MetadataRoute.Sitemap {

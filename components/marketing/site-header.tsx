@@ -10,9 +10,9 @@ import { cn } from '@/lib/utils'
 
 const links = [
   { href: '/#features', label: 'Features' },
-  { href: '/#workflow', label: 'How it works' },
   { href: '/pricing', label: 'Pricing' },
   { href: '/docs', label: 'Docs' },
+  { href: '/contact', label: 'Contact' },
 ]
 
 export function SiteHeader() {
@@ -42,13 +42,14 @@ export function SiteHeader() {
         <nav aria-label='Main navigation' className='hidden items-center gap-1 md:flex'>
           {links.map(link => {
             const active =
-              link.href === '/docs' || link.href === '/pricing'
+              !link.href.includes('#')
                 ? pathname.startsWith(link.href)
                 : false
             return (
               <Link
                 key={link.href}
                 href={link.href}
+                aria-current={active ? 'page' : undefined}
                 className={cn(
                   'rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                   active
@@ -76,6 +77,7 @@ export function SiteHeader() {
           type='button'
           aria-label={open ? 'Close navigation' : 'Open navigation'}
           aria-expanded={open}
+          aria-controls='mobile-navigation'
           onClick={() => setOpen(value => !value)}
           className='grid size-10 place-items-center rounded-lg border border-slate-200 text-slate-700 md:hidden'>
           {open ? <X className='size-5' /> : <Menu className='size-5' />}
@@ -83,7 +85,7 @@ export function SiteHeader() {
       </div>
 
       {open && (
-        <div className='border-t border-slate-100 bg-white px-4 py-4 shadow-lg md:hidden'>
+        <div id='mobile-navigation' className='border-t border-slate-100 bg-white px-4 py-4 shadow-lg md:hidden'>
           <nav aria-label='Mobile navigation' className='mx-auto grid max-w-7xl gap-1'>
             {links.map(link => (
               <Link

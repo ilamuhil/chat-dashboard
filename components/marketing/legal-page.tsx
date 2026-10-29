@@ -22,7 +22,7 @@ export function LegalPage({
   sections: LegalSection[]
 }) {
   return (
-    <main className='bg-slate-50'>
+    <main id='main-content' className='bg-slate-50'>
       <section className='border-b border-slate-200 bg-white'>
         <div className='mx-auto max-w-5xl px-4 py-7 sm:px-6 sm:py-9 lg:px-8'>
           <Link

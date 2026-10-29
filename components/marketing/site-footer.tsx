@@ -1,9 +1,11 @@
 import Link from 'next/link'
 import { GraduationCap, Mail } from 'lucide-react'
+import { contactEmail } from '@/lib/marketing'
 
 const productLinks = [
   { href: '/#features', label: 'Features' },
-  { href: '/#workflow', label: 'How it works' },
+  { href: '/pricing', label: 'Pricing' },
+  { href: '/contact', label: 'Contact' },
   { href: '/docs', label: 'Documentation' },
 ]
 
@@ -13,6 +15,7 @@ const legalLinks = [
 ]
 
 export function SiteFooter() {
+  const email = contactEmail()
   return (
     <footer className='border-t border-slate-200 bg-slate-950 text-slate-300'>
       <div className='mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr] lg:px-8'>
@@ -29,10 +32,10 @@ export function SiteFooter() {
             applicants toward a human counsellor.
           </p>
           <a
-            href='mailto:support@aichatbot.example'
+            href={`mailto:${email}`}
             className='mt-5 inline-flex items-center gap-2 text-sm text-sky-300 hover:text-sky-200'>
             <Mail className='size-4' aria-hidden='true' />
-            support@aichatbot.example
+            {email}
           </a>
         </div>
 

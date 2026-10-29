@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+import { contactEmail } from './marketing'
 import { renderEmailVerificationEmail } from './emails/email-verification'
 import { renderLoginOTPEmail } from './emails/login-otp'
 import { renderVerifyOtpEmail } from './emails/verify-otp'
@@ -269,7 +270,7 @@ export async function sendFeedbackEmail(params: {
   ].join('\n')
 
   return sendEmail({
-    to: 'ilamuhil@gmail.com',
+    to: contactEmail(),
     subject: `Dashboard feedback from ${params.organizationName}`,
     htmlBody: `
       <h2>Dashboard feedback</h2>

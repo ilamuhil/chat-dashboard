@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 }
 export default function PricingPage() {
   return (
-    <main className="mx-auto max-w-6xl px-5 py-16 sm:py-24">
+    <main id="main-content" className="mx-auto max-w-6xl px-5 py-16 sm:py-24">
       <div className="mx-auto max-w-2xl text-center">
         <p className="text-xs font-semibold uppercase tracking-[.18em] text-sky-700">
           Built for admissions teams
