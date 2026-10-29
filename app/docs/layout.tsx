@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 
+import { docsNav } from '@/lib/docs'
 import { DocsSidebar } from '@/components/docs/docs-sidebar'
 import { SiteFooter } from '@/components/marketing/site-footer'
 import { SiteHeader } from '@/components/marketing/site-header'
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
     template: '%s | AI Chat Bot Docs',
   },
   description:
-    'Guides for setting up, training, embedding, and managing an AI admissions chatbot for an academic institute.',
+    'Product guides for organizations, bot configuration, training, storage, billing, invitations, live support, and admissions workflows.',
 }
 
 export default function DocsLayout({
@@ -22,7 +23,7 @@ export default function DocsLayout({
     <div className='min-h-svh bg-white'>
       <SiteHeader />
       <main className='mx-auto max-w-7xl px-4 sm:px-6 lg:flex lg:gap-10 lg:px-8'>
-        <DocsSidebar />
+        <DocsSidebar navigation={docsNav} />
         {children}
       </main>
       <SiteFooter />

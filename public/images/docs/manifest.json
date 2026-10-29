@@ -1,0 +1,314 @@
+{
+  "api-key-dialog": {
+    "width": 936,
+    "height": 903,
+    "displayWidth": 468,
+    "srcSet": "/images/docs/api-key-dialog-480.jpg 480w, /images/docs/api-key-dialog.jpg 936w",
+    "callouts": [
+      "Name the website integration",
+      "Select the correct bot",
+      "Save the key when it is shown"
+    ]
+  },
+  "api-setup": {
+    "width": 2010,
+    "height": 1300,
+    "displayWidth": 1005,
+    "srcSet": "/images/docs/api-setup-480.jpg 480w, /images/docs/api-setup-960.jpg 960w, /images/docs/api-setup.jpg 2010w",
+    "callouts": [
+      "Create a bot-specific key",
+      "Manage keys for each bot",
+      "Copy the website embed code"
+    ]
+  },
+  "billing-details": {
+    "width": 2010,
+    "height": 1023,
+    "displayWidth": 1005,
+    "srcSet": "/images/docs/billing-details-480.jpg 480w, /images/docs/billing-details-960.jpg 960w, /images/docs/billing-details.jpg 2010w",
+    "callouts": [
+      "Required billing identity",
+      "GSTIN is optional",
+      "Save before checkout"
+    ]
+  },
+  "billing-invoices": {
+    "width": 1980,
+    "height": 681,
+    "displayWidth": 990,
+    "srcSet": "/images/docs/billing-invoices-480.jpg 480w, /images/docs/billing-invoices-960.jpg 960w, /images/docs/billing-invoices.jpg 1980w",
+    "callouts": [
+      "Open the payment receipt",
+      "Download the invoice after seven days"
+    ]
+  },
+  "bot-list": {
+    "width": 2010,
+    "height": 860,
+    "displayWidth": 1005,
+    "srcSet": "/images/docs/bot-list-480.jpg 480w, /images/docs/bot-list-960.jpg 960w, /images/docs/bot-list.jpg 2010w",
+    "callouts": [
+      "Create a new bot",
+      "Select a bot to edit"
+    ]
+  },
+  "configuration-contact": {
+    "width": 1980,
+    "height": 370,
+    "displayWidth": 990,
+    "srcSet": "/images/docs/configuration-contact-480.jpg 480w, /images/docs/configuration-contact-960.jpg 960w, /images/docs/configuration-contact.jpg 1980w",
+    "callouts": [
+      "Visitor-facing email contact",
+      "Name the team visitors will reach",
+      "Choose a realistic reply estimate"
+    ]
+  },
+  "configuration-identity": {
+    "width": 1980,
+    "height": 710,
+    "displayWidth": 990,
+    "srcSet": "/images/docs/configuration-identity-480.jpg 480w, /images/docs/configuration-identity-960.jpg 960w, /images/docs/configuration-identity.jpg 1980w",
+    "callouts": [
+      "Visitor-facing bot name",
+      "Institute identity",
+      "Conversation tone",
+      "Bot persona, not team role"
+    ]
+  },
+  "configuration-leads": {
+    "width": 2010,
+    "height": 660,
+    "displayWidth": 1005,
+    "srcSet": "/images/docs/configuration-leads-480.jpg 480w, /images/docs/configuration-leads-960.jpg 960w, /images/docs/configuration-leads.jpg 2010w",
+    "callouts": [
+      "Enable contact capture",
+      "Capture before chatting",
+      "Choose the requested fields",
+      "Save, then test a fresh session"
+    ]
+  },
+  "configuration-messages": {
+    "width": 1980,
+    "height": 670,
+    "displayWidth": 990,
+    "srcSet": "/images/docs/configuration-messages-480.jpg 480w, /images/docs/configuration-messages-960.jpg 960w, /images/docs/configuration-messages.jpg 1980w",
+    "callouts": [
+      "Opening greeting",
+      "Explain why contact details are requested",
+      "Acknowledge the captured details"
+    ]
+  },
+  "configuration-support": {
+    "width": 1980,
+    "height": 700,
+    "displayWidth": 990,
+    "srcSet": "/images/docs/configuration-support-480.jpg 480w, /images/docs/configuration-support-960.jpg 960w, /images/docs/configuration-support.jpg 1980w",
+    "callouts": [
+      "Displayed estimate in minutes",
+      "Time zone for support hours",
+      "Public help destination"
+    ]
+  },
+  "conversation-history": {
+    "width": 1164,
+    "height": 1600,
+    "displayWidth": 582,
+    "srcSet": "/images/docs/conversation-history-480.jpg 480w, /images/docs/conversation-history-960.jpg 960w, /images/docs/conversation-history.jpg 1164w",
+    "callouts": [
+      "Open the full lead record",
+      "Consolidated summary across chats",
+      "Reload saved profile and history"
+    ]
+  },
+  "conversation-join": {
+    "width": 1380,
+    "height": 1390,
+    "displayWidth": 690,
+    "srcSet": "/images/docs/conversation-join-480.jpg 480w, /images/docs/conversation-join-960.jpg 960w, /images/docs/conversation-join.jpg 1380w",
+    "callouts": [
+      "Join before replying as staff",
+      "End the open conversation",
+      "Review the lead and chat history"
+    ]
+  },
+  "conversations": {
+    "width": 2010,
+    "height": 1420,
+    "displayWidth": 1005,
+    "srcSet": "/images/docs/conversations-480.jpg 480w, /images/docs/conversations-960.jpg 960w, /images/docs/conversations.jpg 2010w",
+    "callouts": [
+      "Filter to live conversations",
+      "Find archived history",
+      "See every chat for the lead",
+      "Closed threads cannot accept replies"
+    ]
+  },
+  "invitation": {
+    "width": 936,
+    "height": 940,
+    "displayWidth": 468,
+    "srcSet": "/images/docs/invitation-480.jpg 480w, /images/docs/invitation.jpg 936w",
+    "callouts": [
+      "Teammate name",
+      "Use the intended login email",
+      "Choose Admin or Editor",
+      "Check available seats before sending"
+    ]
+  },
+  "lead-detail": {
+    "width": 2010,
+    "height": 1420,
+    "displayWidth": 1005,
+    "srcSet": "/images/docs/lead-detail-480.jpg 480w, /images/docs/lead-detail-960.jpg 960w, /images/docs/lead-detail.jpg 2010w",
+    "callouts": [
+      "Correct confirmed profile facts",
+      "Record the next action",
+      "Check contact details and consent",
+      "Review the enquiry context"
+    ]
+  },
+  "lead-follow-ups": {
+    "width": 1192,
+    "height": 1139,
+    "displayWidth": 596,
+    "srcSet": "/images/docs/lead-follow-ups-480.jpg 480w, /images/docs/lead-follow-ups-960.jpg 960w, /images/docs/lead-follow-ups.jpg 1192w",
+    "callouts": [
+      "Assign an organization member",
+      "Track pending versus complete",
+      "Schedule the activity",
+      "Save the next action"
+    ]
+  },
+  "leads": {
+    "width": 2010,
+    "height": 1420,
+    "displayWidth": 1005,
+    "srcSet": "/images/docs/leads-480.jpg 480w, /images/docs/leads-960.jpg 960w, /images/docs/leads.jpg 2010w",
+    "callouts": [
+      "Find an existing enquiry",
+      "Add a manual enquiry",
+      "Open a lead profile"
+    ]
+  },
+  "members": {
+    "width": 2010,
+    "height": 499,
+    "displayWidth": 1005,
+    "srcSet": "/images/docs/members-480.jpg 480w, /images/docs/members-960.jpg 960w, /images/docs/members.jpg 2010w",
+    "callouts": [
+      "Invite a teammate",
+      "Review organization roles"
+    ]
+  },
+  "notification-menu": {
+    "width": 676,
+    "height": 347,
+    "displayWidth": 338,
+    "srcSet": "/images/docs/notification-menu-480.jpg 480w, /images/docs/notification-menu.jpg 676w",
+    "callouts": [
+      "Recent alerts appear here",
+      "Open the full list"
+    ]
+  },
+  "notifications-page": {
+    "width": 2010,
+    "height": 680,
+    "displayWidth": 1005,
+    "srcSet": "/images/docs/notifications-page-480.jpg 480w, /images/docs/notifications-page-960.jpg 960w, /images/docs/notifications-page.jpg 2010w",
+    "callouts": [
+      "Open the full notification list",
+      "New alerts appear here"
+    ]
+  },
+  "organization-menu": {
+    "width": 1480,
+    "height": 700,
+    "displayWidth": 740,
+    "srcSet": "/images/docs/organization-menu-480.jpg 480w, /images/docs/organization-menu-960.jpg 960w, /images/docs/organization-menu.jpg 1480w",
+    "callouts": [
+      "Choose a workspace",
+      "Create another workspace"
+    ]
+  },
+  "overview": {
+    "width": 2200,
+    "height": 1109,
+    "displayWidth": 1280,
+    "srcSet": "/images/docs/overview-480.jpg 480w, /images/docs/overview-960.jpg 960w, /images/docs/overview.jpg 2200w",
+    "callouts": [
+      "Check the active organization",
+      "Configure identity and messages",
+      "Upload and train knowledge",
+      "Support workspace",
+      "Plan, limits, and billing"
+    ]
+  },
+  "subscription-plans": {
+    "width": 2010,
+    "height": 1146,
+    "displayWidth": 1005,
+    "srcSet": "/images/docs/subscription-plans-480.jpg 480w, /images/docs/subscription-plans-960.jpg 960w, /images/docs/subscription-plans.jpg 2010w",
+    "callouts": [
+      "Choose a plan for the next cycle",
+      "Add a reply pack",
+      "Download organization records"
+    ]
+  },
+  "subscription-status": {
+    "width": 2010,
+    "height": 1310,
+    "displayWidth": 1005,
+    "srcSet": "/images/docs/subscription-status-480.jpg 480w, /images/docs/subscription-status-960.jpg 960w, /images/docs/subscription-status.jpg 2010w",
+    "callouts": [
+      "Check the subscription status",
+      "Refresh a pending payment",
+      "Open billing and invoices"
+    ]
+  },
+  "subscription-usage": {
+    "width": 1970,
+    "height": 440,
+    "displayWidth": 985,
+    "srcSet": "/images/docs/subscription-usage-480.jpg 480w, /images/docs/subscription-usage-960.jpg 960w, /images/docs/subscription-usage.jpg 1970w",
+    "callouts": [
+      "Shared uploaded-file storage",
+      "File and URL source count",
+      "Training work this cycle"
+    ]
+  },
+  "training-progress": {
+    "width": 2010,
+    "height": 495,
+    "displayWidth": 1005,
+    "srcSet": "/images/docs/training-progress-480.jpg 480w, /images/docs/training-progress-960.jpg 960w, /images/docs/training-progress.jpg 2010w",
+    "callouts": [
+      "Review progress and failures",
+      "Review submission terms",
+      "Start after sources are ready"
+    ]
+  },
+  "training-resources": {
+    "width": 2010,
+    "height": 1380,
+    "displayWidth": 1005,
+    "srcSet": "/images/docs/training-resources-480.jpg 480w, /images/docs/training-resources-960.jpg 960w, /images/docs/training-resources.jpg 2010w",
+    "callouts": [
+      "Add one public HTML page",
+      "Choose supported files",
+      "Check each source status"
+    ]
+  },
+  "widget-support": {
+    "width": 752,
+    "height": 1072,
+    "displayWidth": 376,
+    "srcSet": "/images/docs/widget-support-480.jpg 480w, /images/docs/widget-support.jpg 752w",
+    "callouts": [
+      "Open the visitor email app",
+      "Open your help centre",
+      "Check the reply estimate",
+      "Check support hours and time zone",
+      "Attach a file to the conversation"
+    ]
+  }
+}

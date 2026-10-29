@@ -432,8 +432,8 @@ const ConfigureBotForm = (props: BotProps) => {
         className={cn(
           'overflow-hidden rounded-xl border p-5 shadow-sm transition-[border-color,background-color] duration-300',
           leadCapture
-            ? 'border-emerald-200/80 bg-linear-to-br from-emerald-50/70 via-white to-sky-50/40'
-            : 'border-slate-200/80 bg-linear-to-br from-slate-50 via-white to-sky-50/30',
+            ? 'border-emerald-200/80 bg-linear-to-br from-emerald-50/70 via-white to-sky-50/40 dark:border-emerald-800/70 dark:from-emerald-950/50 dark:via-slate-900 dark:to-slate-900'
+            : 'border-slate-200/80 bg-linear-to-br from-slate-50 via-white to-sky-50/30 dark:border-slate-700 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950/60',
         )}
       >
         <div className='flex items-start justify-between gap-4'>
@@ -486,14 +486,14 @@ const ConfigureBotForm = (props: BotProps) => {
           <div className='min-h-0 overflow-hidden'>
             <div
               className={cn(
-                'mt-4 grid gap-4 border-t border-slate-200/70 pt-4 transition-[opacity,transform] duration-300 ease-out md:grid-cols-2',
+                'mt-4 grid gap-4 border-t border-slate-200/70 pt-4 transition-[opacity,transform] dark:border-slate-700/70 duration-300 ease-out md:grid-cols-2',
                 leadCapture
                   ? 'translate-y-0 opacity-100'
                   : 'pointer-events-none -translate-y-1 opacity-0',
               )}
               {...(!leadCapture ? { inert: true } : {})}
             >
-              <div className='space-y-3 rounded-lg border border-white/70 bg-white/80 p-4 shadow-sm'>
+              <div className='space-y-3 rounded-lg border border-white/70 bg-white/80 p-4 shadow-sm dark:border-slate-700/70 dark:bg-slate-950/50'>
                 <Label className={fieldLabelClass}>Lead Capture Timing</Label>
                 <RadioGroup
                   name='lead_capture_timing'
@@ -528,7 +528,7 @@ const ConfigureBotForm = (props: BotProps) => {
                 </RadioGroup>
               </div>
 
-              <div className='space-y-3 rounded-lg border border-white/70 bg-white/80 p-4 shadow-sm'>
+              <div className='space-y-3 rounded-lg border border-white/70 bg-white/80 p-4 shadow-sm dark:border-slate-700/70 dark:bg-slate-950/50'>
                 <Label className={fieldLabelClass}>
                   Lead Information to Capture
                 </Label>
