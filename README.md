@@ -171,6 +171,22 @@ SECRET_ACCESS_KEY=
 RESEND_API_KEY=
 RESEND_FROM_EMAIL=
 RESEND_FROM_NAME=
+BILLING_ALERT_EMAIL=
+CASHFREE_ENVIRONMENT=sandbox
+CASHFREE_API_VERSION=2026-01-01
+CASHFREE_CLIENT_ID=
+CASHFREE_CLIENT_SECRET=
+CASHFREE_WEBHOOK_SECRET=
+BILLING_ALLOW_LIVE=false
+BILLING_MAINTENANCE_SECRET=
+BILLING_TAX_BPS=1800
+BILLING_VENDOR_IS_SAMPLE=true
+BILLING_BUSINESS_NAME=
+BILLING_BUSINESS_ADDRESS=
+BILLING_GSTIN=
+BILLING_STATE_CODE=
+BILLING_SAC=
+BILLING_SUPPORT_EMAIL=
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 GOOGLE_REDIRECT_URI=http://localhost:4000/api/auth/google/callback
@@ -210,6 +226,23 @@ are scoped to the authenticated user's current organization.
 contains the migrations. `prisma.config.ts` loads `.env.local` before `.env`
 and supplies `DATABASE_URL` to Prisma. See `chat_db_schema.txt` for a readable
 summary.
+
+## Billing
+
+Billing is organization-scoped and uses Prisma-owned tables shared with the
+`chat_api` service. The customer-facing routes are:
+
+- `/dashboard/subscription` — plan, usage, reply add-ons, cancellation, and
+  scheduled plan changes
+- `/dashboard/billing` — billing details, payment history, receipts, and
+  invoice downloads
+
+Payment-provider webhooks are received at `/api/billing/webhook`; the browser
+return route only redirects to the subscription page and never proves payment.
+Configure the provider, tax, vendor, Resend, and maintenance variables in
+`.env.local` before testing. See [docs/billing.md](docs/billing.md) for the
+catalogue, reply-pack lifecycle, migrations, sandbox lifecycle, and verification
+commands. Never commit provider credentials or `.env.local`.
 
 ## Development
 

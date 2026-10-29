@@ -40,6 +40,8 @@ Extra capacity starts at INR 699 plus applicable tax for 1,000 standard replies 
 
 Cancellation stops future collections and preserves paid-through access. Plan changes take effect at the next verified renewal, with capacity checks and pending-downgrade restrictions. A failed renewal provides a three-day grace period using the remaining old allowance, without resetting it. Signed refund events record partial refunds idempotently; full current-period refunds stop that paid access, while refunds of older cycles do not remove a newer paid cycle. Full reply-pack refunds revoke that pack.
 
+Cancellation feedback is stored with the cancellation request, and a best-effort operational alert is emailed to `BILLING_ALERT_EMAIL` through Resend. Email failure does not undo the cancellation.
+
 ## Configuration
 
 Set these in the ignored dashboard `.env.local` for development:
@@ -61,6 +63,10 @@ BILLING_GSTIN=29ABCDE1234F1Z5
 BILLING_STATE_CODE=29
 BILLING_SAC=998314
 BILLING_SUPPORT_EMAIL=billing@example.invalid
+RESEND_API_KEY=<resend api key>
+RESEND_FROM_EMAIL=billing@example.com
+RESEND_FROM_NAME=Your workspace
+BILLING_ALERT_EMAIL=billing-operations@example.com
 ```
 
 These are sample vendor/tax/classification values for sandbox documents. Replace them with the actual legal entity, address, GSTIN, state, SAC, confirmed tax treatment and support contact before commercial use. The sample 18% setting is configurable. Interstate invoices use IGST; intrastate invoices split CGST and SGST, or applicable UTGST. Integer rounding preserves the exact tax total. Production rejects sample/incomplete vendor configuration and requires explicit live enablement.
@@ -69,7 +75,7 @@ These are sample vendor/tax/classification values for sandbox documents. Replace
 
 The existing `chat_api` RQ scheduler runs billing maintenance every five minutes. Configure its `DASHBOARD_APP_URL` and matching `BILLING_MAINTENANCE_SECRET`. For local Docker, the dashboard URL is `http://host.docker.internal:4000`. Maintenance reconciles collections, retries retained events, recovers stale reservations and records dashboard notices. The subscription API does not expose a refund-list endpoint: subscription refund discovery depends on signed webhook delivery. Reply-pack refunds are also reconciled using the order-refunds endpoint.
 
-The JSON export includes organization, bots, leads/follow-ups, conversation metadata/messages and source/file metadata. It does not embed original uploaded binaries. Closed transcript and lead retention use a persisted seven-day notice before removal; expired organizations have a 30-day recovery window. Billing notices currently use dashboard notifications, not email.
+The JSON export includes organization, bots, leads/follow-ups, conversation metadata/messages and source/file metadata. It does not embed original uploaded binaries. Closed transcript and lead retention use a persisted seven-day notice before removal; expired organizations have a 30-day recovery window. Maintenance notices use dashboard notifications; subscription cancellations additionally send a best-effort operational email alert.
 
 ## Database and verification
 
