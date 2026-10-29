@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { contactEmail } from '@/lib/marketing'
+import { contactEmail } from '@/lib/marketing/marketing'
 
 import {
   LegalPage,

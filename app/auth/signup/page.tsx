@@ -1,6 +1,6 @@
 import AuthForm from '@/components/auth/AuthForm'
 import { redirect } from 'next/navigation'
-import { getAuthUserIdFromCookies, getOnboardingStatus } from '@/lib/auth-server'
+import { getAuthUserIdFromCookies, getOnboardingStatus } from '@/lib/auth/auth-server'
 
 export default async function SignUpPage({
   searchParams,

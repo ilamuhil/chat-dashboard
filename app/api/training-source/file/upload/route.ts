@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireUserOrgAndBot } from '@/lib/auth-server'
-import { uploadFile, deleteFile } from '@/lib/filemanagement'
-import { prisma } from '@/lib/prisma'
+import { requireUserOrgAndBot } from '@/lib/auth/auth-server'
+import { uploadFile, deleteFile } from '@/lib/storage/filemanagement'
+import { prisma } from '@/lib/core/prisma'
 import { createHash } from 'node:crypto'
 import {
   withBillingLock,

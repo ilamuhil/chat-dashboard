@@ -2,8 +2,8 @@
 
 import ApiKeyManagementDialog from './ApiKeyManagementDialog'
 import { Button } from '@/components/ui/button'
-import { dashboardButtonClass } from '@/lib/dashboard-buttons'
-import { cn } from '@/lib/utils'
+import { dashboardButtonClass } from '@/lib/dashboard/dashboard-buttons'
+import { cn } from '@/lib/core/utils'
 import { useState } from 'react'
 import { LauncherProps } from './types'
 import { PlusIcon } from 'lucide-react'

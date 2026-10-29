@@ -8,7 +8,7 @@ import {
 import { useEffect, useRef, useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
+import { cn } from '@/lib/core/utils'
 import { Message } from './types'
 import { renderChatMarkdown } from './markdown'
 import {

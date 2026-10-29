@@ -1,9 +1,9 @@
 'use client'
 
 import { useMemo } from 'react'
-import { renderMarkdown } from '@/lib/markdown'
-import { prepareSummaryMarkdown } from '@/lib/summary-markdown'
-import { cn } from '@/lib/utils'
+import { renderMarkdown } from '@/lib/content/markdown'
+import { prepareSummaryMarkdown } from '@/lib/content/summary-markdown'
+import { cn } from '@/lib/core/utils'
 
 export default function SummaryMarkdown({ source, className }: {
   source: string

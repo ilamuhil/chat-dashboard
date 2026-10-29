@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
-import { requireAuthUserId, corsHeaders } from '@/lib/auth-server'
-import { resolveCurrentOrganizationId } from '@/lib/current-organization'
-import { signSSEAuthToken } from '@/lib/auth-token'
+import { requireAuthUserId, corsHeaders } from '@/lib/auth/auth-server'
+import { resolveCurrentOrganizationId } from '@/lib/organization/current-organization'
+import { signSSEAuthToken } from '@/lib/auth/auth-token'
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: corsHeaders })

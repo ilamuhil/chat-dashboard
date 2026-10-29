@@ -1,6 +1,6 @@
 import Link from 'next/link'
-import { dashboardButtonClass } from '@/lib/dashboard-buttons'
-import { cn } from '@/lib/utils'
+import { dashboardButtonClass } from '@/lib/dashboard/dashboard-buttons'
+import { cn } from '@/lib/core/utils'
 import { ArrowLeftIcon, MessageSquareWarningIcon } from 'lucide-react'
 
 export default function DashboardNotFound() {

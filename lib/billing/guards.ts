@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
-import { requireUserOrg } from '@/lib/route-guards'
-import { prisma } from '@/lib/prisma'
+import { requireUserOrg } from '@/lib/auth/route-guards'
+import { prisma } from '@/lib/core/prisma'
 import { BillingError } from './service'
 
 export async function billingActor(request: NextRequest, admin = true) {

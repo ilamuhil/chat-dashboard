@@ -1,13 +1,13 @@
 import { Resend } from 'resend'
-import { contactEmail } from './marketing'
-import { renderEmailVerificationEmail } from './emails/email-verification'
-import { renderLoginOTPEmail } from './emails/login-otp'
-import { renderVerifyOtpEmail } from './emails/verify-otp'
-import { renderMagicLinkEmail } from './emails/magic-link'
+import { contactEmail } from '../marketing/marketing'
+import { renderEmailVerificationEmail } from '../emails/email-verification'
+import { renderLoginOTPEmail } from '../emails/login-otp'
+import { renderVerifyOtpEmail } from '../emails/verify-otp'
+import { renderMagicLinkEmail } from '../emails/magic-link'
 import {
   renderMembershipRemovedEmail,
   renderMembershipRoleUpdatedEmail,
-} from './emails/membership'
+} from '../emails/membership'
 
 function getDefaultSender(): { email: string; name: string } {
   const email = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'

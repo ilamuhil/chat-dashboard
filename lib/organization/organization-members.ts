@@ -1,6 +1,6 @@
-import { prisma } from '@/lib/prisma'
-import { requireAuthUserId } from '@/lib/auth-server'
-import { resolveCurrentOrganizationId } from '@/lib/current-organization'
+import { prisma } from '@/lib/core/prisma'
+import { requireAuthUserId } from '@/lib/auth/auth-server'
+import { resolveCurrentOrganizationId } from '@/lib/organization/current-organization'
 
 export type OrganizationRole = 'admin' | 'editor'
 

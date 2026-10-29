@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-import { consumeMagicLink } from '@/lib/magic-link'
-import { prisma } from '@/lib/prisma'
-import { signAuthToken } from '@/lib/auth-token'
+import { consumeMagicLink } from '@/lib/auth/magic-link'
+import { prisma } from '@/lib/core/prisma'
+import { signAuthToken } from '@/lib/auth/auth-token'
 
 function getRedirectUrl(request: NextRequest, path: string) {
   return new URL(path, request.url)

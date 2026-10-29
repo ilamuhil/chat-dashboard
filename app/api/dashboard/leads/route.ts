@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-import { prisma } from '@/lib/prisma'
-import { requireOrganizationMembership } from '@/lib/organization-members'
+import { prisma } from '@/lib/core/prisma'
+import { requireOrganizationMembership } from '@/lib/organization/organization-members'
 import {
   bulkLeadDeleteSchema,
   leadApiError,
   manualLeadCreateSchema,
-} from '@/lib/lead-schemas'
+} from '@/lib/organization/lead-schemas'
 
 export const runtime = 'nodejs'
 

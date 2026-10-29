@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs'
-import { prisma } from '@/lib/prisma'
-import { sendLoginOTPEmail, sendVerifyEmailOtp } from '@/lib/email'
+import { prisma } from '@/lib/core/prisma'
+import { sendLoginOTPEmail, sendVerifyEmailOtp } from '@/lib/email/email'
 
 type OtpChannel = 'email'
 

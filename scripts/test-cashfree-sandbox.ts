@@ -1,10 +1,10 @@
 import { fixturePath } from './billing-test-config'
 import { randomUUID } from 'node:crypto'
 import { writeFile } from 'node:fs/promises'
-import { prisma } from '../lib/prisma'
+import { prisma } from '../lib/core/prisma'
 import { createCheckout, reconcileCheckout } from '../lib/billing/payments'
 import { cashfree, cashfreeMode } from '../lib/billing/cashfree'
-import { signAuthToken } from '../lib/auth-token'
+import { signAuthToken } from '../lib/auth/auth-token'
 import { record, string } from '../lib/billing/events'
 import { ensureBilling, withBillingLock } from '../lib/billing/service'
 

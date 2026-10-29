@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/core/prisma'
 import { billingActor } from '@/lib/billing/guards'
-import { getSecretKey, signToken } from '@/lib/jwt'
+import { getSecretKey, signToken } from '@/lib/auth/jwt'
 import { BillingError, jsonSafe } from '@/lib/billing/service'
 export const runtime = 'nodejs'
 export async function GET(request: NextRequest) {

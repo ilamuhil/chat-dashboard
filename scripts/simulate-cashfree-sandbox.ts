@@ -1,7 +1,7 @@
 import { fixturePath } from './billing-test-config'
 import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
-import { prisma } from '../lib/prisma'
+import { prisma } from '../lib/core/prisma'
 import { cashfree, cashfreeMode } from '../lib/billing/cashfree'
 import { record, string } from '../lib/billing/events'
 async function main() {

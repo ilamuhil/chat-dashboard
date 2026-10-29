@@ -1,4 +1,4 @@
-import { prisma } from '../lib/prisma'
+import { prisma } from '../lib/core/prisma'
 import { cashfreeMode } from '../lib/billing/cashfree'
 import { quote, nextMonth } from '../lib/billing/catalog'
 import { SAMPLE_VENDOR } from '../lib/billing/vendor'

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { GraduationCap, Mail } from 'lucide-react'
-import { contactEmail } from '@/lib/marketing'
+import { contactEmail } from '@/lib/marketing/marketing'
 
 const productLinks = [
   { href: '/#features', label: 'Features' },

@@ -2,10 +2,10 @@
 
 import { nanoid } from "nanoid";
 import { z } from "zod";
-import { uploadFile, deleteFile, getPresignedGetUrl } from "@/lib/filemanagement";
+import { uploadFile, deleteFile, getPresignedGetUrl } from "@/lib/storage/filemanagement";
 import { S3Client, HeadObjectCommand } from "@aws-sdk/client-s3";
-import { prisma } from "@/lib/prisma";
-import { getAuthUserIdFromCookies, requireAuthUserId } from "@/lib/auth-server";
+import { prisma } from "@/lib/core/prisma";
+import { getAuthUserIdFromCookies, requireAuthUserId } from "@/lib/auth/auth-server";
 import type { Prisma } from "@/generated/prisma/client";
 
 const businessProfileSchema = z.object({

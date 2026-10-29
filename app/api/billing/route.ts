@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/core/prisma'
 import { billingActor } from '@/lib/billing/guards'
 import {
   billingSummary,
@@ -20,7 +20,7 @@ import { PLANS, CREDIT_PACK, quote } from '@/lib/billing/catalog'
 import { record } from '@/lib/billing/events'
 import { taxForCustomer } from '@/lib/billing/vendor'
 import { billingDetailsSchema } from '@/lib/billing/details'
-import { sendSubscriptionCancellationEmail } from '@/lib/email'
+import { sendSubscriptionCancellationEmail } from '@/lib/email/email'
 import {
   cashfree,
   cashfreeConfigured,

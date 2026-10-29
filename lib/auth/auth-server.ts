@@ -1,9 +1,9 @@
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { verifyAuthToken } from '@/lib/auth-token'
-import { prisma } from '@/lib/prisma'
-import { CURRENT_ORG_COOKIE } from '@/lib/current-organization'
-import { resolveCurrentOrganizationId } from '@/lib/current-organization'
+import { verifyAuthToken } from '@/lib/auth/auth-token'
+import { prisma } from '@/lib/core/prisma'
+import { CURRENT_ORG_COOKIE } from '@/lib/organization/current-organization'
+import { resolveCurrentOrganizationId } from '@/lib/organization/current-organization'
 import type { NextRequest } from 'next/server'
 
 export const corsHeaders = {

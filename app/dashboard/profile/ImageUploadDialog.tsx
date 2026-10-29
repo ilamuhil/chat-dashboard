@@ -20,8 +20,8 @@ import {
   deleteOrganizationLogo,
   getOrganizationLogoUrl,
 } from './action'
-import { dashboardDangerButtonClass, dashboardOutlineButtonClass } from '@/lib/dashboard-buttons'
-import { cn } from '@/lib/utils'
+import { dashboardDangerButtonClass, dashboardOutlineButtonClass } from '@/lib/dashboard/dashboard-buttons'
+import { cn } from '@/lib/core/utils'
 import { Spinner } from '@/components/ui/spinner'
 
 async function uploadImage(

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-import { leadApiError, leadUpdateSchema } from '@/lib/lead-schemas'
-import { requireOrganizationMembership } from '@/lib/organization-members'
-import { prisma } from '@/lib/prisma'
+import { leadApiError, leadUpdateSchema } from '@/lib/organization/lead-schemas'
+import { requireOrganizationMembership } from '@/lib/organization/organization-members'
+import { prisma } from '@/lib/core/prisma'
 import { Prisma } from '@/generated/prisma/client'
 
 export const runtime = 'nodejs'

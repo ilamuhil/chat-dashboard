@@ -1,6 +1,6 @@
 import { fixturePath } from './billing-test-config'
 import { readFile } from 'node:fs/promises'
-import { prisma } from '../lib/prisma'
+import { prisma } from '../lib/core/prisma'
 import { reconcileCheckout } from '../lib/billing/payments'
 import { cashfree } from '../lib/billing/cashfree'
 import { record } from '../lib/billing/events'

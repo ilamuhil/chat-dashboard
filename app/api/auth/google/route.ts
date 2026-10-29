@@ -5,7 +5,7 @@ import {
   createOAuthSecret,
   createPkceChallenge,
   getGoogleOAuthConfig,
-} from '@/lib/google-oauth'
+} from '@/lib/auth/google-oauth'
 
 export const runtime = 'nodejs'
 

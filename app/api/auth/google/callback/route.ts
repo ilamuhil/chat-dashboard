@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-import { prisma } from '@/lib/prisma'
-import { signAuthToken } from '@/lib/auth-token'
+import { prisma } from '@/lib/core/prisma'
+import { signAuthToken } from '@/lib/auth/auth-token'
 import {
   getGoogleOAuthConfig,
   isSameOAuthSecret,
-} from '@/lib/google-oauth'
+} from '@/lib/auth/google-oauth'
 
 export const runtime = 'nodejs'
 

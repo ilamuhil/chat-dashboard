@@ -1,7 +1,7 @@
 import { fixturePath } from './billing-test-config'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { prisma } from '../lib/prisma'
+import { prisma } from '../lib/core/prisma'
 import { reconcileCheckout } from '../lib/billing/payments'
 async function main() {
   const f = JSON.parse(await readFile(fixturePath, 'utf8')).find(

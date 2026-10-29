@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { hashApiKey } from '@/lib/utils'
-import { prisma } from '@/lib/prisma'
-import { corsHeaders } from '@/lib/auth-server'
-import { widgetProfileSelect } from '@/lib/widget-profile'
+import { hashApiKey } from '@/lib/core/utils'
+import { prisma } from '@/lib/core/prisma'
+import { corsHeaders } from '@/lib/auth/auth-server'
+import { widgetProfileSelect } from '@/lib/widget/widget-profile'
 
 const headers = { ...corsHeaders, 'Cache-Control': 'no-store' }
 export async function OPTIONS() {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/core/prisma'
 import { withBillingLock, assertCapacity } from '@/lib/billing/service'
-import { getAuthUserIdFromCookies } from '@/lib/auth-server'
+import { getAuthUserIdFromCookies } from '@/lib/auth/auth-server'
 import { z } from 'zod'
 
 export const runtime = 'nodejs'

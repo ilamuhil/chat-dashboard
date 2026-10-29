@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-import { prisma } from '@/lib/prisma'
-import { requireAuthUserId } from '@/lib/auth-server'
-import { resolveCurrentOrganizationId } from '@/lib/current-organization'
-import { sendFeedbackEmail } from '@/lib/email'
+import { prisma } from '@/lib/core/prisma'
+import { requireAuthUserId } from '@/lib/auth/auth-server'
+import { resolveCurrentOrganizationId } from '@/lib/organization/current-organization'
+import { sendFeedbackEmail } from '@/lib/email/email'
 
 export const runtime = 'nodejs'
 

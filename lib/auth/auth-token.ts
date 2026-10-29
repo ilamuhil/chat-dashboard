@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken'
-import { getSecretKey } from '@/lib/jwt'
+import { getSecretKey } from '@/lib/auth/jwt'
 
 //! All the functions here are between the dasboard client and the dashboard server. This is independent of the chat server
 

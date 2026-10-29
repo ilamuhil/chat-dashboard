@@ -18,8 +18,8 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { StatusChip, type StatusChipStatus } from '@/components/status-chip'
-import { cn } from '@/lib/utils'
-import type { TrainingError } from '@/lib/training-errors'
+import { cn } from '@/lib/core/utils'
+import type { TrainingError } from '@/lib/training/training-errors'
 
 type Props = {
   resources: Array<{

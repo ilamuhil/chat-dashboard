@@ -1,9 +1,9 @@
 import { notFound } from 'next/navigation'
 
 import { DashboardPageHeader } from '@/components/dashboard-page-header'
-import { requireAuthUserId } from '@/lib/auth-server'
-import { resolveCurrentOrganizationId } from '@/lib/current-organization'
-import { prisma } from '@/lib/prisma'
+import { requireAuthUserId } from '@/lib/auth/auth-server'
+import { resolveCurrentOrganizationId } from '@/lib/organization/current-organization'
+import { prisma } from '@/lib/core/prisma'
 
 import LeadDetailClient, {
   type LeadDetail,

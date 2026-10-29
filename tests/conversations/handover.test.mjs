@@ -19,11 +19,11 @@ function load(relative, imports, globals = {}) {
 
 test('minting an agent token never changes mode, including explicit takeover', async () => {
   let signed
-  const route = load('../app/api/auth/agent/token/route.ts', {
+  const route = load('../../app/api/auth/agent/token/route.ts', {
     'next/server': { NextResponse: { json: (body, options) => ({ body, status: options.status }) } },
-    '@/lib/auth-token': { verifyAuthToken: () => ({ sub: 'staff-a' }) },
-    '@/lib/jwt': { getSecretKey: () => 'test', signToken: payload => { signed = payload; return 'signed' } },
-    '@/lib/prisma': { prisma: {
+    '@/lib/auth/auth-token': { verifyAuthToken: () => ({ sub: 'staff-a' }) },
+    '@/lib/auth/jwt': { getSecretKey: () => 'test', signToken: payload => { signed = payload; return 'signed' } },
+    '@/lib/core/prisma': { prisma: {
       conversationsMeta: { findUnique: async () => ({ id: 'chat-a', botId: 'bot-a', organizationId: 'org-a', status: 'open', handoverVersion: 7 }),
         update: async () => { throw new Error('Mode changed before socket authentication') } },
       organizationMembers: { findFirst: async () => ({ id: 'member-a' }) },
@@ -58,7 +58,7 @@ function socketHook() {
     useMemo: fn => fn(), useCallback: fn => fn,
     useEffect: fn => effects.push(fn),
   }
-  const loaded = load('../app/dashboard/users/conversations/[id]/useChatSocket.ts', { react: hooks }, {
+  const loaded = load('../../app/dashboard/users/conversations/[id]/useChatSocket.ts', { react: hooks }, {
     WebSocket: Socket, process: { env: { NEXT_PUBLIC_PYTHON_SERVER_URL: 'https://chat.example' } },
     setTimeout: (fn, delay) => { timers.set(++nextTimer, { fn, delay }); return nextTimer },
     clearTimeout: id => timers.delete(id),

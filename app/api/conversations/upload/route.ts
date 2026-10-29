@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/jwt'
-import { uploadFile, deleteFile } from '@/lib/filemanagement'
+import { prisma } from '@/lib/core/prisma'
+import { verifyToken } from '@/lib/auth/jwt'
+import { uploadFile, deleteFile } from '@/lib/storage/filemanagement'
 import { withBillingLock, assertCapacity, BillingError } from '@/lib/billing/service'
 import type { Limits } from '@/lib/billing/catalog'
-import { corsHeaders } from '@/lib/auth-server'
+import { corsHeaders } from '@/lib/auth/auth-server'
 
 
 export async function OPTIONS() {

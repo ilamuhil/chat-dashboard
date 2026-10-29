@@ -1,4 +1,4 @@
-import { buildWidgetEmbed } from '@/lib/widget-embed'
+import { buildWidgetEmbed } from '@/lib/widget/widget-embed'
 import screenshotSizes from '@/public/images/docs/manifest.json'
 import { CREDIT_PACK, PLANS, money, type Limits } from '@/lib/billing/catalog'
 

@@ -19,7 +19,7 @@ import {
   SidebarMenuSubItem,
 } from '@/components/ui/sidebar'
 import { usePathname, useRouter } from 'next/navigation'
-import { cn } from '@/lib/utils'
+import { cn } from '@/lib/core/utils'
 
 export function NavMain({
   items,

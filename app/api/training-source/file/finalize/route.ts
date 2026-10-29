@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireUserOrgAndBot } from '@/lib/auth-server'
-import { prisma } from '@/lib/prisma'
-import { objectSize } from '@/lib/filemanagement'
+import { requireUserOrgAndBot } from '@/lib/auth/auth-server'
+import { prisma } from '@/lib/core/prisma'
+import { objectSize } from '@/lib/storage/filemanagement'
 import { withBillingLock, assertCapacity } from '@/lib/billing/service'
 import type { Limits } from '@/lib/billing/catalog'
 

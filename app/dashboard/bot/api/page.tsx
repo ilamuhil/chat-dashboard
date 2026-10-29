@@ -1,6 +1,6 @@
 import Link from 'next/link'
-import { dashboardButtonClass } from '@/lib/dashboard-buttons'
-import { cn } from '@/lib/utils'
+import { dashboardButtonClass } from '@/lib/dashboard/dashboard-buttons'
+import { cn } from '@/lib/core/utils'
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -26,9 +26,9 @@ import ApiKeyLauncher from './ApiKeyLauncher'
 import CodeBlock from './CodeBlock'
 import { revokeApiKey } from './action'
 import { format } from 'date-fns'
-import { resolveCurrentOrganizationId } from '@/lib/current-organization'
-import { requireAuthUserId } from '@/lib/auth-server'
-import { prisma } from '@/lib/prisma'
+import { resolveCurrentOrganizationId } from '@/lib/organization/current-organization'
+import { requireAuthUserId } from '@/lib/auth/auth-server'
+import { prisma } from '@/lib/core/prisma'
 import { DashboardPageHeader } from '@/components/dashboard-page-header'
 
 const PAGE_TITLE = 'API & Integrations'

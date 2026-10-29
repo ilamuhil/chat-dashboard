@@ -2,7 +2,7 @@ import { fixturePath } from './billing-test-config'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
-import { prisma } from '../lib/prisma'
+import { prisma } from '../lib/core/prisma'
 import {
   schedulePlan,
   cancelRenewal,

@@ -1,6 +1,6 @@
 import { GraduationCap } from 'lucide-react'
 
-import { cn } from '@/lib/utils'
+import { cn } from '@/lib/core/utils'
 
 export function AppLoader({
   label = 'Preparing your workspace',

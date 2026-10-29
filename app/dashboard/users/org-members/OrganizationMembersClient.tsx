@@ -8,8 +8,8 @@ import { Button } from '@/components/ui/button'
 import {
   dashboardButtonClass,
   dashboardOutlineButtonClass,
-} from '@/lib/dashboard-buttons'
-import { cn } from '@/lib/utils'
+} from '@/lib/dashboard/dashboard-buttons'
+import { cn } from '@/lib/core/utils'
 import ConfirmationDialog from '@/components/ui/ConfirmationDialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'

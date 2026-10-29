@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
-import { signAuthToken } from '@/lib/auth-token'
-import { getPublicOtpErrorMessage, verifyOtp } from '@/lib/otp'
+import { prisma } from '@/lib/core/prisma'
+import { signAuthToken } from '@/lib/auth/auth-token'
+import { getPublicOtpErrorMessage, verifyOtp } from '@/lib/auth/otp'
 import { validateEmail } from '@/lib/emails/validate-email'
 
 export const runtime = 'nodejs'

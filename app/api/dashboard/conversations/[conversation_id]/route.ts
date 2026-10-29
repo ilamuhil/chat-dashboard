@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
-import { prisma } from '@/lib/prisma'
-import { getSecretKey, signToken } from '@/lib/jwt'
-import { pythonApiRequest } from '@/lib/axios-server-config'
-import { requireAuthUserId } from '@/lib/auth-server'
-import { resolveCurrentOrganizationId } from '@/lib/current-organization'
+import { prisma } from '@/lib/core/prisma'
+import { getSecretKey, signToken } from '@/lib/auth/jwt'
+import { pythonApiRequest } from '@/lib/http/axios-server-config'
+import { requireAuthUserId } from '@/lib/auth/auth-server'
+import { resolveCurrentOrganizationId } from '@/lib/organization/current-organization'
 
 const updateSchema = z.object({
   status: z.enum(['open', 'closed']).optional(),

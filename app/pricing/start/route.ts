@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthUserIdFromCookies } from '@/lib/auth-server'
+import { getAuthUserIdFromCookies } from '@/lib/auth/auth-server'
 export async function GET(request: NextRequest) {
   const plan = request.nextUrl.searchParams.get('plan')
   if (!['trial', 'starter', 'growth'].includes(plan || ''))

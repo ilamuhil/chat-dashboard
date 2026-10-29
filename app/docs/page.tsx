@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 
 import { DocsArticle } from '@/components/docs/docs-article'
-import { getDocPage } from '@/lib/docs'
+import { getDocPage } from '@/lib/docs/docs'
 
 const siteUrl = (
   process.env.APP_URL ||

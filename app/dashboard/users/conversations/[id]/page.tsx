@@ -1,12 +1,12 @@
-import { requireAuthUserId } from '@/lib/auth-server'
-import { resolveCurrentOrganizationId } from '@/lib/current-organization'
+import { requireAuthUserId } from '@/lib/auth/auth-server'
+import { resolveCurrentOrganizationId } from '@/lib/organization/current-organization'
 import ChatInterface from './ChatInterface'
 import type { ConversationSummaryData } from './ConversationSummary'
-import { pythonApiRequest } from '@/lib/axios-server-config'
+import { pythonApiRequest } from '@/lib/http/axios-server-config'
 import { notFound } from 'next/navigation'
 import { Message } from './types'
-import { prisma } from '@/lib/prisma'
-import { getSecretKey, signToken } from '@/lib/jwt'
+import { prisma } from '@/lib/core/prisma'
+import { getSecretKey, signToken } from '@/lib/auth/jwt'
 import axios from 'axios'
 
 

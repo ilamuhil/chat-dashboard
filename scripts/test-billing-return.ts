@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { readFile, writeFile } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
 import { fixturePath, output, browserPath } from './billing-test-config'
-import { signAuthToken } from '../lib/auth-token'
+import { signAuthToken } from '../lib/auth/auth-token'
 
 async function main() {
   const fixtures = JSON.parse(await readFile(fixturePath, 'utf8'))

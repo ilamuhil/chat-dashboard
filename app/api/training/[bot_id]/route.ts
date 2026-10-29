@@ -1,12 +1,12 @@
-import { getSecretKey, signToken } from '@/lib/jwt'
+import { getSecretKey, signToken } from '@/lib/auth/jwt'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireUserOrgAndBot } from '@/lib/route-guards'
-import { pythonApiRequest } from '@/lib/axios-server-config'
-import { prisma } from '@/lib/prisma'
+import { requireUserOrgAndBot } from '@/lib/auth/route-guards'
+import { pythonApiRequest } from '@/lib/http/axios-server-config'
+import { prisma } from '@/lib/core/prisma'
 import { Prisma } from '@/generated/prisma/client'
 import { isAxiosError } from 'axios'
 import { z } from 'zod'
-import { queueError, trainingErrors, type TrainingError } from '@/lib/training-errors'
+import { queueError, trainingErrors, type TrainingError } from '@/lib/training/training-errors'
 
 export const runtime = 'nodejs'
 

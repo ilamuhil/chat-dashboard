@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
-import { buildWidgetEmbed } from '@/lib/widget-embed'
+import { buildWidgetEmbed } from '@/lib/widget/widget-embed'
 
 export default function CodeBlock({
   widgetUrl,

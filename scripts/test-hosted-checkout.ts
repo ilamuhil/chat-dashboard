@@ -2,7 +2,7 @@ import { fixturePath, output, browserPath } from './billing-test-config'
 import assert from 'node:assert/strict'
 import { readFile, writeFile } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
-import { prisma } from '../lib/prisma'
+import { prisma } from '../lib/core/prisma'
 const base = 'http://localhost:4000'
 async function main() {
   const fixtures = JSON.parse(await readFile(fixturePath, 'utf8'))

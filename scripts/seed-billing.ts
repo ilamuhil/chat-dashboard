@@ -1,4 +1,4 @@
-import { prisma } from '../lib/prisma'
+import { prisma } from '../lib/core/prisma'
 import { ensureBilling, withBillingLock } from '../lib/billing/service'
 async function main() {
   const organizations = await prisma.organizations.findMany({

@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
 import { DocsArticle } from '@/components/docs/docs-article'
-import { docsPages, getDocPage } from '@/lib/docs'
+import { docsPages, getDocPage } from '@/lib/docs/docs'
 
 const siteUrl = (
   process.env.APP_URL ||

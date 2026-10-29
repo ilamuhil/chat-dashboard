@@ -4,7 +4,7 @@ import { test } from 'node:test'
 import { runInNewContext } from 'node:vm'
 import ts from 'typescript'
 
-const source = readFileSync(new URL('../app/api/training-source/route.ts', import.meta.url), 'utf8')
+const source = readFileSync(new URL('../../app/api/training-source/route.ts', import.meta.url), 'utf8')
 const compiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText
@@ -25,15 +25,15 @@ function handler({ status = 'trained', count = 1, upstreamError, unauthorized = 
   const failure = { status: 401 }
   const imports = {
     'next/server': { NextResponse: { json: (body, options) => ({ body, status: options.status }) } },
-    '@/lib/route-guards': { requireUserOrgAndBot: async () => unauthorized
+    '@/lib/auth/route-guards': { requireUserOrgAndBot: async () => unauthorized
       ? { ok: false, response: failure }
       : { ok: true, organizationId: 'org-a', userId: 'staff-a' } },
-    '@/lib/prisma': { prisma },
-    '@/lib/jwt': { getSecretKey: () => 'test-key', signToken: payload => {
+    '@/lib/core/prisma': { prisma },
+    '@/lib/auth/jwt': { getSecretKey: () => 'test-key', signToken: payload => {
       assert.equal(payload.sub, 'staff-a')
       return 'signed-staff-token'
     } },
-    '@/lib/axios-server-config': { pythonApiRequest: async (method, path, token) => {
+    '@/lib/http/axios-server-config': { pythonApiRequest: async (method, path, token) => {
       calls.push('chat_api')
       assert.equal(method, 'DELETE')
       assert.equal(path, '/api/training/delete/source-a')
@@ -41,7 +41,7 @@ function handler({ status = 'trained', count = 1, upstreamError, unauthorized = 
       if (upstreamError) throw upstreamError
       return { message: 'Training source removed. File cleanup queued.', job_id: 'job-a' }
     } },
-    '@/lib/filemanagement': {
+    '@/lib/storage/filemanagement': {
       fileExists: async () => true,
       deleteFile: async () => { calls.push('delete_stored_file') },
     },

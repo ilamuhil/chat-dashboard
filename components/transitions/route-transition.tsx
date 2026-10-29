@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
-import { cn } from '@/lib/utils'
+import { cn } from '@/lib/core/utils'
 import { AppLoader } from '@/components/ui/app-loader'
 
 const MINIMUM_LOADER_TIME_MS = 650

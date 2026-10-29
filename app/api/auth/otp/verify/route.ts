@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { getPublicOtpErrorMessage, verifyOtp } from '@/lib/otp'
+import { getPublicOtpErrorMessage, verifyOtp } from '@/lib/auth/otp'
 
 export const runtime = 'nodejs'
 

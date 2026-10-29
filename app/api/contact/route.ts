@@ -1,6 +1,6 @@
-import { createContactHandler } from '@/lib/contact-enquiry'
-import { sendCustomEmail } from '@/lib/email'
-import { contactEmail } from '@/lib/marketing'
+import { createContactHandler } from '@/lib/organization/contact-enquiry'
+import { sendCustomEmail } from '@/lib/email/email'
+import { contactEmail } from '@/lib/marketing/marketing'
 
 export const runtime = 'nodejs'
 

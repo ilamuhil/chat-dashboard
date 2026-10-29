@@ -1,8 +1,8 @@
-import { resolveCurrentOrganizationId } from '@/lib/current-organization'
+import { resolveCurrentOrganizationId } from '@/lib/organization/current-organization'
 
 import TrainingDataClient from './TrainingDataClient'
-import { requireAuthUserId } from '@/lib/auth-server'
-import { prisma } from '@/lib/prisma'
+import { requireAuthUserId } from '@/lib/auth/auth-server'
+import { prisma } from '@/lib/core/prisma'
 import type { Bot } from '../interactions/action'
 import { DashboardPageHeader } from '@/components/dashboard-page-header'
 

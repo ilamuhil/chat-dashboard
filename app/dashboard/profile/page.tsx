@@ -1,7 +1,7 @@
 import ProfileForm from './ProfileForm'
-import { resolveCurrentOrganizationId } from '@/lib/current-organization'
-import { requireAuthUserId } from '@/lib/auth-server'
-import { prisma } from '@/lib/prisma'
+import { resolveCurrentOrganizationId } from '@/lib/organization/current-organization'
+import { requireAuthUserId } from '@/lib/auth/auth-server'
+import { prisma } from '@/lib/core/prisma'
 import { DashboardPageHeader } from '@/components/dashboard-page-header'
 
 type OrganizationAddress = {

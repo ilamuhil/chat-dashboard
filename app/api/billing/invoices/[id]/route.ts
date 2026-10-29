@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { billingActor } from '@/lib/billing/guards'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/core/prisma'
 import { BillingError } from '@/lib/billing/service'
 import { invoiceAvailableAt } from '@/lib/billing/tax'
 import { generateInvoice } from '@/lib/billing/invoice'

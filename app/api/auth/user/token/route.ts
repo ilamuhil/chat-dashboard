@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { hashApiKey } from '@/lib/utils'
-import { getSecretKey, signToken } from '@/lib/jwt'
-import { prisma } from '@/lib/prisma'
+import { hashApiKey } from '@/lib/core/utils'
+import { getSecretKey, signToken } from '@/lib/auth/jwt'
+import { prisma } from '@/lib/core/prisma'
 import { z } from 'zod'
-import { corsHeaders } from '@/lib/auth-server'
+import { corsHeaders } from '@/lib/auth/auth-server'
 
 //! this route is used to mint a token for the end_user used to chat with the bot/support_agent. Do not use this route to mint a token for the support_agent.
 

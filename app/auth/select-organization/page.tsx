@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 
-import { requireAuthUserId } from '@/lib/auth-server'
-import { prisma } from '@/lib/prisma'
+import { requireAuthUserId } from '@/lib/auth/auth-server'
+import { prisma } from '@/lib/core/prisma'
 import OrganizationSelection from './OrganizationSelection'
 
 export default async function SelectOrganizationPage({

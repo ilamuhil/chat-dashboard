@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/core/prisma'
 import { withBillingLock, assertCapacity, BillingError } from '@/lib/billing/service'
-import { requireUserOrgAndBot } from '@/lib/auth-server'
+import { requireUserOrgAndBot } from '@/lib/auth/auth-server'
 export async function POST(request: NextRequest) { 
   const { bot_id, url } = await request.json()
   if (!bot_id || !url || typeof url !== 'string') { 

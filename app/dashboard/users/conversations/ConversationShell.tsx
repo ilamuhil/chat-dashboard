@@ -34,12 +34,12 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
   dashboardDangerButtonClass,
   dashboardOutlineButtonClass,
-} from '@/lib/dashboard-buttons'
-import { cn } from '@/lib/utils'
+} from '@/lib/dashboard/dashboard-buttons'
+import { cn } from '@/lib/core/utils'
 import { toast } from 'sonner'
-import { clientApiAxios } from '@/lib/axios-client'
+import { clientApiAxios } from '@/lib/http/axios-client'
 import { useQuery } from '@tanstack/react-query'
-import { groupInboxChats, type InboxChat } from '@/lib/conversation-inbox'
+import { groupInboxChats, type InboxChat } from '@/lib/conversations/conversation-inbox'
 import { conversationStatusEvent } from './conversation-status'
 import { useDashboardNotifications } from '@/app/dashboard/notifications/NotificationProvider'
 

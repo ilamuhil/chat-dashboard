@@ -2,8 +2,8 @@ import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { writeFile } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
-import { prisma } from '../lib/prisma'
-import { signAuthToken } from '../lib/auth-token'
+import { prisma } from '../lib/core/prisma'
+import { signAuthToken } from '../lib/auth/auth-token'
 import { browserPath, output } from './billing-test-config'
 
 async function main() {

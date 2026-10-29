@@ -1,8 +1,8 @@
 import React, { ReactNode } from 'react'
 import ConversationShell from './ConversationShell'
-import { prisma } from '@/lib/prisma'
-import { requireAuthUserId } from '@/lib/auth-server'
-import { resolveCurrentOrganizationId } from '@/lib/current-organization'
+import { prisma } from '@/lib/core/prisma'
+import { requireAuthUserId } from '@/lib/auth/auth-server'
+import { resolveCurrentOrganizationId } from '@/lib/organization/current-organization'
 import { DashboardPageHeader } from '@/components/dashboard-page-header'
 
 export default async function ConversationsLayout({

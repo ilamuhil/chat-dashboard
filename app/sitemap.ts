@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next'
-import { docsPages } from '@/lib/docs'
+import { docsPages } from '@/lib/docs/docs'
 
 const baseUrl = (
   process.env.APP_URL ||

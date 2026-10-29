@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/core/prisma'
 
 export const CURRENT_ORG_COOKIE = 'current_organization_id'
 

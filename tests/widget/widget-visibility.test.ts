@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { parseVisibilityRoutes, isWidgetVisible } from './widget-visibility'
-import { widgetSettingsSchema } from './widget-profile'
-import { buildWidgetEmbed } from './widget-embed'
-import { getDocPage } from './docs'
+import { parseVisibilityRoutes, isWidgetVisible } from '../../lib/widget/widget-visibility'
+import { widgetSettingsSchema } from '../../lib/widget/widget-profile'
+import { buildWidgetEmbed } from '../../lib/widget/widget-embed'
+import { getDocPage } from '../../lib/docs/docs'
 
 test('dashboard stores canonical paths with the same matching contract as the widget', () => {
   const routes = parseVisibilityRoutes(' /pricing/ \n/products/*\n/pricing')

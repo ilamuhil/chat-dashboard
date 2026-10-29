@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 
-import { docsNav } from '@/lib/docs'
+import { docsNav } from '@/lib/docs/docs'
 import { DocsSidebar } from '@/components/docs/docs-sidebar'
 import { SiteFooter } from '@/components/marketing/site-footer'
 import { SiteHeader } from '@/components/marketing/site-header'

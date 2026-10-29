@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { groupInboxChats } from './conversation-inbox.ts'
+import { groupInboxChats } from '../../lib/conversations/conversation-inbox.ts'
 
 const chat = (id, overrides = {}) => ({
   id, leadId: 'lead-a', botId: 'bot-a', createdAt: '2026-10-01T00:00:00Z',

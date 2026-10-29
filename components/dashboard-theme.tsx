@@ -8,8 +8,8 @@ import {
   useSyncExternalStore,
 } from 'react'
 
-import { dashboardThemeKey } from '@/lib/dashboard-theme'
-import { cn } from '@/lib/utils'
+import { dashboardThemeKey } from '@/lib/dashboard/dashboard-theme'
+import { cn } from '@/lib/core/utils'
 
 export type DashboardTheme = 'light' | 'dark'
 

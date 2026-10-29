@@ -1,5 +1,5 @@
 import { randomUUID, createHash } from 'node:crypto'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/core/prisma'
 import type { Prisma } from '@/generated/prisma/client'
 import {
   cashfree,

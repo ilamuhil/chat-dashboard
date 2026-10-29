@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { billingActor } from '@/lib/billing/guards'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/core/prisma'
 import { ensureBilling, hasAccess, withBillingLock, BillingError } from '@/lib/billing/service'
 export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest) {

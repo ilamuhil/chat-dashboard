@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/core/prisma'
 import { withBillingLock, assertCapacity, BillingError } from '@/lib/billing/service'
-import { requireOrganizationMembership } from '@/lib/organization-members'
-import { createMagicLink } from '@/lib/magic-link'
-import { sendOrganizationMagicLinkEmail } from '@/lib/email'
+import { requireOrganizationMembership } from '@/lib/organization/organization-members'
+import { createMagicLink } from '@/lib/auth/magic-link'
+import { sendOrganizationMagicLinkEmail } from '@/lib/email/email'
 
 export const runtime = 'nodejs'
 

@@ -22,7 +22,7 @@ import {
   UserRoundCheck,
 } from 'lucide-react'
 import { ProductDemo } from '@/components/marketing/product-demo'
-import { admissionsFaqs, siteUrl } from '@/lib/marketing'
+import { admissionsFaqs, siteUrl } from '@/lib/marketing/marketing'
 
 export const metadata: Metadata = {
   title: 'AI Admissions Chatbot for Colleges & Institutes',

@@ -20,8 +20,8 @@ import {
   MailIcon,
   MapPinIcon,
 } from 'lucide-react'
-import { dashboardButtonClass } from '@/lib/dashboard-buttons'
-import { cn } from '@/lib/utils'
+import { dashboardButtonClass } from '@/lib/dashboard/dashboard-buttons'
+import { cn } from '@/lib/core/utils'
 
 type Organization = {
   id: string

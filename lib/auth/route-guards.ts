@@ -1,7 +1,7 @@
-import { resolveCurrentOrganizationId } from '@/lib/current-organization'
+import { resolveCurrentOrganizationId } from '@/lib/organization/current-organization'
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { verifyAuthToken } from '@/lib/auth-token'
+import { prisma } from '@/lib/core/prisma'
+import { verifyAuthToken } from '@/lib/auth/auth-token'
 import type { NextRequest } from 'next/server'
 
 type GuardFail = { ok: false; response: NextResponse }

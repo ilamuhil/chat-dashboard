@@ -10,7 +10,7 @@ import {
   Wallet,
 } from 'lucide-react'
 import { ContactForm } from '@/components/marketing/contact-form'
-import { contactEmail, siteUrl } from '@/lib/marketing'
+import { contactEmail, siteUrl } from '@/lib/marketing/marketing'
 
 export const metadata: Metadata = {
   title: 'Contact Us About Your Admissions Chatbot',

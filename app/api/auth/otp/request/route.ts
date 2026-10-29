@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
-import { createAndSendOtp } from '@/lib/otp'
+import { prisma } from '@/lib/core/prisma'
+import { createAndSendOtp } from '@/lib/auth/otp'
 import { validateEmail } from '@/lib/emails/validate-email'
 
 export const runtime = 'nodejs'

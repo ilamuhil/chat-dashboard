@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from 'react'
 
-import { clientApiAxios } from '@/lib/axios-client'
+import { clientApiAxios } from '@/lib/http/axios-client'
 
 export type DashboardNotification = {
   id: string

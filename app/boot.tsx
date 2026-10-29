@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { toast, Toaster } from 'sonner'
 
-import { clientApiAxios } from '@/lib/axios-client'
+import { clientApiAxios } from '@/lib/http/axios-client'
 import {
   useDashboardNotifications,
   type DashboardNotification,

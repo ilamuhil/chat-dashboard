@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation'
-import { resolveCurrentOrganizationId } from '@/lib/current-organization'
+import { resolveCurrentOrganizationId } from '@/lib/organization/current-organization'
 import BotInteractionsClient from './BotInteractionsClient'
-import { requireAuthUserId } from '@/lib/auth-server'
-import { prisma } from '@/lib/prisma'
+import { requireAuthUserId } from '@/lib/auth/auth-server'
+import { prisma } from '@/lib/core/prisma'
 import type { Bot } from './action'
 import { DashboardPageHeader } from '@/components/dashboard-page-header'
 

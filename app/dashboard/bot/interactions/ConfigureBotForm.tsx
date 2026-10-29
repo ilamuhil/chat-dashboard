@@ -16,8 +16,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { useActionState, useState, useEffect } from 'react'
-import { dashboardButtonClass } from '@/lib/dashboard-buttons'
-import { cn } from '@/lib/utils'
+import { dashboardButtonClass } from '@/lib/dashboard/dashboard-buttons'
+import { cn } from '@/lib/core/utils'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   updateBotInteractions,

@@ -7,22 +7,22 @@ import {
   PLANS,
   PLAN_VERSION,
   creditPackPrice,
-} from './catalog'
-import { verifyCashfreeWebhook } from './cashfree'
-import { validCollection, normalizePayment } from './events'
-import { prisma } from '../prisma'
+} from '../../lib/billing/catalog'
+import { verifyCashfreeWebhook } from '../../lib/billing/cashfree'
+import { validCollection, normalizePayment } from '../../lib/billing/events'
+import { prisma } from '../../lib/core/prisma'
 import {
   ensureBilling,
   withBillingLock,
   assertCapacity,
   hasAccess,
-} from './service'
+} from '../../lib/billing/service'
 import {
   applySubscriptionPayment,
   applyCreditPackPayment,
   applyRefund,
-} from './payments'
-import { gstBreakdown, invoiceAvailableAt } from './tax'
+} from '../../lib/billing/payments'
+import { gstBreakdown, invoiceAvailableAt } from '../../lib/billing/tax'
 
 test('money is integer paise and monthly dates clamp at month end', () => {
   assert.deepEqual(quote(199900, 1800), {

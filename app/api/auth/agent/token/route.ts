@@ -1,8 +1,8 @@
 //agent joins in to the chat conversation
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { getSecretKey, signToken } from '@/lib/jwt'
-import { verifyAuthToken } from '@/lib/auth-token'
+import { prisma } from '@/lib/core/prisma'
+import { getSecretKey, signToken } from '@/lib/auth/jwt'
+import { verifyAuthToken } from '@/lib/auth/auth-token'
 
 export const runtime = 'nodejs'
 

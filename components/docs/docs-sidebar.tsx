@@ -4,10 +4,10 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { BookOpen, ChevronDown, Search } from 'lucide-react'
-import type { DocPage } from '@/lib/docs'
+import type { DocPage } from '@/lib/docs/docs'
 
 type NavigationItem = { href: string; label: string; description: string; category: DocPage['category'] }
-import { cn } from '@/lib/utils'
+import { cn } from '@/lib/core/utils'
 
 const categories = ['Start here', 'Configure', 'Operate', 'Account & limits'] as const
 

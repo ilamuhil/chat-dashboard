@@ -6,7 +6,7 @@ import { useState } from 'react'
 import { GraduationCap, Menu, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+import { cn } from '@/lib/core/utils'
 
 const links = [
   { href: '/#features', label: 'Features' },

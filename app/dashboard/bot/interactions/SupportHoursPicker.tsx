@@ -9,7 +9,7 @@ import {
   SUPPORT_DAYS,
   SUPPORT_TIMEZONES,
   type SupportHoursValue,
-} from '@/lib/support-hours'
+} from '@/lib/widget/support-hours'
 
 const DEFAULT_VALUE: SupportHoursValue = {
   version: 1,

@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
-import { requireOrganizationMembership } from '@/lib/organization-members'
-import { prisma } from '@/lib/prisma'
+import { requireOrganizationMembership } from '@/lib/organization/organization-members'
+import { prisma } from '@/lib/core/prisma'
 import { record, string } from '@/lib/billing/events'
 import { money } from '@/lib/billing/catalog'
 import { BillingTaxBreakdown } from '@/components/billing-tax-breakdown'

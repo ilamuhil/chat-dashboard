@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
-import { getAuthUserIdFromCookies } from '@/lib/auth-server'
+import { prisma } from '@/lib/core/prisma'
+import { getAuthUserIdFromCookies } from '@/lib/auth/auth-server'
 import { nanoid } from 'nanoid'
 import { withBillingLock } from '@/lib/billing/service'
 

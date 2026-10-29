@@ -16,12 +16,12 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { clientApiAxios } from '@/lib/axios-client'
+import { clientApiAxios } from '@/lib/http/axios-client'
 import {
   dashboardButtonClass,
   dashboardOutlineButtonClass,
-} from '@/lib/dashboard-buttons'
-import { cn } from '@/lib/utils'
+} from '@/lib/dashboard/dashboard-buttons'
+import { cn } from '@/lib/core/utils'
 
 type OverviewData = {
   setup: {

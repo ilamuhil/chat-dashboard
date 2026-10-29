@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { getAuthUserIdFromCookies, getOnboardingStatus } from '@/lib/auth-server'
+import { getAuthUserIdFromCookies, getOnboardingStatus } from '@/lib/auth/auth-server'
 import OnboardingClient from './OnboardingClient'
 
 export default async function OnboardingPage() {

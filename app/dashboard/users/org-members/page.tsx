@@ -1,8 +1,8 @@
 import { notFound } from 'next/navigation'
 
-import { requireAuthUserId } from '@/lib/auth-server'
-import { prisma } from '@/lib/prisma'
-import { resolveCurrentOrganizationId } from '@/lib/current-organization'
+import { requireAuthUserId } from '@/lib/auth/auth-server'
+import { prisma } from '@/lib/core/prisma'
+import { resolveCurrentOrganizationId } from '@/lib/organization/current-organization'
 import OrganizationMembersClient from './OrganizationMembersClient'
 
 export default async function OrganizationMembersPage() {

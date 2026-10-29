@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
-import { requireAuthUserId } from '@/lib/auth-server'
+import { requireAuthUserId } from '@/lib/auth/auth-server'
 
 const bodySchema = z.object({
   organizationId: z.string().min(1),
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
   try {
     const userId = await requireAuthUserId()
     const body = bodySchema.parse(await request.json())
-    const { prisma } = await import('@/lib/prisma')
+    const { prisma } = await import('@/lib/core/prisma')
 
     const membership = await prisma.organizationMembers.findFirst({
       where: { userId, organizationId: body.organizationId },

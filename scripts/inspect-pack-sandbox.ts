@@ -1,6 +1,6 @@
 import { fixturePath } from './billing-test-config'
 import { readFile } from 'node:fs/promises'
-import { prisma } from '../lib/prisma'
+import { prisma } from '../lib/core/prisma'
 import { cashfree } from '../lib/billing/cashfree'
 async function main() {
   const f = JSON.parse(await readFile(fixturePath, 'utf8')).find(

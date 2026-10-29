@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/core/prisma'
 
 const MAGIC_LINK_TTL_MINUTES = 15
 

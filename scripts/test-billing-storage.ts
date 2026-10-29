@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { writeFile } from 'node:fs/promises'
-import { prisma } from '../lib/prisma'
-import { signAuthToken } from '../lib/auth-token'
-import { deleteFile, objectSize } from '../lib/filemanagement'
+import { prisma } from '../lib/core/prisma'
+import { signAuthToken } from '../lib/auth/auth-token'
+import { deleteFile, objectSize } from '../lib/storage/filemanagement'
 import { ensureBilling, withBillingLock } from '../lib/billing/service'
 import { PLANS } from '../lib/billing/catalog'
 

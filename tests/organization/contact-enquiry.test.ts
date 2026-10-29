@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createContactHandler } from './contact-enquiry'
+import { createContactHandler } from '../../lib/organization/contact-enquiry'
 
 const valid = {
   name: 'Example User',

@@ -1,9 +1,9 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowLeft, ArrowRight, CheckCircle2, CircleAlert, Info, Lightbulb, ArrowUpRight, MapPin, Users } from 'lucide-react'
-import type { DocPage } from '@/lib/docs'
-import { docsPages } from '@/lib/docs'
-import { cn } from '@/lib/utils'
+import type { DocPage } from '@/lib/docs/docs'
+import { docsPages } from '@/lib/docs/docs'
+import { cn } from '@/lib/core/utils'
 
 const tones = {
   info: { style: 'border-sky-200 bg-sky-50 text-sky-950', icon: Info },

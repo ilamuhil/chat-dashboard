@@ -6,7 +6,7 @@ import { conversationStatusEvent } from '../conversation-status'
 import { useQuery } from '@tanstack/react-query'
 import { RefreshCwIcon, SparklesIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { clientApiAxios } from '@/lib/axios-client'
+import { clientApiAxios } from '@/lib/http/axios-client'
 
 export type ConversationSummaryData = {
   id: string

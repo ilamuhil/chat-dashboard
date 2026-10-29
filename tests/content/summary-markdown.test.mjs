@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { prepareSummaryMarkdown } from './summary-markdown.ts'
-import { renderMarkdown } from './markdown.ts'
+import { prepareSummaryMarkdown } from '../../lib/content/summary-markdown.ts'
+import { renderMarkdown } from '../../lib/content/markdown.ts'
 
 test('legacy prose becomes separate bullets without dropping facts or contact details', () => {
   const text = 'Maya wants online classes. Her budget is INR 65,000. Do not contact maya@example.invalid.'

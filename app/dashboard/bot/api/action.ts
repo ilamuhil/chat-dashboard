@@ -2,10 +2,10 @@
 
 import { ApiKeyResult } from './types'
 import { revalidatePath } from 'next/cache'
-import { createApiKey, hashApiKey } from '@/lib/utils'
-import { resolveCurrentOrganizationId } from '@/lib/current-organization'
-import { requireAuthUserId } from '@/lib/auth-server'
-import { prisma } from '@/lib/prisma'
+import { createApiKey, hashApiKey } from '@/lib/core/utils'
+import { resolveCurrentOrganizationId } from '@/lib/organization/current-organization'
+import { requireAuthUserId } from '@/lib/auth/auth-server'
+import { prisma } from '@/lib/core/prisma'
 
 export async function saveApiKey(
   prevState: ApiKeyResult | null,

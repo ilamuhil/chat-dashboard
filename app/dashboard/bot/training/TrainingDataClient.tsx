@@ -14,16 +14,16 @@ import {
 import {
   dashboardButtonClass,
   dashboardOutlineButtonClass,
-} from '@/lib/dashboard-buttons'
-import { cn } from '@/lib/utils'
+} from '@/lib/dashboard/dashboard-buttons'
+import { cn } from '@/lib/core/utils'
 import ResourceContainer from './ResourceContainer'
 import { Bot } from '../interactions/action'
 import BotSelectionGrid from './BotSelectionGrid'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { clientApiAxios } from '@/lib/axios-client'
+import { clientApiAxios } from '@/lib/http/axios-client'
 import { isAxiosError } from 'axios'
-import type { TrainingError } from '@/lib/training-errors'
+import type { TrainingError } from '@/lib/training/training-errors'
 
 type TrainingSourceType = 'url' | 'file'
 

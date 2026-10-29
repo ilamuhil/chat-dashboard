@@ -20,9 +20,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
-import { dashboardButtonClass } from '@/lib/dashboard-buttons'
-import { cn } from '@/lib/utils'
-import { clientApiAxios } from '@/lib/axios-client'
+import { dashboardButtonClass } from '@/lib/dashboard/dashboard-buttons'
+import { cn } from '@/lib/core/utils'
+import { clientApiAxios } from '@/lib/http/axios-client'
 import { useDashboardNotifications } from '@/app/dashboard/notifications/NotificationProvider'
 
 import ChatWindow from './ChatWindow'

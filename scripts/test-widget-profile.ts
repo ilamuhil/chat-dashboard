@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { NextRequest } from 'next/server'
-import { prisma } from '../lib/prisma'
-import { hashApiKey } from '../lib/utils'
-import { widgetSettingsSchema } from '../lib/widget-profile'
+import { prisma } from '../lib/core/prisma'
+import { hashApiKey } from '../lib/core/utils'
+import { widgetSettingsSchema } from '../lib/widget/widget-profile'
 import { POST, OPTIONS } from '../app/api/widget/config/route'
 
 async function main() {

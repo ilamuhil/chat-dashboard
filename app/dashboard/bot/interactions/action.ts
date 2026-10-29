@@ -1,14 +1,14 @@
 'use server'
 
 import { z } from 'zod'
-import { widgetSettingsSchema } from '@/lib/widget-profile'
-import { resolveCurrentOrganizationId } from '@/lib/current-organization'
-import { requireAuthUserId } from '@/lib/auth-server'
-import { prisma } from '@/lib/prisma'
+import { widgetSettingsSchema } from '@/lib/widget/widget-profile'
+import { resolveCurrentOrganizationId } from '@/lib/organization/current-organization'
+import { requireAuthUserId } from '@/lib/auth/auth-server'
+import { prisma } from '@/lib/core/prisma'
 import { withBillingLock, assertCapacity } from '@/lib/billing/service'
-import { getSecretKey } from '@/lib/jwt'
-import { pythonApiRequest } from '@/lib/axios-server-config'
-import { signToken } from '@/lib/jwt'
+import { getSecretKey } from '@/lib/auth/jwt'
+import { pythonApiRequest } from '@/lib/http/axios-server-config'
+import { signToken } from '@/lib/auth/jwt'
 
 export type Bot = {
   id: string

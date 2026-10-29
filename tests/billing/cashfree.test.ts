@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { cancelCashfreeSubscription, CashfreeError } from './cashfree'
+import { cancelCashfreeSubscription, CashfreeError } from '../../lib/billing/cashfree'
 
 test('cancellation recovers only when Cashfree confirms an already cancelled mandate', async (t) => {
   const originalFetch = globalThis.fetch

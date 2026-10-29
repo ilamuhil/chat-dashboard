@@ -8,9 +8,9 @@ import { useQuery } from '@tanstack/react-query'
 import { HistoryIcon, RefreshCwIcon, ArrowUpRightIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger, SheetClose } from '@/components/ui/sheet'
-import { clientApiAxios } from '@/lib/axios-client'
-import type { LeadChatHistory } from '@/lib/conversation-history'
-import { cn } from '@/lib/utils'
+import { clientApiAxios } from '@/lib/http/axios-client'
+import type { LeadChatHistory } from '@/lib/conversations/conversation-history'
+import { cn } from '@/lib/core/utils'
 
 export default function LeadHistory({ conversationId }: { conversationId: string }) {
   const [open, setOpen] = useState(false)

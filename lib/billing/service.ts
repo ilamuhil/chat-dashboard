@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/core/prisma'
 import type { Prisma } from '@/generated/prisma/client'
 import { PLANS, PLAN_VERSION, type Limits, type PlanId } from './catalog'
 

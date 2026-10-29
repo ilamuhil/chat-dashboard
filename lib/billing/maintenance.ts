@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/core/prisma'
 import { reconcileCheckout, processCashfreeEvent } from './payments'
 import { PLANS, type PlanId } from './catalog'
 import { withBillingLock, ensureBilling } from './service'

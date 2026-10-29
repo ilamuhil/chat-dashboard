@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
-import { prisma } from '@/lib/prisma'
-import { requireOrganizationMembership } from '@/lib/organization-members'
+import { prisma } from '@/lib/core/prisma'
+import { requireOrganizationMembership } from '@/lib/organization/organization-members'
 import {
   sendMembershipRemovedEmail,
   sendMembershipRoleUpdatedEmail,
-} from '@/lib/email'
+} from '@/lib/email/email'
 
 const roleSchema = z.object({
   role: z.enum(['admin', 'editor']),
