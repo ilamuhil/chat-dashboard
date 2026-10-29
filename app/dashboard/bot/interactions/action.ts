@@ -19,6 +19,8 @@ export type Bot = {
   human_reply_minutes: number | null
   support_hours: string | null
   help_center_url: string | null
+  widget_visibility_mode: string
+  widget_visibility_routes: string[]
   name: string
   tone: string | null
   role: string | null
@@ -51,6 +53,8 @@ export type BotFormValues = {
   human_reply_minutes: string
   support_hours: string
   help_center_url: string
+  widget_visibility_mode: string
+  widget_visibility_routes: string
   name: string
   institute_name: string
   tone: string
@@ -108,6 +112,18 @@ const botMetSchema = z
     capture_phone: z.boolean().optional(),
   })
   .extend(widgetSettingsSchema.shape)
+  .superRefine((data, ctx) => {
+    if (
+      data.widget_visibility_mode !== 'all' &&
+      data.widget_visibility_routes.length === 0
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['widget_visibility_routes'],
+        message: 'Add at least one route for this visibility mode.',
+      })
+    }
+  })
 
 export async function updateBotInteractions(
   prevState: BotResult | null,
@@ -158,6 +174,12 @@ export async function updateBotInteractions(
     ).trim(),
     support_hours: String(formData.get('support_hours') ?? '').trim(),
     help_center_url: String(formData.get('help_center_url') ?? '').trim(),
+    widget_visibility_mode: String(
+      formData.get('widget_visibility_mode') ?? 'all',
+    ),
+    widget_visibility_routes: String(
+      formData.get('widget_visibility_routes') ?? '',
+    ),
     name: String(formData.get('name') ?? ''),
     institute_name: String(formData.get('institute_name') ?? ''),
     tone: String(formData.get('tone') ?? ''),
@@ -182,6 +204,12 @@ export async function updateBotInteractions(
     ).trim(),
     support_hours: String(formData.get('support_hours') ?? '').trim(),
     help_center_url: String(formData.get('help_center_url') ?? '').trim(),
+    widget_visibility_mode: String(
+      formData.get('widget_visibility_mode') ?? 'all',
+    ),
+    widget_visibility_routes: String(
+      formData.get('widget_visibility_routes') ?? '',
+    ),
     name: formData.get('name'),
     institute_name: formData.get('institute_name'),
     tone: formData.get('tone'),
@@ -232,6 +260,11 @@ export async function updateBotInteractions(
       data.human_reply_minutes === '' ? null : data.human_reply_minutes,
     supportHours: data.support_hours || null,
     helpCenterUrl: data.help_center_url || null,
+    widgetVisibilityMode: data.widget_visibility_mode,
+    widgetVisibilityRoutes:
+      data.widget_visibility_mode === 'all'
+        ? []
+        : data.widget_visibility_routes,
     organizationId,
     name: data.name,
     instituteName: data.institute_name,
@@ -255,6 +288,8 @@ export async function updateBotInteractions(
     humanReplyMinutes: number | null
     supportHours: string | null
     helpCenterUrl: string | null
+    widgetVisibilityMode: string
+    widgetVisibilityRoutes: string[]
     id: string
     organizationId: string | null
     name: string
@@ -279,6 +314,8 @@ export async function updateBotInteractions(
     human_reply_minutes: b.humanReplyMinutes,
     support_hours: b.supportHours,
     help_center_url: b.helpCenterUrl,
+    widget_visibility_mode: b.widgetVisibilityMode,
+    widget_visibility_routes: b.widgetVisibilityRoutes,
     id: b.id,
     organization_id: b.organizationId ?? organizationId,
     institute_name: b.instituteName,
@@ -322,6 +359,8 @@ export async function updateBotInteractions(
         humanReplyMinutes: true,
         supportHours: true,
         helpCenterUrl: true,
+        widgetVisibilityMode: true,
+        widgetVisibilityRoutes: true,
         id: true,
         organizationId: true,
         instituteName: true,
@@ -372,6 +411,8 @@ export async function updateBotInteractions(
           humanReplyMinutes: true,
           supportHours: true,
           helpCenterUrl: true,
+          widgetVisibilityMode: true,
+          widgetVisibilityRoutes: true,
           id: true,
           organizationId: true,
           instituteName: true,

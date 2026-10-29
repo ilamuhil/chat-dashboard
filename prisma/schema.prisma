@@ -264,6 +264,8 @@ model Bots {
   humanReplyMinutes   Int?      @map("human_reply_minutes")
   supportHours        String?   @map("support_hours") @db.VarChar(120)
   helpCenterUrl       String?   @map("help_center_url") @db.VarChar(2048)
+  widgetVisibilityMode String   @default("all") @map("widget_visibility_mode") @db.VarChar(16)
+  widgetVisibilityRoutes String[] @default([]) @map("widget_visibility_routes")
   captureLeads        Boolean   @default(false) @map("capture_leads")
   updatedAt           DateTime  @default(now()) @map("updated_at")
   organizationId      String?   @map("organization_id")

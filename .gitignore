@@ -53,3 +53,4 @@ test-results/
 
 # Private sandbox fixtures and verification artifacts
 .billing-test/
+.widget-test/

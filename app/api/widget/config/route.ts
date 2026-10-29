@@ -13,7 +13,7 @@ export async function OPTIONS() {
 // Read-only bootstrap. Fetching a header never creates a conversation or token.
 export async function POST(request: NextRequest) {
   const parsed = z
-    .object({ api_key: z.string().min(1).max(256), bot_id: z.uuid() })
+    .object({ api_key: z.string().min(1).max(256), bot_id: z.uuid().optional() })
     .safeParse(await request.json().catch(() => null))
   if (!parsed.success)
     return NextResponse.json(
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     where: {
       keyHash: hashApiKey(parsed.data.api_key),
       isActive: true,
-      botId: parsed.data.bot_id,
+      ...(parsed.data.bot_id ? { botId: parsed.data.bot_id } : {}),
     },
     select: { organizationId: true, botId: true },
   })

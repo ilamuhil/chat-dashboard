@@ -26,6 +26,7 @@ import {
   type BotFormValues,
 } from './action'
 import SupportHoursPicker from './SupportHoursPicker'
+import WidgetVisibilityFields from './WidgetVisibilityFields'
 import { Spinner } from '@/components/ui/spinner'
 import { toast } from 'sonner'
 import { InfoIcon } from 'lucide-react'
@@ -87,6 +88,17 @@ const ConfigureBotForm = (props: BotProps) => {
       className='space-y-5'
     >
       <input type='hidden' name='bot_id' defaultValue={bot?.id || ''} />
+
+      <WidgetVisibilityFields
+        mode={
+          values?.widget_visibility_mode ?? bot?.widget_visibility_mode ?? 'all'
+        }
+        routes={
+          values?.widget_visibility_routes ??
+          bot?.widget_visibility_routes.join('\n') ??
+          ''
+        }
+      />
 
       {/* Identity */}
       <section className={sectionCardClass}>

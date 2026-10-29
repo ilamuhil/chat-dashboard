@@ -14,7 +14,8 @@ export default async function BotTrainingPage() {
     return (
       <DashboardPageHeader
         title='Training Data'
-        description='Teach your bot with websites and documents so it can answer with your content.'>
+        description='Teach your bot with websites and documents so it can answer with your content.'
+      >
         <div className='alert-danger'>Organization not found!</div>
       </DashboardPageHeader>
     )
@@ -23,13 +24,15 @@ export default async function BotTrainingPage() {
   const botsRaw = await prisma.bots.findMany({
     where: { organizationId },
   })
-  const bots: Bot[] = botsRaw.map(b => ({
+  const bots: Bot[] = botsRaw.map((b) => ({
     avatar_url: b.avatarUrl,
     support_email: b.supportEmail,
     support_team_name: b.supportTeamName,
     human_reply_minutes: b.humanReplyMinutes,
     support_hours: b.supportHours,
     help_center_url: b.helpCenterUrl,
+    widget_visibility_mode: b.widgetVisibilityMode,
+    widget_visibility_routes: b.widgetVisibilityRoutes,
     id: b.id,
     organization_id: b.organizationId ?? organizationId,
     name: b.name,
@@ -53,7 +56,8 @@ export default async function BotTrainingPage() {
   return (
     <DashboardPageHeader
       title='Training Data'
-      description='Teach your bot with websites and documents so it can answer with your content.'>
+      description='Teach your bot with websites and documents so it can answer with your content.'
+    >
       <TrainingDataClient bots={bots} />
     </DashboardPageHeader>
   )

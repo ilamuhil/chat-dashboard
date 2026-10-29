@@ -19,13 +19,15 @@ export default async function BotInteractionsPage() {
     orderBy: { createdAt: 'desc' },
   })
 
-  const bots: Bot[] = botsRaw.map(b => ({
+  const bots: Bot[] = botsRaw.map((b) => ({
     avatar_url: b.avatarUrl,
     support_email: b.supportEmail,
     support_team_name: b.supportTeamName,
     human_reply_minutes: b.humanReplyMinutes,
     support_hours: b.supportHours,
     help_center_url: b.helpCenterUrl,
+    widget_visibility_mode: b.widgetVisibilityMode,
+    widget_visibility_routes: b.widgetVisibilityRoutes,
     id: b.id,
     organization_id: b.organizationId ?? organizationId,
     name: b.name,
@@ -49,7 +51,8 @@ export default async function BotInteractionsPage() {
   return (
     <DashboardPageHeader
       title='Interactions'
-      description='Configure how your bots introduce themselves, speak, and capture leads.'>
+      description='Configure how your bots introduce themselves, speak, and capture leads.'
+    >
       <BotInteractionsClient bots={bots || []} />
     </DashboardPageHeader>
   )

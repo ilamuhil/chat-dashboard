@@ -1,7 +1,24 @@
 import { z } from 'zod'
+import { parseVisibilityRoutes } from './widget-visibility'
 
 const optionalText = (max: number) => z.string().trim().max(max)
 export const widgetSettingsSchema = z.object({
+  widget_visibility_mode: z.enum(['all', 'include', 'exclude']).default('all'),
+  widget_visibility_routes: z
+    .string()
+    .max(25650)
+    .default('')
+    .transform((value, ctx) => {
+      try {
+        return parseVisibilityRoutes(value)
+      } catch (error) {
+        ctx.addIssue({
+          code: 'custom',
+          message: error instanceof Error ? error.message : 'Invalid routes',
+        })
+        return z.NEVER
+      }
+    }),
   avatar_url: z.union([
     z.literal(''),
     z
@@ -32,6 +49,8 @@ export const widgetSettingsSchema = z.object({
 
 // Explicit allowlist: never send internal prompts, lead settings or organization data.
 export const widgetProfileSelect = {
+  widgetVisibilityMode: true,
+  widgetVisibilityRoutes: true,
   avatarUrl: true,
   id: true,
   name: true,

@@ -1,3 +1,4 @@
+import { buildWidgetEmbed } from '@/lib/widget-embed'
 import screenshotSizes from '@/public/images/docs/manifest.json'
 import { CREDIT_PACK, PLANS, money, type Limits } from '@/lib/billing/catalog'
 
@@ -614,14 +615,31 @@ export const docsPages: DocPage[] = [
         ],
         image: image('api-key-dialog', 'Generate API key dialog with arrows to the label, bot selector, and generate control.', 'Choose the bot deliberately. A key belongs to one bot in one organization.'),
       }),
-      section('current-embed-template', 'Understand the current embed template', {
+      section('current-embed-template', 'Copy the automatic website installation', {
         paragraphs: [
-          'Use the Embeddable code panel in API Setup to install the widget on your website. Keep the deployed widget URL, bot ID, and bot-specific API key together, and check that they all belong to the intended organization and bot.',
-          'For a custom installation, load your published widget bundle and call window.chatInject with api_key, bot_id, and optional theme. The widget’s light/dark theme is independent of the dashboard theme. Replace the example values below with your bot’s configuration.',
+          'In Bot Configuration → API Setup, use the Embeddable code panel. Enter the published widget script URL, select the widget theme, and paste the website key generated for your bot. Copy embed code becomes available when the required values are filled in.',
+          'Paste the copied script once into your website head. It automatically initializes after the page body is ready. React, ReactDOM, styles, images, and audio are included; plain HTML and other non-React websites need no extra React scripts or stylesheet links.',
+          'The script URL must point to the published chat-widget-ui.iife.js bundle. A deployment maintainer can set NEXT_PUBLIC_WIDGET_SCRIPT_URL on the dashboard to prefill this field. The widget build must use the deployed dashboard and chat-server URLs; a public website must not use a bundle built against localhost.',
+          'The selected theme is written to data-theme. It accepts light or dark and defaults to light when omitted; it is independent of the dashboard theme. Only data-api-key is required. The dashboard resolves the bot from the active API key in the existing configuration request; no additional lookup request or stored bot ID is needed. The widget does not contain a default key.',
         ],
-        image: image('api-setup', 'API Setup with arrows to active keys, key generation, and the website embed panel.', 'Use the correct widget URL and bot-specific key, then test the installation on your website.'),
-        code: "window.chatInject?.({\n  api_key: 'YOUR_BOT_WIDGET_KEY',\n  bot_id: 'YOUR_BOT_ID',\n  theme: 'light', // 'light' or 'dark'\n});",
-        note: { title: 'A deployed bundle is required', content: 'Ask your website maintainer for the published script URL and loading order. Do not guess a production domain or use localhost on a public website. Load the bundle once, then initialize once after it is ready.', tone: 'warning' },
+        code: buildWidgetEmbed({ url: 'YOUR_PUBLISHED_WIDGET_SCRIPT_URL', apiKey: 'YOUR_BOT_WIDGET_KEY', theme: 'light' }),
+        note: { title: 'Install once', content: 'Use either this automatic script or the manual alternative below. Replace the example values with your published script URL and the website key.', tone: 'info' },
+      }),
+      section('manual-widget-initialization', 'Initialize from JavaScript instead', {
+        paragraphs: [
+          'For manual installation, load the same published bundle without data-api-key, then call window.injectChat({ api_key, theme }) after the script loads. The onload example below preserves that loading order, including when installed in the head.',
+          'window.chatInject remains an alias for existing installations. Only api_key is required; theme accepts light or dark and defaults to light. Calling the initializer again replaces the current widget. The returned handle has a destroy() method to remove it.',
+        ],
+        code: "<script\n  src=\"YOUR_PUBLISHED_WIDGET_SCRIPT_URL\"\n  async\n  onload=\"window.injectChat({api_key: 'YOUR_BOT_WIDGET_KEY', theme: 'dark'})\"\n></script>",
+      }),
+      section('widget-route-visibility', 'Choose which website routes show the widget', {
+        paragraphs: [
+          'Open Bot Configuration → Interactions → Widget visibility and choose On all routes, Only on these routes, or On all routes except these. Existing bots default to all routes. For either restricted mode, enter at least one path, with one path per line and at most 50 paths.',
+          '/pricing matches that page. /products/* matches /products and its subpages, but not /products-old. /* matches every path. Matching is case-sensitive and ignores trailing slashes, query strings, and fragments. Enter paths without a domain, query, or fragment. Hash fragments are not treated as separate routes.',
+          'The widget fetches these saved settings before showing chat. Disallowed pages do not mount chat or authenticate a chat session. If configuration cannot be fetched, the widget stays hidden. Visibility updates on page loads, pushState, replaceState, and browser back/forward navigation.',
+          'Reload the host website after saving new dashboard rules; configuration is fetched once per widget installation. These rules control display, not access authorization.',
+        ],
+        links: [link('Configure bot interactions', '/dashboard/bot/interactions')],
       }),
       section('verify-installation', 'Check the actual website', {
         steps: [
@@ -824,7 +842,7 @@ export const docsPages: DocPage[] = [
           'Train current approved sources, resolve failures, and test common questions plus unsupported and ambiguous questions.',
           'Verify lead capture timing and fields in a fresh session. Check the lead profile and contact-consent handling.',
           'Have a teammate receive and accept a handoff. Check timeout and connection-loss behavior.',
-          'Check the widget URL, bot ID, and API key, initialize the widget once, and test your website on desktop and mobile.',
+          'Check the widget URL and bot-specific API key, initialize the widget once, and test your website on desktop and mobile.',
           'Check support email and help links. Keep original source files and the website integration configuration safely.',
         ],
       }),
@@ -894,7 +912,7 @@ export const docsPages: DocPage[] = [
       }),
       section('connection', 'Widget, messages, or live updates do not connect', {
         table: { columns: ['Symptom', 'Check and next action'], rows: [
-          ['Widget does not appear', 'Verify the deployed script URL and loading order, actual bot ID and key, and that initialization runs once. Copy the installation code again from API Setup if its configuration has changed.'],
+          ['Widget does not appear', 'Verify the deployed script URL and loading order, an active bot-specific API key, route visibility settings, and that initialization runs once. Copy the installation code again from API Setup if its configuration has changed.'],
           ['Authentication failed', 'Check that the key is active, saved correctly, and associated with the intended bot. Do not use a provider secret or dashboard token as a widget key.'],
           ['Identity or greeting appears stale', 'Start a new visitor session after saving changes. Existing chat sessions can retain earlier configuration.'],
           ['Composer disabled', 'Complete a visible contact form. In the dashboard, check whether the conversation is closed or you have not joined it.'],

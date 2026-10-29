@@ -45,8 +45,8 @@ export default async function BotApiPage() {
     return (
       <DashboardPageHeader title={PAGE_TITLE} description={PAGE_DESCRIPTION}>
         <div className='alert-danger'>
-          Update your business profile to include your organization, create a bot
-          and then return here to setup API.
+          Update your business profile to include your organization, create a
+          bot and then return here to setup API.
         </div>
       </DashboardPageHeader>
     )
@@ -78,7 +78,8 @@ export default async function BotApiPage() {
             className={cn(
               dashboardButtonClass,
               'mt-5 h-10 rounded-lg px-4 text-sm font-medium',
-            )}>
+            )}
+          >
             <Link href='/dashboard/bot/interactions'>Create Bot</Link>
           </Button>
         </div>
@@ -91,8 +92,8 @@ export default async function BotApiPage() {
     select: { id: true, name: true, botId: true, createdAt: true },
   })
 
-  const keys = apiKeys.map(key => {
-    const bot = bots.find(bot => bot.id === key.botId)
+  const keys = apiKeys.map((key) => {
+    const bot = bots.find((bot) => bot.id === key.botId)
     return {
       id: key.id,
       name: key.name,
@@ -160,14 +161,17 @@ export default async function BotApiPage() {
                   <TableHead className='h-10 px-5'>Label</TableHead>
                   <TableHead className='h-10 px-5'>Bot</TableHead>
                   <TableHead className='h-10 px-5'>Created</TableHead>
-                  <TableHead className='h-10 px-5 text-right'>Actions</TableHead>
+                  <TableHead className='h-10 px-5 text-right'>
+                    Actions
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {keys.map(apiKey => (
+                {keys.map((apiKey) => (
                   <TableRow
                     key={apiKey.id}
-                    className='border-slate-100 hover:bg-slate-50/60'>
+                    className='border-slate-100 hover:bg-slate-50/60'
+                  >
                     <TableCell className='px-5 py-3.5'>
                       <div className='flex items-center gap-2.5'>
                         <div className='flex size-8 shrink-0 items-center justify-center rounded-md bg-slate-50 text-slate-500 ring-1 ring-slate-200/70'>
@@ -203,11 +207,14 @@ export default async function BotApiPage() {
                               type='submit'
                               variant='ghost'
                               size='icon'
-                              className='size-8 rounded-md hover:bg-rose-50 dark:hover:bg-rose-500/15'>
+                              className='size-8 rounded-md hover:bg-rose-50 dark:hover:bg-rose-500/15'
+                            >
                               <TrashIcon className='size-3.5 text-rose-500' />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent side='left'>Revoke key</TooltipContent>
+                          <TooltipContent side='left'>
+                            Revoke key
+                          </TooltipContent>
                         </Tooltip>
                       </form>
                     </TableCell>
@@ -238,7 +245,9 @@ export default async function BotApiPage() {
               <p className='mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground'>
                 Script
               </p>
-              <CodeBlock />
+              <CodeBlock
+                widgetUrl={process.env.NEXT_PUBLIC_WIDGET_SCRIPT_URL ?? ''}
+              />
             </div>
           </div>
         )}
