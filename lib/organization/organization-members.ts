@@ -2,7 +2,14 @@ import { prisma } from '@/lib/core/prisma'
 import { requireAuthUserId } from '@/lib/auth/auth-server'
 import { resolveCurrentOrganizationId } from '@/lib/organization/current-organization'
 
-export type OrganizationRole = 'admin' | 'editor'
+import {
+  can,
+  isOrganizationRole,
+  OrganizationRole,
+  type Permission,
+} from './permissions'
+export { isOrganizationRole } from './permissions'
+export type { OrganizationRole } from './permissions'
 
 export async function requireOrganizationMembership(
   requiredRole?: OrganizationRole,
@@ -15,7 +22,11 @@ export async function requireOrganizationMembership(
   }
 
   const membership = await prisma.organizationMembers.findFirst({
-    where: { organizationId, userId },
+    where: {
+      organizationId,
+      userId,
+      user: { isActive: true, isBanned: false },
+    },
     select: { id: true, role: true },
   })
 
@@ -23,16 +34,46 @@ export async function requireOrganizationMembership(
     throw new Error('You are not a member of this organization')
   }
 
-  const role: OrganizationRole =
-    membership.role === 'admin' ? 'admin' : 'editor'
+  if (!isOrganizationRole(membership.role))
+    throw new Error(
+      'Only organization members with a valid role can access this organization',
+    )
+  const role = membership.role
 
-  if (requiredRole && role !== requiredRole) {
+  if (
+    requiredRole &&
+    !(requiredRole === OrganizationRole.Admin
+      ? can(role, 'configure')
+      : role === requiredRole)
+  ) {
     throw new Error('Only organization admins can perform this action')
   }
 
   return { userId, organizationId, membershipId: membership.id, role }
 }
 
-export function isOrganizationRole(value: unknown): value is OrganizationRole {
-  return value === 'admin' || value === 'editor'
+export async function requireOrganizationPermission(permission: Permission) {
+  const actor = await requireOrganizationMembership()
+  if (!can(actor.role, permission))
+    throw new Error(
+      'Only organization members with permission can perform this action',
+    )
+  return actor
+}
+
+export async function readOrganizationRole(
+  organizationId: string,
+  userId: string,
+) {
+  const member = await prisma.organizationMembers.findFirst({
+    where: {
+      organizationId,
+      userId,
+      user: { isActive: true, isBanned: false },
+    },
+    select: { role: true },
+  })
+  if (!isOrganizationRole(member?.role))
+    throw new Error('Only active organization members may receive staff tokens')
+  return member.role
 }

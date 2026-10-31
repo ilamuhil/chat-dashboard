@@ -14,6 +14,7 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Generated/temporary output
     "generated/**",
+    "public/chat-widget-ui.iife.js",
     ".tmp-test-r2/**",
   ]),
 ]);

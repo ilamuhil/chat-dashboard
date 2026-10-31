@@ -1,10 +1,5 @@
 'use client'
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Script from 'next/script'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -86,9 +81,9 @@ export function BillingPanel({
   const [cancellationFeedback, setCancellationFeedback] = useState('')
   const { mutateAsync: runBillingAction, isPending: mutationPending } =
     useMutation({
-    mutationFn: (body: BillingAction) =>
-      billingRequest<BillingActionResult>('POST', body),
-  })
+      mutationFn: (body: BillingAction) =>
+        billingRequest<BillingActionResult>('POST', body),
+    })
   const busy = mutationPending || finishingAction
   const { mutateAsync: refreshCheckout } = useMutation({
     mutationFn: ({
@@ -151,11 +146,11 @@ export function BillingPanel({
               ? 'Future renewals are cancelled. Your paid access continues until the date shown below.'
               : body.action === 'abandon'
                 ? 'Pending checkout cancelled. No charge was made.'
-              : body.action === 'retry'
-                ? 'Retry requested. Your payment provider will notify you before collection. Your allowance updates after verified payment.'
-                : body.action === 'change_plan'
-                  ? 'Your renewal plan has been updated.'
-                  : 'Payment status refreshed.',
+                : body.action === 'retry'
+                  ? 'Retry requested. Your payment provider will notify you before collection. Your allowance updates after verified payment.'
+                  : body.action === 'change_plan'
+                    ? 'Your renewal plan has been updated.'
+                    : 'Payment status refreshed.',
           )
           await load()
         }
@@ -171,7 +166,6 @@ export function BillingPanel({
   )
   useEffect(() => {
     if (!returnCheckoutId) return
-    setConfirmingReturn(true)
     const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout> | undefined
     let attempts = 0
@@ -254,31 +248,30 @@ export function BillingPanel({
     setConfirmation(value)
   }
   const confirmationLoader = (
-    <section className="dashboard-surface overflow-hidden rounded-xl">
+    <section className='dashboard-surface overflow-hidden rounded-xl'>
       <AppLoader
-        label="Waiting for confirmation from the payment provider"
-        description="Please do not refresh, close this page, or navigate elsewhere while your payment is being verified."
+        label='Waiting for confirmation from the payment provider'
+        description='Please do not refresh, close this page, or navigate elsewhere while your payment is being verified.'
       />
     </section>
   )
   if (!summary) {
     if (confirmingReturn) return confirmationLoader
     return (
-      <div className="dashboard-surface rounded-xl p-8">
+      <div className='dashboard-surface rounded-xl p-8'>
         {error || loadError ? (
-          <div role="alert" className="space-y-3">
-            <p className="text-sm text-red-600">
+          <div role='alert' className='space-y-3'>
+            <p className='text-sm text-red-600'>
               {error || loadError?.message}
             </p>
             <Button
-              variant="outline"
-              onClick={() => load().catch((e) => setError(e.message))}
-            >
+              variant='outline'
+              onClick={() => load().catch((e) => setError(e.message))}>
               Try again
             </Button>
           </div>
         ) : (
-          <AppLoader label="Loading your organization’s billing" />
+          <AppLoader label='Loading your organization’s billing' />
         )}
       </div>
     )
@@ -328,7 +321,7 @@ export function BillingPanel({
     confirmation?.action === 'resume_change_plan' &&
     Boolean(
       confirmation.planId &&
-        PLANS[confirmation.planId].pricePaise < current.pricePaise,
+      PLANS[confirmation.planId].pricePaise < current.pricePaise,
     )
   const pending = summary.checkouts.find((c) =>
     ['creating', 'ready', 'pending', 'authorized', 'failed'].includes(c.status),
@@ -341,12 +334,11 @@ export function BillingPanel({
     (total, pack) => total + pack.used + pack.reserved,
     0,
   )
-  if (confirmingReturn)
-    return confirmationLoader
+  if (confirmingReturn) return confirmationLoader
   return (
     <>
       <Script
-        src="https://sdk.cashfree.com/js/v3/cashfree.js"
+        src='https://sdk.cashfree.com/js/v3/cashfree.js'
         onReady={() => setSdkReady(true)}
         onError={() =>
           setError(
@@ -355,18 +347,18 @@ export function BillingPanel({
         }
       />
       {summary.mode === 'sandbox' && sandboxVisible && (
-        <MessageBar tone="warning" onClose={() => setSandboxVisible(false)}>
-          <span className="flex items-start gap-2 text-xs">
-            <ShieldCheck className="size-4 shrink-0" />
+        <MessageBar tone='warning' onClose={() => setSandboxVisible(false)}>
+          <span className='flex items-start gap-2 text-xs'>
+            <ShieldCheck className='size-4 shrink-0' />
             <span>
-              Sandbox billing · Use test payment details. No real money
-              is collected.
+              Sandbox billing · Use test payment details. No real money is
+              collected.
             </span>
           </span>
         </MessageBar>
       )}
       {error && (
-        <MessageBar tone="error" onClose={() => setError('')}>
+        <MessageBar tone='error' onClose={() => setError('')}>
           {error}
         </MessageBar>
       )}
@@ -377,20 +369,19 @@ export function BillingPanel({
             setNotice('')
             if (returnCheckoutStatus)
               setDismissedCheckoutStatus(returnCheckoutStatus)
-          }}
-        >
+          }}>
           {visibleNotice}
         </MessageBar>
       )}
       {canManage &&
         account.providerSubscriptionId &&
         account.cancelAtPeriodEnd && (
-          <section className="dashboard-surface flex flex-wrap items-center justify-between gap-4 rounded-xl border-sky-300 bg-sky-50/70 p-5 ring-1 ring-sky-200 dark:border-sky-700/60 dark:bg-sky-950/20 dark:ring-sky-800/50">
+          <section className='dashboard-surface flex flex-wrap items-center justify-between gap-4 rounded-xl border-sky-300 bg-sky-50/70 p-5 ring-1 ring-sky-200 dark:border-sky-700/60 dark:bg-sky-950/20 dark:ring-sky-800/50'>
             <div>
-              <h2 className="text-sm font-semibold text-sky-950 dark:text-sky-100">
+              <h2 className='text-sm font-semibold text-sky-950 dark:text-sky-100'>
                 Your renewal is paused
               </h2>
-              <p className="mt-1 text-xs text-sky-800 dark:text-sky-200">
+              <p className='mt-1 text-xs text-sky-800 dark:text-sky-200'>
                 Resume your subscription before {date(account.paidThrough)} to
                 keep your {current.name} plan renewing automatically.
               </p>
@@ -403,40 +394,38 @@ export function BillingPanel({
                   planId: account.planId as 'starter' | 'growth',
                   kind: 'subscription',
                 })
-              }
-            >
+              }>
               Resume subscription
             </Button>
           </section>
         )}
       {canManage && (
-        <section className="dashboard-surface flex flex-wrap items-center justify-between gap-3 rounded-xl p-5">
+        <section className='dashboard-surface flex flex-wrap items-center justify-between gap-3 rounded-xl p-5'>
           <div>
-            <h2 className="text-sm font-semibold">Billing & invoices</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <h2 className='text-sm font-semibold'>Billing & invoices</h2>
+            <p className='mt-1 text-xs text-muted-foreground'>
               Manage your billing details, payment history and PDF invoices.
             </p>
           </div>
-          <Button asChild variant="outline" size="sm">
-            <Link href="/dashboard/billing">
+          <Button asChild variant='outline' size='sm'>
+            <Link href='/dashboard/billing'>
               Manage billing & invoices{' '}
-              <ArrowUpRight className="ml-2 size-3.5" />
+              <ArrowUpRight className='ml-2 size-3.5' />
             </Link>
           </Button>
         </section>
       )}
-      <section className="dashboard-surface rounded-xl p-5 sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+      <section className='dashboard-surface rounded-xl p-5 sm:p-6'>
+        <div className='flex flex-wrap items-start justify-between gap-4'>
           <div>
-            <p className="text-xs text-muted-foreground">
+            <p className='text-xs text-muted-foreground'>
               {summary.organization.name || 'Your organization'}
             </p>
-            <div className="mt-2 flex items-center gap-3">
-              <CreditCard className="size-5 text-sky-700" />
-              <h2 className="text-xl font-semibold">{current.name}</h2>
+            <div className='mt-2 flex items-center gap-3'>
+              <CreditCard className='size-5 text-sky-700' />
+              <h2 className='text-xl font-semibold'>{current.name}</h2>
               <span
-                className={`rounded-full px-2.5 py-1 text-[10px] font-medium ${summary.active ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200' : 'bg-amber-50 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200'}`}
-              >
+                className={`rounded-full px-2.5 py-1 text-[10px] font-medium ${summary.active ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200' : 'bg-amber-50 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200'}`}>
                 {account.cancelAtPeriodEnd
                   ? 'Renewal cancelled'
                   : summary.active
@@ -444,7 +433,7 @@ export function BillingPanel({
                     : 'Access paused'}
               </span>
             </div>
-            <p className="mt-3 text-xs text-muted-foreground">
+            <p className='mt-3 text-xs text-muted-foreground'>
               {account.planId === 'trial'
                 ? `Trial ends ${date(account.trialEndsAt)}`
                 : `${account.cancelAtPeriodEnd ? 'Access until' : 'Paid through'} ${date(account.paidThrough)}`}
@@ -454,11 +443,10 @@ export function BillingPanel({
           </div>
           {canManage && (
             <Button
-              variant="outline"
-              size="sm"
+              variant='outline'
+              size='sm'
               disabled={busy}
-              onClick={() => void act({ action: 'refresh' })}
-            >
+              onClick={() => void act({ action: 'refresh' })}>
               <RefreshCw
                 className={`mr-2 size-3.5 ${busy ? 'animate-spin' : ''}`}
               />
@@ -467,10 +455,10 @@ export function BillingPanel({
           )}
         </div>
         {account.status === 'past_due' && (
-          <p className="mt-4 text-sm text-amber-700 dark:text-amber-300">
+          <p className='mt-4 text-sm text-amber-700 dark:text-amber-300'>
             Your renewal payment failed. Remaining replies stay available until{' '}
-            {date(account.graceUntil)}. Update your payment through the payment provider or
-            retry the payment below.
+            {date(account.graceUntil)}. Update your payment through the payment
+            provider or retry the payment below.
           </p>
         )}
         {canManage &&
@@ -480,8 +468,8 @@ export function BillingPanel({
             (p) => p.kind === 'CHARGE' && p.status === 'FAILED',
           ) && (
             <Button
-              className="mt-3"
-              variant="outline"
+              className='mt-3'
+              variant='outline'
               disabled={busy}
               onClick={() => {
                 const payment = summary.payments.find(
@@ -489,13 +477,12 @@ export function BillingPanel({
                 )
                 if (payment)
                   void act({ action: 'retry', paymentId: payment.id })
-              }}
-            >
+              }}>
               Retry failed renewal
             </Button>
           )}
         {pending && (
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 p-3 text-xs">
+          <div className='mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 p-3 text-xs'>
             <span>
               Checkout{' '}
               {pending.status === 'authorized'
@@ -504,8 +491,8 @@ export function BillingPanel({
             </span>
             {canManage && new Date(pending.expiresAt) > new Date() && (
               <Button
-                variant="outline"
-                size="sm"
+                variant='outline'
+                size='sm'
                 disabled={busy || !sdkReady}
                 onClick={() =>
                   ask({
@@ -514,28 +501,26 @@ export function BillingPanel({
                     kind: pending.kind as 'pack' | 'subscription',
                     packReplies: pending.packReplies,
                   })
-                }
-              >
+                }>
                 Resume checkout
               </Button>
             )}
             {canManage && (
               <Button
-                variant="ghost"
-                size="sm"
+                variant='ghost'
+                size='sm'
                 disabled={busy}
                 onClick={() =>
                   void act({ action: 'abandon', checkoutId: pending.id })
-                }
-              >
+                }>
                 Cancel pending checkout
               </Button>
             )}
           </div>
         )}
-        <div className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className='mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3'>
           <Meter
-            label="AI replies"
+            label='AI replies'
             used={
               (period?.repliesUsed || 0) +
               (period?.repliesReserved || 0) +
@@ -544,29 +529,29 @@ export function BillingPanel({
             limit={(period?.replyLimit || 0) + packReplyLimit}
           />
           <Meter
-            label="Team members"
+            label='Team members'
             used={usage.members}
             limit={account.limits.members}
           />
-          <Meter label="Bots" used={usage.bots} limit={account.limits.bots} />
+          <Meter label='Bots' used={usage.bots} limit={account.limits.bots} />
           <Meter
-            label="Uploaded files"
+            label='Uploaded files'
             used={Math.round((usage.storageBytes / 1_000_000) * 10) / 10}
             limit={account.limits.storageBytes / 1_000_000}
-            suffix=" MB"
+            suffix=' MB'
           />
           <Meter
-            label="Training sources"
+            label='Training sources'
             used={usage.sources}
             limit={account.limits.sources}
           />
           <Meter
-            label="Training tokens this cycle"
+            label='Training tokens this cycle'
             used={(period?.trainingUsed || 0) + (period?.trainingReserved || 0)}
             limit={period?.trainingLimit || 0}
           />
         </div>
-        <p className="mt-5 text-xs text-muted-foreground">
+        <p className='mt-5 text-xs text-muted-foreground'>
           Included usage{' '}
           {account.planId === 'trial'
             ? 'is a one-time trial allowance'
@@ -575,7 +560,7 @@ export function BillingPanel({
           when AI replies run out.
         </p>
         {summary.packs.length > 0 && (
-          <div className="mt-4 space-y-1 border-t border-border pt-4 text-xs text-muted-foreground">
+          <div className='mt-4 space-y-1 border-t border-border pt-4 text-xs text-muted-foreground'>
             {summary.packs.map((pack) => (
               <p key={pack.id}>
                 {pack.replies - pack.used - pack.reserved} additional replies ·
@@ -586,61 +571,58 @@ export function BillingPanel({
         )}
       </section>
       <section>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-semibold">Choose your capacity</h2>
+        <div className='mb-4 flex items-center justify-between'>
+          <h2 className='text-base font-semibold'>Choose your capacity</h2>
           <Link
-            href="/pricing"
-            className="flex items-center gap-1 text-xs text-sky-700 dark:text-sky-300"
-          >
+            href='/pricing'
+            className='flex items-center gap-1 text-xs text-sky-700 dark:text-sky-300'>
             Full plan details
-            <ArrowUpRight className="size-3" />
+            <ArrowUpRight className='size-3' />
           </Link>
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className='grid gap-4 md:grid-cols-2'>
           {(['starter', 'growth'] as const).map((id) => {
             const plan = PLANS[id]
             const active = account.planId === id && !account.cancelAtPeriodEnd
-            const canKeepCurrentPlan =
-              active && Boolean(account.pendingPlanId)
+            const canKeepCurrentPlan = active && Boolean(account.pendingPlanId)
             const ending = account.planId === id && account.cancelAtPeriodEnd
             const isDowngrade = plan.pricePaise < current.pricePaise
             const scheduled = account.pendingPlanId === id
             return (
               <article
                 key={id}
-                className={`dashboard-surface flex flex-col rounded-xl p-5 ${active ? 'ring-1 ring-sky-500/40' : ''}`}
-              >
-                <div className="flex justify-between gap-3">
-                  <h3 className="font-semibold">{plan.name}</h3>
+                className={`dashboard-surface flex flex-col rounded-xl p-5 ${active ? 'ring-1 ring-sky-500/40' : ''}`}>
+                <div className='flex justify-between gap-3'>
+                  <h3 className='font-semibold'>{plan.name}</h3>
                   {active && (
-                    <span className="text-xs text-sky-700 dark:text-sky-300">
+                    <span className='text-xs text-sky-700 dark:text-sky-300'>
                       Current plan
                     </span>
                   )}
                   {scheduled && (
-                    <span className="text-xs text-amber-700 dark:text-amber-300">
+                    <span className='text-xs text-amber-700 dark:text-amber-300'>
                       Next renewal
                     </span>
                   )}
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">
+                <p className='mt-2 text-xs text-muted-foreground'>
                   {plan.description}
                 </p>
-                <p className="mt-5 text-2xl font-semibold">
+                <p className='mt-5 text-2xl font-semibold'>
                   {money(plan.pricePaise)}
-                  <span className="ml-1 text-xs font-normal text-muted-foreground">
+                  <span className='ml-1 text-xs font-normal text-muted-foreground'>
                     / month + applicable tax
                   </span>
                 </p>
-                <ul className="my-5 grid flex-1 gap-2 text-xs text-muted-foreground">
+                <ul className='my-5 grid flex-1 gap-2 text-xs text-muted-foreground'>
                   {[
                     `${plan.limits.replies.toLocaleString('en-IN')} AI replies per cycle`,
                     `${plan.limits.members} members · ${plan.limits.bots} ${plan.limits.bots === 1 ? 'bot' : 'bots'} · 1 organization`,
                     `${plan.limits.storageBytes / 1_000_000} MB uploads · ${plan.limits.sources} sources`,
                     'Lead capture and counsellor handoff included',
                   ].map((item) => (
-                    <li key={item} className="flex gap-2">
-                      <Check className="size-3.5 text-emerald-600" />
+                    <li key={item} className='flex gap-2'>
+                      <Check className='size-3.5 text-emerald-600' />
                       {item}
                     </li>
                   ))}
@@ -671,60 +653,59 @@ export function BillingPanel({
                         action:
                           canKeepCurrentPlan ||
                           (account.providerSubscriptionId &&
-                          !account.cancelAtPeriodEnd &&
-                          account.paidThrough)
+                            !account.cancelAtPeriodEnd &&
+                            account.paidThrough)
                             ? 'change_plan'
                             : 'checkout',
                         planId: id,
                         kind: 'subscription',
                       })
-                  }}
-                >
+                  }}>
                   {active
                     ? canKeepCurrentPlan
                       ? `Keep ${plan.name}`
                       : 'Current plan'
                     : ending
                       ? 'Resume renewal'
-                    : account.cancelAtPeriodEnd
-                      ? isDowngrade
-                        ? 'Renew & downgrade plan'
-                        : 'Renew & upgrade plan'
-                    : scheduled
-                      ? 'Scheduled for next renewal'
-                    : account.paidThrough && !account.cancelAtPeriodEnd
-                      ? 'Change at next renewal'
-                      : 'Choose plan'}
+                      : account.cancelAtPeriodEnd
+                        ? isDowngrade
+                          ? 'Renew & downgrade plan'
+                          : 'Renew & upgrade plan'
+                        : scheduled
+                          ? 'Scheduled for next renewal'
+                          : account.paidThrough && !account.cancelAtPeriodEnd
+                            ? 'Change at next renewal'
+                            : 'Choose plan'}
                 </Button>
               </article>
             )
           })}
         </div>
         {!summary.configured && (
-          <p className="mt-3 text-xs text-amber-700">
+          <p className='mt-3 text-xs text-amber-700'>
             Checkout will be available once payment provider credentials are
             configured.
           </p>
         )}
         {!canManage && (
-          <p className="mt-3 text-xs text-muted-foreground">
+          <p className='mt-3 text-xs text-muted-foreground'>
             Ask an organization administrator to change the plan or manage
             payments.
           </p>
         )}
       </section>
       {canManage && summary.active && account.planId !== 'trial' && (
-        <section className="dashboard-surface flex flex-wrap items-center justify-between gap-4 rounded-xl p-5">
+        <section className='dashboard-surface flex flex-wrap items-center justify-between gap-4 rounded-xl p-5'>
           <div>
-            <h2 className="text-sm font-semibold">A little extra capacity</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <h2 className='text-sm font-semibold'>A little extra capacity</h2>
+            <p className='mt-1 text-xs text-muted-foreground'>
               1,000 standard replies for {money(CREDIT_PACK.pricePaise)} +
               applicable tax. Expires 90 days after payment. No automatic
               recharge.
             </p>
           </div>
           <Button
-            variant="outline"
+            variant='outline'
             disabled={busy || !sdkReady}
             onClick={() =>
               ask({
@@ -732,36 +713,34 @@ export function BillingPanel({
                 planId: account.planId as 'starter' | 'growth',
                 kind: 'pack',
               })
-            }
-          >
+            }>
             Add replies
           </Button>
         </section>
       )}
-      <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border p-5">
+      <section className='flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border p-5'>
         <div>
-          <h2 className="text-sm font-medium">Export organization data</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <h2 className='text-sm font-medium'>Export organization data</h2>
+          <p className='mt-1 text-xs text-muted-foreground'>
             Export your organization’s records before changing or ending your
             subscription.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className='flex flex-wrap gap-2'>
           {canManage && (
-            <Button asChild size="sm" variant="outline">
-              <a href="/api/billing/export">Export records</a>
+            <Button asChild size='sm' variant='outline'>
+              <a href='/api/billing/export'>Export records</a>
             </Button>
           )}
           {canManage &&
             account.providerSubscriptionId &&
             !account.cancelAtPeriodEnd && (
               <Button
-                size="sm"
-                variant="outline"
+                size='sm'
+                variant='outline'
                 disabled={busy}
-                onClick={() => ask({ action: 'cancel' })}
-              >
-                <TriangleAlert className="mr-2 size-3.5 text-red-600 dark:text-red-400" />
+                onClick={() => ask({ action: 'cancel' })}>
+                <TriangleAlert className='mr-2 size-3.5 text-red-600 dark:text-red-400' />
                 Cancel renewal
               </Button>
             )}
@@ -804,28 +783,26 @@ export function BillingManagement({
   const router = useRouter()
   if (!summary)
     return (
-      <div role="status" className="dashboard-surface rounded-xl p-6">
+      <div role='status' className='dashboard-surface rounded-xl p-6'>
         {loadError?.message || 'Loading billing details…'}
       </div>
     )
   return (
     <>
       <Link
-        href="/dashboard/subscription"
-        className="inline-flex text-sm text-sky-700 dark:text-sky-300"
-      >
+        href='/dashboard/subscription'
+        className='inline-flex text-sm text-sky-700 dark:text-sky-300'>
         ← Subscription & usage
       </Link>
       {error && (
         <p
-          role="alert"
-          className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:bg-red-950/30 dark:text-red-200"
-        >
+          role='alert'
+          className='rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:bg-red-950/30 dark:text-red-200'>
           {error}
         </p>
       )}
       {intent && (
-        <p className="rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900 dark:bg-sky-950/30 dark:text-sky-200">
+        <p className='rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900 dark:bg-sky-950/30 dark:text-sky-200'>
           Complete your billing details to review your{' '}
           {intent.kind === 'pack'
             ? 'reply pack'
@@ -853,7 +830,7 @@ export function BillingManagement({
           <PaymentHistory summary={summary} onError={setError} />
         </>
       ) : (
-        <p className="dashboard-surface rounded-xl p-6 text-sm text-muted-foreground">
+        <p className='dashboard-surface rounded-xl p-6 text-sm text-muted-foreground'>
           Only organization administrators can manage billing details and
           invoices.
         </p>

@@ -1,15 +1,17 @@
 'use client'
 
+import { RequirePermission } from '@/components/organization-access'
 import Link from 'next/link'
+import { OwnerSelect } from '@/components/leads/owner-select'
+import { Badge } from '@/components/ui/badge'
+import type { CounsellorOption } from '@/lib/leads/follow-ups'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
@@ -30,6 +32,7 @@ import {
 import { cn } from '@/lib/core/utils'
 import ConfirmationDialog from '@/components/ui/ConfirmationDialog'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -58,9 +61,6 @@ import {
   UsersIcon,
   CalendarDaysIcon,
   TrendingUpIcon,
-  MailIcon,
-  PhoneIcon,
-  BotIcon,
   ExternalLinkIcon,
   Loader2Icon,
   PlusIcon,
@@ -69,6 +69,9 @@ import {
 import { format } from 'date-fns'
 
 export type LeadRow = {
+  assignedCounsellorId: string | null
+  leadPriority: string | null
+  priorityReason: string | null
   id: string
   name: string | null
   email: string | null
@@ -84,6 +87,8 @@ export type LeadStats = {
 }
 
 type Props = {
+  userId: string
+  members: CounsellorOption[]
   leads: LeadRow[]
   stats: LeadStats
   isAdmin: boolean
@@ -98,8 +103,6 @@ type PipelineStage =
   | 'enrolled'
   | 'lost'
 
-type LeadPriority = 'hot' | 'warm' | 'cold'
-
 const pipelineStages: { value: PipelineStage; label: string }[] = [
   { value: 'new_enquiry', label: 'New enquiry' },
   { value: 'qualified', label: 'Qualified' },
@@ -111,13 +114,19 @@ const pipelineStages: { value: PipelineStage; label: string }[] = [
 ]
 
 async function readError(response: Response) {
-  const data = (await response.json().catch(() => null)) as
-    | { error?: string }
-    | null
+  const data = (await response.json().catch(() => null)) as {
+    error?: string
+  } | null
   return data?.error || 'Something went wrong. Please try again.'
 }
 
-export default function LeadsClient({ leads, stats, isAdmin }: Props) {
+export default function LeadsClient({
+  leads,
+  stats,
+  isAdmin,
+  members,
+  userId,
+}: Props) {
   const router = useRouter()
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
@@ -130,9 +139,9 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
   const [courseInterest, setCourseInterest] = useState('')
   const [pipelineStage, setPipelineStage] =
     useState<PipelineStage>('new_enquiry')
-  const [leadPriority, setLeadPriority] = useState<LeadPriority | 'none'>(
-    'none',
-  )
+  const [ownerFilter, setOwnerFilter] = useState('all')
+  const [priorityFilter, setPriorityFilter] = useState('all')
+  const [lostReason, setLostReason] = useState('')
   const [consentToContact, setConsentToContact] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteRequest, setDeleteRequest] = useState<{
@@ -141,10 +150,36 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
   } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [removedLeadIds, setRemovedLeadIds] = useState<Set<string>>(new Set())
+  const [isExporting, setIsExporting] = useState(false)
+  async function exportLeads() {
+    setIsExporting(true)
+    try {
+      const response = await fetch('/api/dashboard/leads/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: filteredLeads.map((l) => l.id) }),
+      })
+      if (!response.ok)
+        throw new Error((await response.json()).error || 'Export failed')
+      const url = URL.createObjectURL(await response.blob())
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `leads-${new Date().toISOString().slice(0, 10)}.csv`
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+      toast.success('Filtered leads exported')
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Could not export leads',
+      )
+    } finally {
+      setIsExporting(false)
+    }
+  }
   const itemsPerPage = 10
 
   const activeLeads = useMemo(
-    () => leads.filter(lead => !removedLeadIds.has(lead.id)),
+    () => leads.filter((lead) => !removedLeadIds.has(lead.id)),
     [leads, removedLeadIds],
   )
 
@@ -156,20 +191,20 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
     weekAgo.setDate(weekAgo.getDate() - 7)
     const monthAgo = new Date(now)
     monthAgo.setDate(monthAgo.getDate() - 30)
-    const removedLeads = leads.filter(lead => removedLeadIds.has(lead.id))
+    const removedLeads = leads.filter((lead) => removedLeadIds.has(lead.id))
 
     return {
       total: Math.max(0, stats.total - removedLeads.length),
       lastWeek: Math.max(
         0,
         stats.lastWeek -
-          removedLeads.filter(lead => new Date(lead.capturedAt) >= weekAgo)
+          removedLeads.filter((lead) => new Date(lead.capturedAt) >= weekAgo)
             .length,
       ),
       lastMonth: Math.max(
         0,
         stats.lastMonth -
-          removedLeads.filter(lead => new Date(lead.capturedAt) >= monthAgo)
+          removedLeads.filter((lead) => new Date(lead.capturedAt) >= monthAgo)
             .length,
       ),
     }
@@ -177,15 +212,25 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
 
   const filteredLeads = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
-    if (!query) return activeLeads
-    return activeLeads.filter(lead => {
+    return activeLeads.filter((lead) => {
+      if (ownerFilter === 'mine' && lead.assignedCounsellorId !== userId)
+        return false
+      if (ownerFilter === 'unassigned' && lead.assignedCounsellorId)
+        return false
+      if (
+        !['all', 'mine', 'unassigned'].includes(ownerFilter) &&
+        lead.assignedCounsellorId !== ownerFilter
+      )
+        return false
+      if (priorityFilter !== 'all' && lead.leadPriority !== priorityFilter)
+        return false
       const haystack = [lead.name, lead.email, lead.phone, lead.botName]
         .filter(Boolean)
         .join(' ')
         .toLowerCase()
       return haystack.includes(query)
     })
-  }, [activeLeads, searchQuery])
+  }, [activeLeads, searchQuery, ownerFilter, priorityFilter, userId])
 
   const totalPages = Math.max(1, Math.ceil(filteredLeads.length / itemsPerPage))
   const safePage = Math.min(currentPage, totalPages)
@@ -195,7 +240,7 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
 
   const allVisibleSelected =
     paginatedLeads.length > 0 &&
-    paginatedLeads.every(lead => selectedLeads.has(lead.id))
+    paginatedLeads.every((lead) => selectedLeads.has(lead.id))
 
   const toggleLeadSelection = (leadId: string) => {
     const next = new Set(selectedLeads)
@@ -207,11 +252,11 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
   const toggleSelectAll = () => {
     if (allVisibleSelected) {
       const next = new Set(selectedLeads)
-      paginatedLeads.forEach(lead => next.delete(lead.id))
+      paginatedLeads.forEach((lead) => next.delete(lead.id))
       setSelectedLeads(next)
     } else {
       const next = new Set(selectedLeads)
-      paginatedLeads.forEach(lead => next.add(lead.id))
+      paginatedLeads.forEach((lead) => next.add(lead.id))
       setSelectedLeads(next)
     }
   }
@@ -227,7 +272,7 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
     setPhone('')
     setCourseInterest('')
     setPipelineStage('new_enquiry')
-    setLeadPriority('none')
+    setLostReason('')
     setConsentToContact(false)
   }
 
@@ -250,7 +295,8 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
           phone: phone.trim() || null,
           courseInterest: courseInterest.trim() || null,
           pipelineStage,
-          leadPriority: leadPriority === 'none' ? null : leadPriority,
+          lostReason:
+            pipelineStage === 'lost' ? lostReason.trim() || null : null,
           consentToContact,
         }),
       })
@@ -287,10 +333,10 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
       if (!response.ok) throw new Error(await readError(response))
 
       const deletedIds = new Set(deleteRequest.ids)
-      setRemovedLeadIds(current => new Set([...current, ...deletedIds]))
-      setSelectedLeads(current => {
+      setRemovedLeadIds((current) => new Set([...current, ...deletedIds]))
+      setSelectedLeads((current) => {
         const next = new Set(current)
-        deletedIds.forEach(id => next.delete(id))
+        deletedIds.forEach((id) => next.delete(id))
         return next
       })
       toast.success(
@@ -336,18 +382,20 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
       <div className='flex justify-end'>
         <Dialog
           open={addDialogOpen}
-          onOpenChange={open => {
+          onOpenChange={(open) => {
             if (!isCreating) setAddDialogOpen(open)
           }}>
           <DialogTrigger asChild>
-            <Button
-              className={cn(
-                dashboardButtonClass,
-                'h-9 rounded-lg px-3 text-xs',
-              )}>
-              <PlusIcon className='mr-1.5 size-4' />
-              Add lead
-            </Button>
+            <RequirePermission permission='operate'>
+              <Button
+                className={cn(
+                  dashboardButtonClass,
+                  'h-9 rounded-lg px-3 text-xs',
+                )}>
+                <PlusIcon className='mr-1.5 size-4' />
+                Add lead
+              </Button>
+            </RequirePermission>
           </DialogTrigger>
           <DialogContent className='max-h-[90vh] overflow-y-auto sm:max-w-xl'>
             <DialogHeader>
@@ -367,7 +415,7 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
                     required
                     maxLength={200}
                     value={name}
-                    onChange={event => setName(event.target.value)}
+                    onChange={(event) => setName(event.target.value)}
                     placeholder='Avery Johnson'
                     disabled={isCreating}
                     className='text-sm'
@@ -381,7 +429,7 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
                     id='lead-email'
                     type='email'
                     value={email}
-                    onChange={event => setEmail(event.target.value)}
+                    onChange={(event) => setEmail(event.target.value)}
                     placeholder='avery@example.com'
                     disabled={isCreating}
                     className='text-sm'
@@ -396,7 +444,7 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
                     type='tel'
                     maxLength={50}
                     value={phone}
-                    onChange={event => setPhone(event.target.value)}
+                    onChange={(event) => setPhone(event.target.value)}
                     placeholder='+1 555 012 3456'
                     disabled={isCreating}
                     className='text-sm'
@@ -413,7 +461,7 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
                     id='lead-course'
                     maxLength={300}
                     value={courseInterest}
-                    onChange={event => setCourseInterest(event.target.value)}
+                    onChange={(event) => setCourseInterest(event.target.value)}
                     placeholder='e.g. Data Science'
                     disabled={isCreating}
                     className='text-sm'
@@ -423,7 +471,7 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
                   <Label className='text-xs'>Pipeline stage</Label>
                   <Select
                     value={pipelineStage}
-                    onValueChange={value =>
+                    onValueChange={(value) =>
                       setPipelineStage(value as PipelineStage)
                     }
                     disabled={isCreating}>
@@ -431,7 +479,7 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {pipelineStages.map(stage => (
+                      {pipelineStages.map((stage) => (
                         <SelectItem key={stage.value} value={stage.value}>
                           {stage.label}
                         </SelectItem>
@@ -439,25 +487,24 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className='space-y-1.5'>
-                  <Label className='text-xs'>Priority</Label>
-                  <Select
-                    value={leadPriority}
-                    onValueChange={value =>
-                      setLeadPriority(value as LeadPriority | 'none')
-                    }
-                    disabled={isCreating}>
-                    <SelectTrigger className='w-full text-sm'>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value='none'>Not set</SelectItem>
-                      <SelectItem value='hot'>Hot</SelectItem>
-                      <SelectItem value='warm'>Warm</SelectItem>
-                      <SelectItem value='cold'>Cold</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <p className='self-center text-xs text-muted-foreground'>
+                  Priority is calculated automatically from accepted facts.
+                </p>
+                {pipelineStage === 'lost' && (
+                  <div className='space-y-2 sm:col-span-2'>
+                    <Label htmlFor='new-lost-reason'>
+                      Why was this lead lost?
+                    </Label>
+                    <Textarea
+                      id='new-lost-reason'
+                      required
+                      maxLength={2000}
+                      value={lostReason}
+                      onChange={(event) => setLostReason(event.target.value)}
+                      disabled={isCreating}
+                    />
+                  </div>
+                )}
                 <div className='flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 sm:col-span-2 dark:border-slate-700 dark:bg-slate-800'>
                   <div className='space-y-0.5'>
                     <Label htmlFor='lead-consent' className='text-xs'>
@@ -483,15 +530,17 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
                   disabled={isCreating}>
                   Cancel
                 </Button>
-                <Button
-                  type='submit'
-                  disabled={isCreating}
-                  className={dashboardButtonClass}>
-                  {isCreating && (
-                    <Loader2Icon className='mr-2 size-4 animate-spin' />
-                  )}
-                  {isCreating ? 'Adding lead…' : 'Add lead'}
-                </Button>
+                <RequirePermission permission='operate'>
+                  <Button
+                    type='submit'
+                    disabled={isCreating}
+                    className={dashboardButtonClass}>
+                    {isCreating && (
+                      <Loader2Icon className='mr-2 size-4 animate-spin' />
+                    )}
+                    {isCreating ? 'Adding lead…' : 'Add lead'}
+                  </Button>
+                </RequirePermission>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -516,11 +565,11 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
         onConfirm={deleteLeads}
       />
 
-      <section className='grid grid-cols-1 gap-3 md:grid-cols-3'>
-        {statCards.map(stat => (
+      <section className='grid grid-cols-3 gap-2 sm:gap-3'>
+        {statCards.map((stat) => (
           <div
             key={stat.label}
-            className='dashboard-surface relative overflow-hidden rounded-xl p-4'>
+            className='dashboard-surface relative overflow-hidden rounded-xl p-3 sm:p-4'>
             <div className='flex items-start justify-between gap-3'>
               <div className='space-y-1'>
                 <p className='text-xs font-medium text-muted-foreground'>
@@ -531,7 +580,7 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
                 </p>
               </div>
               <div
-                className={`flex size-9 items-center justify-center rounded-lg text-white shadow-sm ${stat.iconClass}`}>
+                className={`hidden size-9 items-center justify-center rounded-lg text-white shadow-sm sm:flex ${stat.iconClass}`}>
                 <stat.icon className='size-4' />
               </div>
             </div>
@@ -539,6 +588,86 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
         ))}
       </section>
 
+      <div
+        className='flex flex-wrap items-center gap-2'
+        aria-label='Lead ownership queues'>
+        {[
+          ['all', 'All leads'],
+          ['mine', 'My leads'],
+          ['unassigned', 'Unassigned'],
+        ].map(([value, label]) => (
+          <Button
+            key={value}
+            size='sm'
+            variant={ownerFilter === value ? 'secondary' : 'outline'}
+            aria-pressed={ownerFilter === value}
+            onClick={() => {
+              setOwnerFilter(value)
+              setCurrentPage(1)
+              setSelectedLeads(new Set())
+            }}>
+            {label}
+            <span className='ml-1 text-xs text-muted-foreground'>
+              {
+                activeLeads.filter(
+                  (lead) =>
+                    value === 'all' ||
+                    (value === 'mine'
+                      ? lead.assignedCounsellorId === userId
+                      : !lead.assignedCounsellorId),
+                ).length
+              }
+            </span>
+          </Button>
+        ))}
+        <Select
+          value={ownerFilter}
+          onValueChange={(value) => {
+            setOwnerFilter(value)
+            setCurrentPage(1)
+            setSelectedLeads(new Set())
+          }}>
+          <SelectTrigger
+            aria-label='Filter leads by counsellor'
+            className='w-full sm:w-52'>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value='all'>All counsellors</SelectItem>
+            <SelectItem value='mine'>My leads</SelectItem>
+            <SelectItem value='unassigned'>Unassigned</SelectItem>
+            {members.map((member) => (
+              <SelectItem key={member.userId} value={member.userId}>
+                {member.name || member.email || 'Organization member'}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={priorityFilter}
+          onValueChange={(value) => {
+            setPriorityFilter(value)
+            setCurrentPage(1)
+            setSelectedLeads(new Set())
+          }}>
+          <SelectTrigger
+            aria-label='Filter lead priority'
+            className='w-full sm:w-40'>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value='all'>All priorities</SelectItem>
+            {['hot', 'warm', 'cold'].map((value) => (
+              <SelectItem key={value} value={value}>
+                {value.charAt(0).toUpperCase() + value.slice(1)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button asChild variant='ghost' size='sm'>
+          <Link href='/dashboard/users/follow-ups'>Open follow-ups</Link>
+        </Button>
+      </div>
       <section className='dashboard-surface overflow-hidden rounded-xl'>
         <div className='space-y-4 border-b border-slate-100 px-5 py-3.5'>
           <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
@@ -548,7 +677,7 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
                 type='text'
                 placeholder='Search by name, email, or phone…'
                 value={searchQuery}
-                onChange={e => {
+                onChange={(e) => {
                   setSearchQuery(e.target.value)
                   setCurrentPage(1)
                 }}
@@ -565,28 +694,18 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
             </div>
 
             <div className='flex items-center gap-2'>
-              <Select>
-                <SelectTrigger className='h-9 w-40 border-slate-200 text-xs'>
-                  <SelectValue placeholder='Export format' />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Export Format</SelectLabel>
-                    <SelectItem value='csv'>CSV</SelectItem>
-                    <SelectItem value='excel'>Excel</SelectItem>
-                    <SelectItem value='pdf'>PDF</SelectItem>
-                    <SelectItem value='json'>JSON</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-              <Button
-                variant='outline'
-                className={cn(
-                  dashboardOutlineButtonClass,
-                  'h-9 rounded-lg px-3 text-xs',
-                )}>
-                Export
-              </Button>
+              {isAdmin && (
+                <Button
+                  variant='outline'
+                  disabled={isExporting || filteredLeads.length === 0}
+                  onClick={exportLeads}
+                  className={cn(
+                    dashboardOutlineButtonClass,
+                    'h-9 rounded-lg px-3 text-xs',
+                  )}>
+                  {isExporting ? 'Exporting…' : 'Export CSV'}
+                </Button>
+              )}
             </div>
           </div>
 
@@ -609,10 +728,7 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
                       } from the active lead list.`,
                     )
                   }
-                  className={cn(
-                    dashboardDangerButtonClass,
-                    'h-7 text-xs',
-                  )}>
+                  className={cn(dashboardDangerButtonClass, 'h-7 text-xs')}>
                   <Trash2Icon className='mr-1.5 size-3.5' />
                   Delete selected
                 </Button>
@@ -644,11 +760,72 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
           </div>
         ) : (
           <>
-            <Table>
+            <div className='divide-y divide-border md:hidden'>
+              {paginatedLeads.map((lead) => (
+                <article key={lead.id} className='space-y-3 p-4'>
+                  <div className='flex items-start justify-between gap-2'>
+                    <div className='flex min-w-0 items-start gap-2'>
+                      {isAdmin && (
+                        <Checkbox
+                          checked={selectedLeads.has(lead.id)}
+                          onCheckedChange={() => toggleLeadSelection(lead.id)}
+                          aria-label={`Select ${lead.name || 'lead'}`}
+                          className='mt-1'
+                        />
+                      )}
+                      <div className='min-w-0'>
+                        <Link
+                          href={`/dashboard/users/leads/${lead.id}`}
+                          className='text-sm font-semibold text-primary hover:underline'>
+                          {lead.name || 'Unnamed lead'}
+                        </Link>
+                        <p className='mt-1 break-all text-xs text-muted-foreground'>
+                          {lead.email || lead.phone || 'No contact details'}
+                        </p>
+                        {lead.email && lead.phone && (
+                          <p className='mt-1 text-xs text-muted-foreground'>
+                            {lead.phone}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <Badge
+                      variant='outline'
+                      title={lead.priorityReason || ''}
+                      className='capitalize'>
+                      {lead.leadPriority || 'Not scored'}
+                    </Badge>
+                  </div>
+                  <div className='flex flex-wrap items-center justify-between gap-2'>
+                    <OwnerSelect
+                      leadId={lead.id}
+                      leadName={lead.name || 'lead'}
+                      ownerId={lead.assignedCounsellorId}
+                      members={members}
+                    />
+                    {isAdmin && (
+                      <Button
+                        variant='ghost'
+                        size='icon'
+                        aria-label={`Delete ${lead.name || 'lead'}`}
+                        onClick={() =>
+                          requestDelete(
+                            [lead.id],
+                            'This lead will be removed from the active lead list.',
+                          )
+                        }>
+                        <Trash2Icon className='size-4' />
+                      </Button>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+            <Table className='hidden table-fixed md:table'>
               <TableHeader>
                 <TableRow className='border-slate-100 hover:bg-transparent'>
                   {isAdmin && (
-                    <TableHead className='h-10 w-12 px-5'>
+                    <TableHead className='h-10 w-10 px-3'>
                       <Checkbox
                         checked={allVisibleSelected}
                         onCheckedChange={toggleSelectAll}
@@ -656,21 +833,22 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
                       />
                     </TableHead>
                   )}
-                  <TableHead className='h-10 px-5'>Name</TableHead>
-                  <TableHead className='h-10 px-5'>Email</TableHead>
-                  <TableHead className='h-10 px-5'>Phone</TableHead>
-                  <TableHead className='h-10 px-5'>Bot</TableHead>
-                  <TableHead className='h-10 px-5'>Captured</TableHead>
-                  <TableHead className='h-10 w-12 px-5' />
+                  <TableHead className='h-10 px-3'>Lead</TableHead>
+                  <TableHead className='h-10 w-20 px-2'>Priority</TableHead>
+                  <TableHead className='h-10 w-44 px-2'>Counsellor</TableHead>
+                  <TableHead className='hidden h-10 w-40 px-3 xl:table-cell'>
+                    Captured
+                  </TableHead>
+                  <TableHead className='h-10 w-10 px-1' />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedLeads.map(lead => (
+                {paginatedLeads.map((lead) => (
                   <TableRow
                     key={lead.id}
                     className='border-slate-100 hover:bg-slate-50/60'>
                     {isAdmin && (
-                      <TableCell className='px-5 py-3.5'>
+                      <TableCell className='px-3 py-3.5'>
                         <Checkbox
                           checked={selectedLeads.has(lead.id)}
                           onCheckedChange={() => toggleLeadSelection(lead.id)}
@@ -678,45 +856,70 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
                         />
                       </TableCell>
                     )}
-                    <TableCell className='px-5 py-3.5'>
+                    <TableCell className='px-3 py-3.5'>
                       <Link
                         href={`/dashboard/users/leads/${lead.id}`}
-                        className='group/link inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-slate-800 underline-offset-4 transition-colors hover:text-sky-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50'>
-                        {lead.name || '—'}
-                        <ExternalLinkIcon className='size-3 text-slate-300 transition-colors group-hover/link:text-sky-500' />
-                      </Link>
-                    </TableCell>
-                    <TableCell className='px-5 py-3.5'>
-                      <span className='inline-flex items-center gap-1.5 text-xs text-muted-foreground'>
-                        <MailIcon className='size-3.5 shrink-0 text-slate-400' />
-                        {lead.email || '—'}
-                      </span>
-                    </TableCell>
-                    <TableCell className='px-5 py-3.5'>
-                      <span className='inline-flex items-center gap-1.5 text-xs text-muted-foreground'>
-                        <PhoneIcon className='size-3.5 shrink-0 text-slate-400' />
-                        {lead.phone || '—'}
-                      </span>
-                    </TableCell>
-                    <TableCell className='px-5 py-3.5'>
-                      {lead.botName ? (
-                        <span className='inline-flex items-center gap-1.5 text-xs font-medium text-slate-700'>
-                          <BotIcon className='size-3 text-slate-400' />
-                          {lead.botName}
+                        className='inline-flex max-w-full items-center gap-1 text-sm font-semibold text-primary hover:underline'>
+                        <span className='truncate'>
+                          {lead.name || 'Unnamed lead'}
                         </span>
-                      ) : (
-                        <span className='text-xs text-muted-foreground'>—</span>
+                        <ExternalLinkIcon className='size-3 shrink-0' />
+                      </Link>
+                      <p
+                        className='mt-1 truncate text-xs text-muted-foreground'
+                        title={lead.email || lead.phone || ''}>
+                        {lead.email || lead.phone || 'No contact details'}
+                      </p>
+                      {lead.email && lead.phone && (
+                        <p className='mt-1 text-xs text-muted-foreground'>
+                          {lead.phone}
+                        </p>
                       )}
+                      <p className='mt-1 truncate text-[10px] text-muted-foreground'>
+                        {lead.botName || 'Added manually'}
+                        <span className='xl:hidden'>
+                          {' '}
+                          · {format(new Date(lead.capturedAt), 'dd MMM yyyy')}
+                        </span>
+                      </p>
                     </TableCell>
-                    <TableCell className='px-5 py-3.5'>
+                    <TableCell className='px-2 py-3.5'>
+                      <Badge
+                        variant='outline'
+                        title={
+                          lead.priorityReason ||
+                          'Priority calculated from accepted facts'
+                        }
+                        className={
+                          lead.leadPriority === 'hot'
+                            ? 'border-rose-300 text-rose-700 dark:border-rose-900 dark:text-rose-300'
+                            : lead.leadPriority === 'warm'
+                              ? 'border-amber-300 text-amber-700 dark:border-amber-900 dark:text-amber-300'
+                              : 'text-muted-foreground'
+                        }>
+                        {lead.leadPriority
+                          ? lead.leadPriority.charAt(0).toUpperCase() +
+                            lead.leadPriority.slice(1)
+                          : 'Not scored'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className='px-2 py-3.5'>
+                      <OwnerSelect
+                        leadId={lead.id}
+                        leadName={lead.name || 'lead'}
+                        ownerId={lead.assignedCounsellorId}
+                        members={members}
+                      />
+                    </TableCell>
+                    <TableCell className='hidden px-3 py-3.5 xl:table-cell'>
                       <span className='text-xs text-muted-foreground'>
                         {format(
                           new Date(lead.capturedAt),
-                          'dd MMM yyyy · h:mm a'
+                          'dd MMM yyyy · h:mm a',
                         )}
                       </span>
                     </TableCell>
-                    <TableCell className='px-5 py-3.5'>
+                    <TableCell className='px-1 py-3.5'>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
@@ -729,8 +932,7 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align='end' className='w-40'>
                           <DropdownMenuItem asChild>
-                            <Link
-                              href={`/dashboard/users/leads/${lead.id}`}>
+                            <Link href={`/dashboard/users/leads/${lead.id}`}>
                               <ExternalLinkIcon />
                               View details
                             </Link>
@@ -785,7 +987,9 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
                     dashboardOutlineButtonClass,
                     'h-8 rounded-lg text-xs',
                   )}
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(1, prev - 1))
+                  }
                   disabled={safePage === 1}>
                   <ChevronLeftIcon className='size-4' />
                   Previous
@@ -794,9 +998,9 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
                   {Array.from({ length: totalPages }, (_, i) => i + 1)
                     .slice(
                       Math.max(0, safePage - 3),
-                      Math.max(0, safePage - 3) + 5
+                      Math.max(0, safePage - 3) + 5,
                     )
-                    .map(page => (
+                    .map((page) => (
                       <Button
                         key={page}
                         variant={safePage === page ? 'default' : 'outline'}
@@ -820,7 +1024,7 @@ export default function LeadsClient({ leads, stats, isAdmin }: Props) {
                     'h-8 rounded-lg text-xs',
                   )}
                   onClick={() =>
-                    setCurrentPage(prev => Math.min(totalPages, prev + 1))
+                    setCurrentPage((prev) => Math.min(totalPages, prev + 1))
                   }
                   disabled={safePage === totalPages}>
                   Next

@@ -1,3 +1,7 @@
+import {
+  isOrganizationRole,
+  type OrganizationRole,
+} from '@/lib/organization/roles'
 import jwt, { type SignOptions } from 'jsonwebtoken'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -24,12 +28,17 @@ export function signToken(
     organization_id: string
     bot_id: string
     conversation_id?: string
-    type: 'user' | 'support_agent' | 'dashboard_admin'
+    type: 'user' | 'support_agent' | 'staff_read' | 'dashboard_admin'
+    organization_role?: OrganizationRole
     [key: string]: unknown
   },
   privateKey: string,
   expiresIn: SignOptions['expiresIn'] = '30m',
 ): string {
+  if (payload.type !== 'user' && !isOrganizationRole(payload.organization_role))
+    throw new Error(
+      'A canonical organization role is required for staff tokens',
+    )
   return jwt.sign(
     {
       ...payload,
@@ -49,7 +58,7 @@ export type ChatTokenPayload = {
   organization_id: string
   bot_id: string
   conversation_id?: string
-  type: 'user' | 'support_agent' | 'dashboard_admin'
+  type: 'user' | 'support_agent' | 'staff_read' | 'dashboard_admin'
   [key: string]: unknown
 }
 

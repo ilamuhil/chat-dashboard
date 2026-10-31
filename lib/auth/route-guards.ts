@@ -1,3 +1,5 @@
+import { can } from '@/lib/organization/permissions'
+import { requestPermission } from '@/lib/organization/access-policy'
 import { resolveCurrentOrganizationId } from '@/lib/organization/current-organization'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/core/prisma'
@@ -23,7 +25,7 @@ function getTokenFromRequest(request: NextRequest) {
 }
 
 export async function requireUserOrg(
-  request: NextRequest
+  request: NextRequest,
 ): Promise<GuardOk<UserOrgContext> | GuardFail> {
   const token = getTokenFromRequest(request)
   if (!token) {
@@ -50,24 +52,45 @@ export async function requireUserOrg(
       ok: false,
       response: NextResponse.json(
         { error: 'Organization not found' },
-        { status: 404 }
+        { status: 404 },
       ),
     }
   }
 
+  const member = await prisma.organizationMembers.findFirst({
+    where: {
+      organizationId,
+      userId,
+      user: { isActive: true, isBanned: false },
+    },
+    select: { role: true },
+  })
+  if (
+    !can(
+      member?.role,
+      requestPermission(request.nextUrl.pathname, request.method) || 'read',
+    )
+  )
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: 'You do not have permission for this action' },
+        { status: 403 },
+      ),
+    }
   return { ok: true, userId, organizationId }
 }
 
 export async function requireUserOrgAndBot(
   request: NextRequest,
-  botId: string
+  botId: string,
 ): Promise<GuardOk<UserOrgContext & BotContext> | GuardFail> {
   const base = await requireUserOrg(request)
   if (!base.ok) return base
 
   const { organizationId } = base
   const bot = await prisma.bots.findFirst({
-    where: { id: botId, organizationId },
+    where: { id: botId, organizationId, deletedAt: null },
     select: { id: true, organizationId: true },
   })
 
@@ -85,4 +108,3 @@ export async function requireUserOrgAndBot(
     bot: { id: bot.id, organizationId: bot.organizationId },
   }
 }
-

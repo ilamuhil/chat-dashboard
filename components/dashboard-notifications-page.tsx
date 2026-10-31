@@ -9,10 +9,7 @@ import { Button } from '@/components/ui/button'
 import ConfirmationDialog from '@/components/ui/ConfirmationDialog'
 import { useDashboardNotifications } from '@/app/dashboard/notifications/NotificationProvider'
 
-function getNotificationRoute(
-  type: string,
-  metadata: Record<string, unknown>,
-) {
+function getNotificationRoute(type: string, metadata: Record<string, unknown>) {
   if (
     (type === 'handover_request' || type === 'end_chat_request') &&
     typeof metadata.conversationId === 'string'
@@ -20,6 +17,18 @@ function getNotificationRoute(
     return `/dashboard/users/conversations/${metadata.conversationId}`
   }
 
+  if (
+    (type === 'lead_hot' || type === 'lead_qualified') &&
+    typeof metadata.leadId === 'string'
+  ) {
+    return `/dashboard/users/leads/${encodeURIComponent(metadata.leadId)}`
+  }
+  if (
+    (type === 'follow_up_due' || type === 'follow_up_overdue') &&
+    typeof metadata.followUpId === 'string'
+  ) {
+    return `/dashboard/users/follow-ups?task=${encodeURIComponent(metadata.followUpId)}`
+  }
   if (type === 'lead_captured') return '/dashboard/users/leads'
   return null
 }
@@ -63,7 +72,7 @@ export default function DashboardNotificationsPage() {
     } catch {
       // The provider restores the item if the request fails.
     } finally {
-      setDeletingId(current => (current === id ? null : current))
+      setDeletingId((current) => (current === id ? null : current))
     }
   }
 
@@ -71,9 +80,7 @@ export default function DashboardNotificationsPage() {
     <div className='mx-auto flex h-full min-h-0 w-full max-w-2xl flex-col'>
       <div className='flex shrink-0 items-center justify-between gap-3'>
         <div>
-          <h1 className='text-sm font-medium text-slate-900'>
-            Notifications
-          </h1>
+          <h1 className='text-sm font-medium text-slate-900'>Notifications</h1>
           <p className='mt-0.5 text-xs text-slate-500'>
             {notifications.length === 0
               ? 'No activity yet'
@@ -121,7 +128,7 @@ export default function DashboardNotificationsPage() {
           </div>
         ) : (
           <ul className='divide-y divide-slate-100'>
-            {notifications.map(notification => {
+            {notifications.map((notification) => {
               const route = getNotificationRoute(
                 notification.type,
                 notification.metadata,
@@ -151,10 +158,9 @@ export default function DashboardNotificationsPage() {
                         <span className='size-1.5 shrink-0 rounded-full bg-sky-500' />
                       )}
                       <span className='ml-auto shrink-0 text-[11px] text-slate-400'>
-                        {formatDistanceToNow(
-                          new Date(notification.createdAt),
-                          { addSuffix: true },
-                        )}
+                        {formatDistanceToNow(new Date(notification.createdAt), {
+                          addSuffix: true,
+                        })}
                       </span>
                     </span>
                     <span className='mt-0.5 block truncate text-xs leading-4 text-slate-500'>

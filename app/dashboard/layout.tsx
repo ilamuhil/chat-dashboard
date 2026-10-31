@@ -1,3 +1,5 @@
+import { OrganizationAccessProvider } from '@/components/organization-access'
+import { can } from '@/lib/organization/permissions'
 import { AppSidebar } from '@/components/app-sidebar'
 import { DashboardBreadcrumb } from '@/components/dashboard-breadcrumb'
 import { Separator } from '@/components/ui/separator'
@@ -27,7 +29,7 @@ export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
-  }) {
+}) {
   const cookieStore = await cookies()
   const token = cookieStore.get('auth_token')?.value
   if (!token) redirect('/auth/login')
@@ -55,7 +57,9 @@ export default async function DashboardLayout({
     select: { organizationId: true, role: true },
   })
 
-  const orgIds = orgMemberships.map((m) => m.organizationId).filter(Boolean) as string[]
+  const orgIds = orgMemberships
+    .map((m) => m.organizationId)
+    .filter(Boolean) as string[]
   const orgs = orgIds.length
     ? await prisma.organizations.findMany({
         where: { id: { in: orgIds } },
@@ -71,37 +75,47 @@ export default async function DashboardLayout({
       name: orgNameById.get(m.organizationId as string) ?? 'Organization',
       role: m.role ?? 'member',
     }))
-  
+
+  const role =
+    (
+      orgMemberships.find(
+        (m) =>
+          m.organizationId ===
+          cookieStore.get('current_organization_id')?.value,
+      ) || orgMemberships[0]
+    )?.role || ''
   return (
-    <DashboardThemeProvider userId={user.id}>
-      <NotificationProvider>
-        <SidebarProvider className='h-svh overflow-hidden'>
-          <Boot />
-          <BillingIntent />
-          <AppSidebar user={user} organizations={organizations} />
-          <SidebarInset className='min-h-0 overflow-hidden bg-slate-50'>
-            <header className='flex h-14 shrink-0 items-center border-b border-slate-200/80 bg-linear-to-r from-white via-white to-sky-50/40 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 dark:to-slate-900/40'>
-              <div className='flex w-full items-center gap-3 px-4'>
-                <SidebarTrigger className='size-8 rounded-lg border border-slate-200/80 bg-white text-slate-600 shadow-sm hover:bg-sky-50 hover:text-sky-800 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-sky-500/15 dark:hover:text-sky-200' />
-                <Separator
-                  orientation='vertical'
-                  className='data-[orientation=vertical]:h-5 bg-slate-200'
-                />
-                <DashboardBreadcrumb />
-                <div className='ml-auto flex items-center gap-2'>
-                  <DashboardThemeToggle />
-                  <DashboardFeedback />
-                  <DashboardNotifications />
+    <OrganizationAccessProvider role={role}>
+      <DashboardThemeProvider userId={user.id}>
+        <NotificationProvider>
+          <SidebarProvider className='h-svh overflow-hidden'>
+            <Boot />
+            {can(role, 'billing') && <BillingIntent />}
+            <AppSidebar user={user} organizations={organizations} />
+            <SidebarInset className='min-h-0 overflow-hidden bg-slate-50'>
+              <header className='flex h-14 shrink-0 items-center border-b border-slate-200/80 bg-linear-to-r from-white via-white to-sky-50/40 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 dark:to-slate-900/40'>
+                <div className='flex w-full items-center gap-3 px-4'>
+                  <SidebarTrigger className='size-8 rounded-lg border border-slate-200/80 bg-white text-slate-600 shadow-sm hover:bg-sky-50 hover:text-sky-800 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-sky-500/15 dark:hover:text-sky-200' />
+                  <Separator
+                    orientation='vertical'
+                    className='data-[orientation=vertical]:h-5 bg-slate-200'
+                  />
+                  <DashboardBreadcrumb />
+                  <div className='ml-auto flex items-center gap-2'>
+                    <DashboardThemeToggle />
+                    <DashboardFeedback />
+                    <DashboardNotifications />
+                  </div>
                 </div>
-              </div>
-            </header>
-            <main className='flex min-h-0 flex-1 flex-col overflow-hidden bg-linear-to-b from-slate-50 via-slate-50 to-sky-50/30 px-4 py-6 dark:to-slate-900/30'>
-              <BillingStatus />
-              {children}
-            </main>
-          </SidebarInset>
-        </SidebarProvider>
-      </NotificationProvider>
-    </DashboardThemeProvider>
+              </header>
+              <main className='flex min-h-0 flex-1 flex-col overflow-hidden bg-linear-to-b from-slate-50 via-slate-50 to-sky-50/30 px-4 py-6 dark:to-slate-900/30'>
+                {can(role, 'billing') && <BillingStatus />}
+                {children}
+              </main>
+            </SidebarInset>
+          </SidebarProvider>
+        </NotificationProvider>
+      </DashboardThemeProvider>
+    </OrganizationAccessProvider>
   )
 }

@@ -1,5 +1,7 @@
+import { customAnswers } from '@/lib/leads/custom-answers'
 import { notFound } from 'next/navigation'
 
+import { OrganizationRole } from '@/lib/organization/roles'
 import { DashboardPageHeader } from '@/components/dashboard-page-header'
 import { requireAuthUserId } from '@/lib/auth/auth-server'
 import { resolveCurrentOrganizationId } from '@/lib/organization/current-organization'
@@ -14,9 +16,7 @@ type LeadDetailPageProps = {
   params: Promise<{ lead_id: string }>
 }
 
-export default async function LeadDetailPage({
-  params,
-}: LeadDetailPageProps) {
+export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
   const { lead_id: leadId } = await params
   const userId = await requireAuthUserId()
   const organizationId = await resolveCurrentOrganizationId({ userId })
@@ -49,7 +49,11 @@ export default async function LeadDetailPage({
         joiningPreferenceDetails: true,
         primaryIntent: true,
         leadPriority: true,
+        profileVersion: true,
+        profileMetadata: true,
+        lostReason: true,
         priorityReason: true,
+        assignedCounsellorId: true,
         aiSummary: true,
         recommendedNextAction: true,
         pipelineStage: true,
@@ -88,14 +92,16 @@ export default async function LeadDetailPage({
             bot: { select: { name: true } },
           },
         },
+        activities: {
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: 31,
+        },
         leadFollowUps: {
           where: { deletedAt: null },
-          orderBy: [
-            { scheduledFor: { sort: 'desc', nulls: 'last' } },
-            { createdAt: 'desc' },
-          ],
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
           select: {
             id: true,
+            sourceRequestId: true,
             counsellorId: true,
             followUpType: true,
             status: true,
@@ -110,7 +116,16 @@ export default async function LeadDetailPage({
       },
     }),
     prisma.organizationMembers.findMany({
-      where: { organizationId },
+      where: {
+        role: {
+          in: [
+            OrganizationRole.Owner,
+            OrganizationRole.Admin,
+            OrganizationRole.Counsellor,
+          ],
+        },
+        organizationId,
+      },
       orderBy: { createdAt: 'asc' },
       select: {
         id: true,
@@ -128,7 +143,7 @@ export default async function LeadDetailPage({
 
   if (!lead) notFound()
 
-  const { consent_to_contact, leadFollowUps, ...leadFields } = lead
+  const { consent_to_contact, leadFollowUps, activities, ...leadFields } = lead
   const memberOptions: OrganizationMemberOption[] = members
     .filter(
       (
@@ -137,7 +152,7 @@ export default async function LeadDetailPage({
         userId: string
       } => Boolean(member.userId),
     )
-    .map(member => ({
+    .map((member) => ({
       id: member.id,
       userId: member.userId,
       name: member.user?.fullName ?? null,
@@ -147,17 +162,24 @@ export default async function LeadDetailPage({
 
   const leadDetail: LeadDetail = {
     ...leadFields,
+    customAnswers: customAnswers(lead.profileMetadata),
+    activities: activities.slice(0, 30).map((item) => ({
+      ...item,
+      details: item.details as Record<string, unknown>,
+      createdAt: item.createdAt.toISOString(),
+    })),
+    activityCursor: activities.length > 30 ? activities[29].id : null,
     consentToContact: consent_to_contact,
     capturedAt: lead.capturedAt.toISOString(),
     updatedAt: lead.updatedAt.toISOString(),
     deletedAt: lead.deletedAt?.toISOString() ?? null,
-    conversations: lead.conversations.map(conversation => ({
+    conversations: lead.conversations.map((conversation) => ({
       ...conversation,
       createdAt: conversation.createdAt.toISOString(),
       lastMessageAt: conversation.lastMessageAt?.toISOString() ?? null,
       closedAt: conversation.closedAt?.toISOString() ?? null,
     })),
-    followUps: leadFollowUps.map(followUp => ({
+    followUps: leadFollowUps.map((followUp) => ({
       ...followUp,
       scheduledFor: followUp.scheduledFor?.toISOString() ?? null,
       completedAt: followUp.completedAt?.toISOString() ?? null,
@@ -170,7 +192,12 @@ export default async function LeadDetailPage({
     <DashboardPageHeader
       title={lead.name || lead.studentName || 'Lead details'}
       description='Review lead context, update admissions details, and manage follow-ups.'>
-      <LeadDetailClient lead={leadDetail} members={memberOptions} />
+      <LeadDetailClient
+        lead={leadDetail}
+        members={memberOptions}
+        userId={userId}
+        initialNow={new Date().toISOString()}
+      />
     </DashboardPageHeader>
   )
 }

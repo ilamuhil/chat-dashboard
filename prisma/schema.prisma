@@ -254,6 +254,7 @@ model Organizations {
 }
 
 model Bots {
+  leadCaptureConfig Json @default("{}") @map("lead_capture_config") @db.JsonB
   id                  String    @id @default(uuid()) @db.Uuid
   createdAt           DateTime  @default(now()) @map("created_at")
   name                String    @db.Text
@@ -368,7 +369,7 @@ model OrganizationInvites {
   id             String    @id @default(uuid()) @db.Uuid
   organizationId String    @map("organization_id")
   email          String    @db.Text
-  role           String    @default("editor") @db.Text
+  role           String    @default("counsellor") @db.Text
   createdAt      DateTime  @default(now()) @map("created_at")
   acceptedAt     DateTime? @map("accepted_at")
 
@@ -564,9 +565,11 @@ model Leads {
   joiningTimeline          String?   @map("joining_timeline") @db.Text //! immediate | within_1_week | within_1_month | within_3_months | beyond_3_months
   joiningPreferenceDetails String?   @map("joining_preference_details") @db.Text
   profileMetadata          Json      @default("{}") @map("profile_metadata") @db.JsonB
+  assignedCounsellorId     String?   @map("assigned_counsellor_id") @db.Uuid
   profileVersion           Int       @default(0) @map("profile_version")
   primaryIntent            String?   @map("primary_intent") @db.Text //! course_info, course_recommendation, elligibility, fees, batch_or_schedule, application, counselling, demo, campus_visit, general_enquiry, other
   leadPriority             String?   @map("lead_priority") @db.Text //! hot warm cold
+  lostReason               String?   @map("lost_reason") @db.Text
   priorityReason           String?   @map("priority_reason") @db.Text
   aiSummary                String?   @map("ai_summary") @db.Text
   recommendedNextAction    String?   @map("recommended_next_action") @db.Text //! schedule_callback, schedule_demo, schedule_campus_visit, application_follow_up, send_course_details, review_elligibility, other
@@ -585,15 +588,19 @@ model Leads {
   conversations ConversationsMeta[]
   organization  Organizations?      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   leadFollowUps LeadFollowUps[]
+  activities    LeadActivities[]
 
   @@unique([organizationId, botId, visitorId], map: "leads_active_visitor_key", where: raw("(deleted_at IS NULL)"))
   @@index([organizationId, deletedAt, capturedAt(sort: Desc)], name: "leads_org_deleted_captured_idx")
   @@index([organizationId, deletedAt, pipelineStage], name: "leads_org_deleted_stage_idx")
+  @@index([organizationId, assignedCounsellorId, deletedAt], name: "leads_org_owner_idx")
   @@map("leads")
   @@schema("public")
 }
 
 model Notifications {
+  eventKey       String?   @unique @map("event_key") @db.Text
+  dismissedAt    DateTime? @map("dismissed_at")
   id             String    @id @default(uuid()) @db.Uuid
   organizationId String?   @map("organization_id")
   userId         String?   @map("user_id") @db.Uuid
@@ -627,8 +634,27 @@ model LeadFollowUps {
   deletedAt       DateTime? @map("deleted_at")
   deletedById     String?   @map("deleted_by_id") @db.Uuid
 
+  @@index([status, deletedAt, scheduledFor], name: "follow_ups_worklist_idx")
   @@index([leadId])
   @@index([leadId, deletedAt, scheduledFor], name: "lead_follow_ups_lead_deleted_scheduled_idx")
   @@map("lead_follow_ups")
+  @@schema("public")
+}
+
+model LeadActivities {
+  id             String   @id @default(uuid()) @db.Uuid
+  leadId         String   @map("lead_id") @db.Uuid
+  organizationId String   @map("organization_id") @db.Text
+  actorId        String?  @map("actor_id") @db.Uuid
+  actorLabel     String   @map("actor_label") @db.Text
+  kind           String   @db.Text
+  body           String?  @db.Text
+  details        Json     @default("{}") @db.JsonB
+  createdAt      DateTime @default(now()) @map("created_at")
+  lead           Leads    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, createdAt(sort: Desc)], name: "lead_activity_lead_time_idx")
+  @@index([organizationId, createdAt], name: "lead_activity_org_time_idx")
+  @@map("lead_activities")
   @@schema("public")
 }

@@ -1,5 +1,7 @@
 'use client'
 
+import { useOrganizationAccess } from '@/components/organization-access'
+import { canManageRole, OrganizationRole } from '@/lib/organization/permissions'
 import { useCallback, useEffect, useState } from 'react'
 import { Loader2, UserPlusIcon, Trash2Icon } from 'lucide-react'
 import { toast } from 'sonner'
@@ -37,7 +39,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
-type Role = 'admin' | 'editor'
+type Role = OrganizationRole
 type Member = {
   id: string
   role: Role
@@ -58,7 +60,7 @@ function getInitials(member: Member) {
     return name
       .split(/\s+/)
       .slice(0, 2)
-      .map(part => part[0])
+      .map((part) => part[0])
       .join('')
       .toUpperCase()
   }
@@ -66,9 +68,9 @@ function getInitials(member: Member) {
 }
 
 async function readError(response: Response) {
-  const data = (await response.json().catch(() => null)) as
-    | { error?: string }
-    | null
+  const data = (await response.json().catch(() => null)) as {
+    error?: string
+  } | null
   return data?.error || 'Something went wrong. Please try again.'
 }
 
@@ -77,11 +79,22 @@ export default function OrganizationMembersClient({
 }: {
   canManage: boolean
 }) {
+  const { role: actorRole } = useOrganizationAccess()
+  const roleOptions = (
+    actorRole === OrganizationRole.Owner
+      ? [
+          OrganizationRole.Owner,
+          OrganizationRole.Admin,
+          OrganizationRole.Counsellor,
+          OrganizationRole.Viewer,
+        ]
+      : [OrganizationRole.Counsellor, OrganizationRole.Viewer]
+  ) as Role[]
   const [members, setMembers] = useState<Member[]>([])
   const [inviteOpen, setInviteOpen] = useState(false)
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
-  const [role, setRole] = useState<Role>('editor')
+  const [role, setRole] = useState<Role>(OrganizationRole.Counsellor)
   const [isLoading, setIsLoading] = useState(true)
   const [isInviting, setIsInviting] = useState(false)
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false)
@@ -152,8 +165,8 @@ export default function OrganizationMembersClient({
         body: JSON.stringify({ role: nextRole }),
       })
       if (!response.ok) throw new Error(await readError(response))
-      setMembers(current =>
-        current.map(item =>
+      setMembers((current) =>
+        current.map((item) =>
           item.id === member.id ? { ...item, role: nextRole } : item,
         ),
       )
@@ -176,7 +189,7 @@ export default function OrganizationMembersClient({
         method: 'DELETE',
       })
       if (!response.ok) throw new Error(await readError(response))
-      setMembers(current => current.filter(item => item.id !== member.id))
+      setMembers((current) => current.filter((item) => item.id !== member.id))
       toast.success('Member removed from the organization')
       return true
     } catch (error) {
@@ -219,7 +232,7 @@ export default function OrganizationMembersClient({
           {canManage && (
             <Dialog
               open={inviteOpen}
-              onOpenChange={open => {
+              onOpenChange={(open) => {
                 if (!isInviting) setInviteOpen(open)
               }}>
               <DialogTrigger asChild>
@@ -235,42 +248,57 @@ export default function OrganizationMembersClient({
                 <DialogHeader className='border-b border-slate-100 pb-4 pr-6'>
                   <DialogTitle>Invite organization member</DialogTitle>
                   <DialogDescription>
-                    Enter the user&apos;s name and email. They will receive a secure sign-in link.
+                    Enter the user&apos;s name and email. They will receive a
+                    secure sign-in link.
                   </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={inviteUser} className='flex flex-1 flex-col space-y-4'>
+                <form
+                  onSubmit={inviteUser}
+                  className='flex flex-1 flex-col space-y-4'>
                   <div className='space-y-1.5'>
-                    <Label htmlFor='member-full-name' className='text-xs'>Full name</Label>
+                    <Label htmlFor='member-full-name' className='text-xs'>
+                      Full name
+                    </Label>
                     <Input
                       id='member-full-name'
                       required
                       value={fullName}
-                      onChange={event => setFullName(event.target.value)}
+                      onChange={(event) => setFullName(event.target.value)}
                       placeholder='Jane Doe'
                       className='text-sm'
                     />
                   </div>
                   <div className='space-y-1.5'>
-                    <Label htmlFor='member-email' className='text-xs'>Email address</Label>
+                    <Label htmlFor='member-email' className='text-xs'>
+                      Email address
+                    </Label>
                     <Input
                       id='member-email'
                       type='email'
                       required
                       value={email}
-                      onChange={event => setEmail(event.target.value)}
+                      onChange={(event) => setEmail(event.target.value)}
                       placeholder='jane@example.com'
                       className='text-sm'
                     />
                   </div>
                   <div className='space-y-1.5'>
                     <Label className='text-xs'>Role</Label>
-                    <Select value={role} onValueChange={value => setRole(value as Role)}>
+                    <Select
+                      value={role}
+                      onValueChange={(value) => setRole(value as Role)}>
                       <SelectTrigger className='text-sm'>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value='editor'>Editor</SelectItem>
-                        <SelectItem value='admin'>Admin</SelectItem>
+                        {roleOptions.map((value) => (
+                          <SelectItem
+                            key={value}
+                            value={value}
+                            className='capitalize'>
+                            {value}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -286,7 +314,9 @@ export default function OrganizationMembersClient({
                       type='submit'
                       disabled={isInviting}
                       className={dashboardButtonClass}>
-                      {isInviting && <Loader2 className='mr-2 size-4 animate-spin' />}
+                      {isInviting && (
+                        <Loader2 className='mr-2 size-4 animate-spin' />
+                      )}
                       {isInviting ? 'Sending…' : 'Send invitation'}
                     </Button>
                   </div>
@@ -302,7 +332,11 @@ export default function OrganizationMembersClient({
         setOpen={setRemoveDialogOpen}
         title='Remove organization member?'
         description='This will immediately revoke the member’s access to this organization. Their user account will not be deleted.'
-        requiredConfirmationText={memberToRemove?.user?.fullName || memberToRemove?.user?.email || 'this user'}
+        requiredConfirmationText={
+          memberToRemove?.user?.fullName ||
+          memberToRemove?.user?.email ||
+          'this user'
+        }
         confirmationValue={removeConfirmation}
         onConfirmationValueChange={setRemoveConfirmation}
         confirmLabel='Proceed'
@@ -329,7 +363,9 @@ export default function OrganizationMembersClient({
         pendingLabel='Updating…'
         onConfirm={async () => {
           if (!memberRoleChange) return
-          if (await updateRole(memberRoleChange.member, memberRoleChange.role)) {
+          if (
+            await updateRole(memberRoleChange.member, memberRoleChange.role)
+          ) {
             setRoleDialogOpen(false)
             setMemberRoleChange(null)
           }
@@ -371,7 +407,7 @@ export default function OrganizationMembersClient({
                   </TableCell>
                 </TableRow>
               ) : (
-                members.map(member => (
+                members.map((member) => (
                   <TableRow
                     key={member.id}
                     className='group border-slate-100 transition-colors hover:bg-sky-50/35'>
@@ -382,27 +418,35 @@ export default function OrganizationMembersClient({
                         </div>
                         <div className='min-w-0'>
                           <p className='truncate text-sm font-semibold text-slate-800'>
-                          {member.user?.fullName || 'Unnamed user'}
+                            {member.user?.fullName || 'Unnamed user'}
                           </p>
                           <p className='truncate text-xs text-slate-500'>
-                          {member.user?.email || 'No email'}
+                            {member.user?.email || 'No email'}
                           </p>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      {canManage ? (
+                      {canManage &&
+                      !member.isSelf &&
+                      canManageRole(actorRole, member.role) ? (
                         <Select
                           value={member.role}
-                          onValueChange={value =>
+                          onValueChange={(value) =>
                             requestRoleChange(member, value as Role)
                           }>
                           <SelectTrigger className='h-8 w-28 border-slate-200 bg-white text-xs capitalize shadow-none'>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value='editor'>Editor</SelectItem>
-                            <SelectItem value='admin'>Admin</SelectItem>
+                            {roleOptions.map((value) => (
+                              <SelectItem
+                                key={value}
+                                value={value}
+                                className='capitalize'>
+                                {value}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       ) : (
@@ -416,17 +460,18 @@ export default function OrganizationMembersClient({
                     </TableCell>
                     {canManage && (
                       <TableCell>
-                        {!member.isSelf && (
-                          <Button
-                            type='button'
-                            variant='ghost'
-                            size='icon'
-                            aria-label='Remove member'
-                            className='size-8 text-slate-300 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-rose-50 hover:text-rose-600 focus-visible:opacity-100 dark:text-slate-400 dark:hover:bg-rose-500/15 dark:hover:text-rose-200'
-                            onClick={() => requestRemoveMember(member)}>
-                            <Trash2Icon className='size-3.5' />
-                          </Button>
-                        )}
+                        {!member.isSelf &&
+                          canManageRole(actorRole, member.role) && (
+                            <Button
+                              type='button'
+                              variant='ghost'
+                              size='icon'
+                              aria-label='Remove member'
+                              className='size-8 text-slate-300 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-rose-50 hover:text-rose-600 focus-visible:opacity-100 dark:text-slate-400 dark:hover:bg-rose-500/15 dark:hover:text-rose-200'
+                              onClick={() => requestRemoveMember(member)}>
+                              <Trash2Icon className='size-3.5' />
+                            </Button>
+                          )}
                       </TableCell>
                     )}
                   </TableRow>

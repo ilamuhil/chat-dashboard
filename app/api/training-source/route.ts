@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { readOrganizationRole } from '@/lib/organization/organization-members'
 import { requireUserOrgAndBot } from '@/lib/auth/route-guards'
 import { prisma } from '@/lib/core/prisma'
 import { getSecretKey, signToken } from '@/lib/auth/jwt'
@@ -34,32 +35,45 @@ export async function DELETE(request: NextRequest) {
     console.log('Source not found')
     return NextResponse.json(
       { error: 'File not found or already deleted' },
-      { status: 200 }
+      { status: 200 },
     )
   }
 
   const isFile = source.type === 'file'
 
-
-
   // Pre training source deletion logic
 
   if (!isFile) {
-    if (!source.deletedAt && (source.status === 'created' || source.status === 'pending')) {
+    if (
+      !source.deletedAt &&
+      (source.status === 'created' || source.status === 'pending')
+    ) {
       try {
         const removed = await prisma.trainingSources.deleteMany({
           where: {
-            id: source.id, botId: bot_id, organizationId, deletedAt: null,
+            id: source.id,
+            botId: bot_id,
+            organizationId,
+            deletedAt: null,
             status: { in: ['created', 'pending'] },
           },
         })
         if (removed.count === 0) {
-          return NextResponse.json({ error: 'Source changed. Refresh and retry.' }, { status: 409 })
+          return NextResponse.json(
+            { error: 'Source changed. Refresh and retry.' },
+            { status: 409 },
+          )
         }
-        return NextResponse.json({ message: 'URL deleted successfully' }, { status: 200 })
+        return NextResponse.json(
+          { message: 'URL deleted successfully' },
+          { status: 200 },
+        )
       } catch (err: unknown) {
         console.error('URL deletion failed', err)
-        return NextResponse.json({ error: 'URL deletion failed' }, { status: 500 })
+        return NextResponse.json(
+          { error: 'URL deletion failed' },
+          { status: 500 },
+        )
       }
     }
   }
@@ -67,11 +81,17 @@ export async function DELETE(request: NextRequest) {
   if (isFile) {
     const deletionPath = source.sourceValue!
     try {
-      if (!source.deletedAt && (source.status === 'created' || source.status === 'pending')) {
-        const removed = await prisma.$transaction(async tx => {
+      if (
+        !source.deletedAt &&
+        (source.status === 'created' || source.status === 'pending')
+      ) {
+        const removed = await prisma.$transaction(async (tx) => {
           const result = await tx.trainingSources.deleteMany({
             where: {
-              id: source.id, botId: bot_id, organizationId, deletedAt: null,
+              id: source.id,
+              botId: bot_id,
+              organizationId,
+              deletedAt: null,
               status: { in: ['created', 'pending'] },
             },
           })
@@ -87,7 +107,10 @@ export async function DELETE(request: NextRequest) {
           return true
         })
         if (!removed) {
-          return NextResponse.json({ error: 'Source changed. Refresh and retry.' }, { status: 409 })
+          return NextResponse.json(
+            { error: 'Source changed. Refresh and retry.' },
+            { status: 409 },
+          )
         }
         console.log('transaction successful')
         //delete file from storage
@@ -101,29 +124,36 @@ export async function DELETE(request: NextRequest) {
           console.error('File deletion failed', err)
           return NextResponse.json(
             { error: 'File deletion failed' },
-            { status: 500 }
+            { status: 500 },
           )
         }
         return NextResponse.json(
           { message: 'File deleted successfully' },
-          { status: 200 }
+          { status: 200 },
         )
       }
     } catch (err: unknown) {
       console.error('File deletion failed', err)
       return NextResponse.json(
         { error: 'File deletion failed' },
-        { status: 500 }
+        { status: 500 },
       )
     }
   }
 
   // post training source deletion logic
 
-  if (["processing","queued_for_training","training"].includes(source.status || '')) {
+  if (
+    ['processing', 'queued_for_training', 'training'].includes(
+      source.status || '',
+    )
+  ) {
     return NextResponse.json(
-      { error: 'Cannot delete source. Please wait for the training/processing to complete.' },
-      { status: 409 }
+      {
+        error:
+          'Cannot delete source. Please wait for the training/processing to complete.',
+      },
+      { status: 409 },
     )
   }
 
@@ -131,27 +161,48 @@ export async function DELETE(request: NextRequest) {
   if (!privateKey) {
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { status: 500 },
     )
   }
 
   const token = signToken(
-    { organization_id: organizationId, bot_id, type: 'support_agent', sub: userId },
+    {
+      organization_id: organizationId,
+      bot_id,
+      type: 'dashboard_admin',
+      organization_role: await readOrganizationRole(organizationId, userId),
+      sub: userId,
+    },
     privateKey,
-    '5m'
+    '5m',
   )
 
   try {
     // The chat API disables retrieval before committing the deletion metadata.
     const result = await pythonApiRequest<{ message: string; job_id: string }>(
-      'DELETE', `/api/training/delete/${source_id}`, token,
+      'DELETE',
+      `/api/training/delete/${source_id}`,
+      token,
     )
     return NextResponse.json(result, { status: 200 })
   } catch (error: unknown) {
     if (isAxiosError(error)) {
-      return NextResponse.json({ error: error.response?.data?.error || 'Delete failed. If this issue persists, please contact support.' }, { status: error.response?.status ?? 500 })
+      return NextResponse.json(
+        {
+          error:
+            error.response?.data?.error ||
+            'Delete failed. If this issue persists, please contact support.',
+        },
+        { status: error.response?.status ?? 500 },
+      )
     }
     console.error('Deletion failed', error)
-    return NextResponse.json({ error: 'Deletion failed. If this issue persists, please contact support.' }, { status: 500 })
+    return NextResponse.json(
+      {
+        error:
+          'Deletion failed. If this issue persists, please contact support.',
+      },
+      { status: 500 },
+    )
   }
 }

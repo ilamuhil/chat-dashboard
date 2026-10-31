@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/core/prisma'
+import { OrganizationRole } from '@/lib/organization/roles'
 import { reconcileCheckout, processCashfreeEvent } from './payments'
 import { PLANS, type PlanId } from './catalog'
 import { withBillingLock, ensureBilling } from './service'
@@ -7,7 +8,11 @@ async function notify(orgId: string, id: string, title: string, body: string) {
   await withBillingLock(orgId, async (tx) => {
     if (await tx.billingNotice.findUnique({ where: { id } })) return
     const admins = await tx.organizationMembers.findMany({
-      where: { organizationId: orgId, role: 'admin', userId: { not: null } },
+      where: {
+        organizationId: orgId,
+        role: OrganizationRole.Owner,
+        userId: { not: null },
+      },
     })
     await tx.notifications.createMany({
       data: admins.map((member) => ({

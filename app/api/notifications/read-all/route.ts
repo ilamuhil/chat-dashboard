@@ -18,6 +18,7 @@ export async function PATCH() {
   await prisma.notifications.updateMany({
     where: {
       userId,
+      dismissedAt: null,
       organizationId,
       readAt: null,
     },
@@ -29,6 +30,7 @@ export async function PATCH() {
   const notifications = await prisma.notifications.findMany({
     where: {
       userId,
+      dismissedAt: null,
       organizationId,
     },
     orderBy: {

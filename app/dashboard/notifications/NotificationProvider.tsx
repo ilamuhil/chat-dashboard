@@ -26,61 +26,43 @@ export type DashboardNotification = {
 type NotificationContextValue = {
   notifications: DashboardNotification[]
   unreadCount: number
-  addNotification: (
-    notification: DashboardNotification,
-  ) => void
+  addNotification: (notification: DashboardNotification) => void
   markRead: (id: string) => Promise<void>
   markAllRead: () => Promise<void>
   deleteNotification: (id: string) => Promise<void>
   clearAll: () => Promise<void>
-  markConversationRead: (
-    conversationId: string,
-  ) => Promise<void>
+  markConversationRead: (conversationId: string) => Promise<void>
 }
 
-const NotificationContext =
-  createContext<NotificationContextValue | null>(null)
+const NotificationContext = createContext<NotificationContextValue | null>(null)
 
-function sortNotifications(
-  notifications: DashboardNotification[],
-) {
+function sortNotifications(notifications: DashboardNotification[]) {
   return notifications.sort(
-    (a, b) =>
-      new Date(b.createdAt).getTime() -
-      new Date(a.createdAt).getTime(),
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   )
 }
 
-export function NotificationProvider({
-  children,
-}: {
-  children: ReactNode
-}) {
-  const [notifications, setNotifications] = useState<
-    DashboardNotification[]
-  >([])
+export function NotificationProvider({ children }: { children: ReactNode }) {
+  const [notifications, setNotifications] = useState<DashboardNotification[]>(
+    [],
+  )
   const removedIdsRef = useRef(new Set<string>())
-  const clearedRef = useRef(false)
 
   useEffect(() => {
     let cancelled = false
 
     const fetchNotifications = async () => {
       try {
-        const { data } = await clientApiAxios.get<
-          DashboardNotification[]
-        >('/api/notifications')
+        const { data } =
+          await clientApiAxios.get<DashboardNotification[]>(
+            '/api/notifications',
+          )
 
         if (cancelled) return
 
-        setNotifications(current => {
-          if (clearedRef.current) return current
-
+        setNotifications((current) => {
           const byId = new Map(
-            current.map(notification => [
-              notification.id,
-              notification,
-            ]),
+            current.map((notification) => [notification.id, notification]),
           )
 
           for (const id of removedIdsRef.current) {
@@ -95,15 +77,10 @@ export function NotificationProvider({
             byId.set(notification.id, notification)
           }
 
-          return sortNotifications(
-            Array.from(byId.values()),
-          )
+          return sortNotifications(Array.from(byId.values()))
         })
       } catch (error) {
-        console.error(
-          'Failed to fetch notifications',
-          error,
-        )
+        console.error('Failed to fetch notifications', error)
       }
     }
 
@@ -119,86 +96,63 @@ export function NotificationProvider({
     }
   }, [])
 
-  const addNotification = useCallback(
-    (notification: DashboardNotification) => {
-      setNotifications(current => {
-        const existing = current.find(
-          item => item.id === notification.id,
+  const addNotification = useCallback((notification: DashboardNotification) => {
+    if (removedIdsRef.current.has(notification.id)) return
+    setNotifications((current) => {
+      const existing = current.find((item) => item.id === notification.id)
+
+      if (existing) {
+        return current.map((item) =>
+          item.id === notification.id
+            ? {
+                ...notification,
+                // Do not turn a read notification unread after
+                // an SSE reconnection.
+                readAt: existing.readAt ?? notification.readAt,
+              }
+            : item,
         )
+      }
 
-        if (existing) {
-          return current.map(item =>
-            item.id === notification.id
-              ? {
-                  ...notification,
-                  // Do not turn a read notification unread after
-                  // an SSE reconnection.
-                  readAt:
-                    existing.readAt ??
-                    notification.readAt,
-                }
-              : item,
-          )
-        }
-
-        return sortNotifications([
-          notification,
-          ...current,
-        ])
-      })
-    },
-    [],
-  )
+      return sortNotifications([notification, ...current])
+    })
+  }, [])
 
   const markRead = useCallback(async (id: string) => {
     if (!id) return
 
     try {
-      const { data } =
-        await clientApiAxios.patch<DashboardNotification>(
-          `/api/notifications/${id}/read`,
-        )
+      const { data } = await clientApiAxios.patch<DashboardNotification>(
+        `/api/notifications/${id}/read`,
+      )
 
-      setNotifications(current =>
-        current.map(notification =>
-          notification.id === data.id
-            ? data
-            : notification,
+      setNotifications((current) =>
+        current.map((notification) =>
+          notification.id === data.id ? data : notification,
         ),
       )
     } catch (error) {
-      console.error(
-        'Failed to mark notification as read',
-        error,
-      )
+      console.error('Failed to mark notification as read', error)
     }
   }, [])
 
   const markAllRead = useCallback(async () => {
     try {
-      const { data } =
-        await clientApiAxios.patch<
-          DashboardNotification[]
-        >('/api/notifications/read-all')
-
-      const updatedById = new Map(
-        data.map(notification => [
-          notification.id,
-          notification,
-        ]),
+      const { data } = await clientApiAxios.patch<DashboardNotification[]>(
+        '/api/notifications/read-all',
       )
 
-      setNotifications(current =>
-        current.map(notification =>
-          updatedById.get(notification.id) ??
-          notification,
+      const updatedById = new Map(
+        data.map((notification) => [notification.id, notification]),
+      )
+
+      setNotifications((current) =>
+        current.map(
+          (notification) => updatedById.get(notification.id) ?? notification,
         ),
       )
     } catch (error) {
-      console.error(
-        'Failed to mark notifications as read',
-        error,
-      )
+      console.error('Failed to mark notifications as read', error)
     }
   }, [])
 
@@ -208,9 +162,9 @@ export function NotificationProvider({
     removedIdsRef.current.add(id)
     let removed: DashboardNotification | undefined
 
-    setNotifications(current => {
-      removed = current.find(item => item.id === id)
-      return current.filter(item => item.id !== id)
+    setNotifications((current) => {
+      removed = current.find((item) => item.id === id)
+      return current.filter((item) => item.id !== id)
     })
 
     try {
@@ -219,8 +173,8 @@ export function NotificationProvider({
       removedIdsRef.current.delete(id)
       if (removed) {
         const restored = removed
-        setNotifications(current =>
-          current.some(item => item.id === id)
+        setNotifications((current) =>
+          current.some((item) => item.id === id)
             ? current
             : sortNotifications([restored, ...current]),
         )
@@ -233,19 +187,17 @@ export function NotificationProvider({
   const clearAll = useCallback(async () => {
     let snapshot: DashboardNotification[] = []
 
-    setNotifications(current => {
+    setNotifications((current) => {
       snapshot = current
       for (const notification of current) {
         removedIdsRef.current.add(notification.id)
       }
       return []
     })
-    clearedRef.current = true
 
     try {
       await clientApiAxios.delete('/api/notifications')
     } catch (error) {
-      clearedRef.current = false
       for (const notification of snapshot) {
         removedIdsRef.current.delete(notification.id)
       }
@@ -258,16 +210,13 @@ export function NotificationProvider({
   const markConversationRead = useCallback(
     async (conversationId: string) => {
       const matching = notifications.filter(
-        notification =>
-          notification.metadata.conversationId
-            === conversationId &&
+        (notification) =>
+          notification.metadata.conversationId === conversationId &&
           !notification.readAt,
       )
 
       await Promise.all(
-        matching.map(notification =>
-          markRead(notification.id),
-        ),
+        matching.map((notification) => markRead(notification.id)),
       )
     },
     [notifications, markRead],
@@ -276,9 +225,8 @@ export function NotificationProvider({
   const value = useMemo(
     () => ({
       notifications,
-      unreadCount: notifications.filter(
-        notification => !notification.readAt,
-      ).length,
+      unreadCount: notifications.filter((notification) => !notification.readAt)
+        .length,
       addNotification,
       markRead,
       markAllRead,
@@ -308,9 +256,7 @@ export function useDashboardNotifications() {
   const context = useContext(NotificationContext)
 
   if (!context) {
-    throw new Error(
-      'This component is not inside NotificationProvider',
-    )
+    throw new Error('This component is not inside NotificationProvider')
   }
 
   return context

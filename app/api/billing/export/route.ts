@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { readOrganizationRole } from '@/lib/organization/organization-members'
 import { prisma } from '@/lib/core/prisma'
 import { billingActor } from '@/lib/billing/guards'
 import { getSecretKey, signToken } from '@/lib/auth/jwt'
@@ -42,8 +43,13 @@ export async function GET(request: NextRequest) {
       {
         organization_id: actor.organizationId,
         user_id: actor.userId,
-        role: 'billing_export',
-        type: 'support_agent',
+        sub: actor.userId,
+        scope: 'billing_export',
+        type: 'dashboard_admin',
+        organization_role: await readOrganizationRole(
+          actor.organizationId,
+          actor.userId,
+        ),
         bot_id: 'billing-export',
       },
       key,

@@ -1,0 +1,9 @@
+# Suggested questions
+
+Owners and Admins configure up to four ordered, plain-text questions under Bot Configuration → Interactions → select a bot → Questions & hosted chat. Enabling an empty list offers three editable admissions templates. Configuration includes a guide and visitor preview. Save using “Save questions & sharing”; changes apply when the visitor next loads the widget or starts a new conversation. Starting a new conversation resets dismissal and refreshes the question settings; a failed refresh retains the last valid settings.
+
+Questions appear after the server accepts the capture form, or after chat is ready when capture is disabled. They wait for restored history and hide after the first ordinary visitor message or attachment. Form audit records and staff greetings do not count as visitor questions. While composing a draft or using human assistance, suggestions are hidden. Clicking sends the visible text through the ordinary message path, including existing history, consent, handover, and connection recovery behaviour.
+
+Storage uses `bots.lead_capture_config.conversationStarters` (`enabled`, `questions`). No migration, new message type, token type, or Python service change is required. The existing dashboard bot configuration boundary restricts reads/writes to Owner/Admin. The public profile exposes only the approved questions and enabled flag. Existing capture settings and hosted sharing settings are saved together using the existing concurrency check.
+
+Checks: widget component/integration tests cover form readiness, restored history, hosted startup, human mode, draft preservation, duplicate clicks, send failure/retry, malformed configuration and form-event classification. `tests/widget/conversation-starters.test.ts` verifies schema compatibility and, with `RUN_STARTER_HTTP_TESTS=true`, live role boundaries, tenant boundaries, stale saves, capture preservation and public profile delivery using isolated fixtures.

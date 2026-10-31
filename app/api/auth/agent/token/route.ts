@@ -1,4 +1,6 @@
 //agent joins in to the chat conversation
+import { readOrganizationRole } from '@/lib/organization/organization-members'
+import { OrganizationRole } from '@/lib/organization/roles'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/core/prisma'
 import { getSecretKey, signToken } from '@/lib/auth/jwt'
@@ -14,12 +16,17 @@ export async function POST(request: NextRequest) {
     }
 
   if (!conversation_id || typeof conversation_id !== 'string') {
-    return NextResponse.json({ error: 'Invalid conversation id' }, { status: 400 })
+    return NextResponse.json(
+      { error: 'Invalid conversation id' },
+      { status: 400 },
+    )
   }
 
   const authHeader = request.headers.get('authorization')
   const token =
-    (authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : null) ??
+    (authHeader?.startsWith('Bearer ')
+      ? authHeader.slice('Bearer '.length)
+      : null) ??
     request.cookies.get('auth_token')?.value ??
     null
 
@@ -36,19 +43,40 @@ export async function POST(request: NextRequest) {
 
   const conversation = await prisma.conversationsMeta.findUnique({
     where: { id: conversation_id },
-    select: { id: true, botId: true, organizationId: true, status: true, handoverVersion: true },
+    select: {
+      id: true,
+      botId: true,
+      organizationId: true,
+      status: true,
+      handoverVersion: true,
+    },
   })
 
-  if (!conversation || !conversation.organizationId || !conversation.botId || conversation.status !== 'open') {
-    return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
+  if (
+    !conversation ||
+    !conversation.organizationId ||
+    !conversation.botId ||
+    conversation.status !== 'open'
+  ) {
+    return NextResponse.json(
+      { error: 'Conversation not found' },
+      { status: 404 },
+    )
   }
 
   const membership = await prisma.organizationMembers.findFirst({
     where: { userId, organizationId: conversation.organizationId },
-    select: { id: true },
+    select: { id: true, role: true },
   })
 
-  if (!membership) {
+  if (
+    !membership ||
+    ![
+      OrganizationRole.Owner,
+      OrganizationRole.Admin,
+      OrganizationRole.Counsellor,
+    ].some((role) => role === membership.role)
+  ) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -59,7 +87,10 @@ export async function POST(request: NextRequest) {
 
   const privateKey = getSecretKey()
   if (!privateKey) {
-    return NextResponse.json({ error: 'Failed to create token' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Failed to create token' },
+      { status: 500 },
+    )
   }
 
   const agentJwt = signToken(
@@ -68,11 +99,15 @@ export async function POST(request: NextRequest) {
       bot_id: conversation.botId,
       conversation_id: conversation.id,
       type: 'support_agent',
+      organization_role: await readOrganizationRole(
+        conversation.organizationId,
+        userId,
+      ),
       sub: userId,
       agent_takeover: agent_takeover === true,
       handover_version: conversation.handoverVersion,
     },
-    privateKey
+    privateKey,
   )
 
   return NextResponse.json(

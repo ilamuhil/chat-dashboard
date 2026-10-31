@@ -1,14 +1,17 @@
 'use server'
 
+import { readOrganizationRole } from '@/lib/organization/organization-members'
+import { OrganizationRole } from '@/lib/organization/roles'
+import { requireOrganizationPermission } from '@/lib/organization/organization-members'
 import { z } from 'zod'
 import { widgetSettingsSchema } from '@/lib/widget/widget-profile'
 import { resolveCurrentOrganizationId } from '@/lib/organization/current-organization'
-import { requireAuthUserId } from '@/lib/auth/auth-server'
 import { prisma } from '@/lib/core/prisma'
 import { withBillingLock, assertCapacity } from '@/lib/billing/service'
 import { getSecretKey } from '@/lib/auth/jwt'
 import { pythonApiRequest } from '@/lib/http/axios-server-config'
 import { signToken } from '@/lib/auth/jwt'
+import { revalidatePath } from 'next/cache'
 
 export type Bot = {
   id: string
@@ -130,7 +133,7 @@ export async function updateBotInteractions(
   formData: FormData,
 ): Promise<BotResult> {
   const nonce = Date.now().toString()
-  const userId = await requireAuthUserId()
+  const { userId } = await requireOrganizationPermission('configure')
   const organizationId = await resolveCurrentOrganizationId({ userId })
 
   if (!organizationId) {
@@ -381,6 +384,7 @@ export async function updateBotInteractions(
       },
     })
 
+    revalidatePath('/dashboard/bot/interactions', 'layout')
     return {
       success: 'Bot configuration updated successfully',
       bot: mapBot(updatedBot),
@@ -389,7 +393,11 @@ export async function updateBotInteractions(
   } else {
     // Authorize before creating the bot or any associated model configuration.
     const adminMembership = await prisma.organizationMembers.findFirst({
-      where: { organizationId, userId, role: 'admin' },
+      where: {
+        organizationId,
+        userId,
+        role: { in: [OrganizationRole.Owner, OrganizationRole.Admin] },
+      },
       select: { id: true },
     })
     if (!adminMembership) {
@@ -449,6 +457,7 @@ export async function updateBotInteractions(
         organization_id: organizationId,
         bot_id: newBot.id,
         type: 'dashboard_admin',
+        organization_role: await readOrganizationRole(organizationId, userId),
         user_id: userId,
       },
       privateKey,
@@ -482,6 +491,7 @@ export async function updateBotInteractions(
       }
     }
 
+    revalidatePath('/dashboard/bot/interactions', 'layout')
     return {
       success: 'Bot configuration saved successfully',
       bot: mapBot(newBot),

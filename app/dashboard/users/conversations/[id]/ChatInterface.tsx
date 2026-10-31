@@ -1,5 +1,9 @@
 'use client'
 
+import {
+  useOrganizationAccess,
+  RequirePermission,
+} from '@/components/organization-access'
 import React from 'react'
 import { createPortal } from 'react-dom'
 import { isAxiosError } from 'axios'
@@ -27,7 +31,9 @@ import { useDashboardNotifications } from '@/app/dashboard/notifications/Notific
 
 import ChatWindow from './ChatWindow'
 import LeadHistory from './LeadHistory'
-import ConversationSummary, { type ConversationSummaryData } from './ConversationSummary'
+import ConversationSummary, {
+  type ConversationSummaryData,
+} from './ConversationSummary'
 import { useChatSocket } from './useChatSocket'
 import type { Message as ChatMessage } from './types'
 
@@ -91,6 +97,8 @@ export default function ChatInterface({
   initialSummary,
   leadId,
 }: ChatInterfaceProps) {
+  const access = useOrganizationAccess()
+  const canOperate = access.can('operate')
   const slotRef = React.useRef<HTMLDivElement>(null)
   const panelRef = React.useRef<HTMLElement>(null)
   const [presentation, setPresentation] = React.useState<{
@@ -100,27 +108,29 @@ export default function ChatInterface({
   } | null>(null)
   const expandedChat = presentation !== null
   const [isJoining, setIsJoining] = React.useState(false)
+  const [returningToAi, setReturningToAi] = React.useState(false)
+  const [returnedToAi, setReturnedToAi] = React.useState(false)
+  const returningToAiRef = React.useRef(false)
   const [isClosing, setIsClosing] = React.useState(false)
-  const [closeRequestedConversationId, setCloseRequestedConversationId] = React.useState<string | null>(null)
+  const [closeRequestedConversationId, setCloseRequestedConversationId] =
+    React.useState<string | null>(null)
   const [socketError, setSocketError] = React.useState<string | null>(
     initialLoadError,
   )
   const initiallyClosed = initialStatus !== 'open'
 
   const [isJoined, setIsJoined] = React.useState(
-    !initiallyClosed &&
-    (initialMode === 'human' ||
-      initialHandOverStatus === 'accepted'),
+    canOperate &&
+      !initiallyClosed &&
+      (initialMode === 'human' || initialHandOverStatus === 'accepted'),
   )
 
-  const [socketEnabled, setSocketEnabled] =
-    React.useState(false)
+  const [socketEnabled, setSocketEnabled] = React.useState(false)
 
-  const [socketCredentials, setSocketCredentials] =
-    React.useState<{
-      token: string
-      conversationId: string
-    } | null>(null)
+  const [socketCredentials, setSocketCredentials] = React.useState<{
+    token: string
+    conversationId: string
+  } | null>(null)
   const [isVisitorTyping, setIsVisitorTyping] = React.useState(false)
   const visitorTypingHideRef = React.useRef<
     ReturnType<typeof setTimeout> | undefined
@@ -232,11 +242,9 @@ export default function ChatInterface({
     conversationStatus === 'closed' ||
     visibleMessages.some(isConversationEndedMessage)
 
-  const autoConnectPromiseRef =
-    React.useRef<Promise<void> | null>(null)
+  const autoConnectPromiseRef = React.useRef<Promise<void> | null>(null)
 
-  const { notifications, markConversationRead } =
-    useDashboardNotifications()
+  const { notifications, markConversationRead } = useDashboardNotifications()
 
   /*
    * Opening the conversation counts as viewing its handover
@@ -268,26 +276,41 @@ export default function ChatInterface({
         return
       }
 
-      if (
-        payload.type === 'typing' &&
-        typeof payload.is_typing === 'boolean'
-      ) {
+      if (payload.type === 'typing' && typeof payload.is_typing === 'boolean') {
         if (payload.actor === 'support_agent') return
         if (payload.is_typing) showVisitorTyping()
         else releaseVisitorTyping()
         return
       }
 
-      if (payload.type === 'conversation_history' && Array.isArray(payload.messages)) {
-        const history = payload.messages.filter((item): item is ChatMessage =>
-          typeof item === 'object' && item !== null &&
-          typeof item.id === 'string' && item.conversation_id === conversationId)
-        setMessageState(current => {
-          const existing = current.conversationId === conversationId ? current.messages : messages
-          const merged = new Map(existing.filter(item => !item.id.startsWith('local:')).map(item => [item.id, item]))
+      if (
+        payload.type === 'conversation_history' &&
+        Array.isArray(payload.messages)
+      ) {
+        const history = payload.messages.filter(
+          (item): item is ChatMessage =>
+            typeof item === 'object' &&
+            item !== null &&
+            typeof item.id === 'string' &&
+            item.conversation_id === conversationId,
+        )
+        setMessageState((current) => {
+          const existing =
+            current.conversationId === conversationId
+              ? current.messages
+              : messages
+          const merged = new Map(
+            existing
+              .filter((item) => !item.id.startsWith('local:'))
+              .map((item) => [item.id, item]),
+          )
           for (const item of history) merged.set(item.id, item)
-          return { conversationId, messages: [...merged.values()].sort((a, b) =>
-            (a.created_at ?? '').localeCompare(b.created_at ?? '')) }
+          return {
+            conversationId,
+            messages: [...merged.values()].sort((a, b) =>
+              (a.created_at ?? '').localeCompare(b.created_at ?? ''),
+            ),
+          }
         })
         return
       }
@@ -309,7 +332,7 @@ export default function ChatInterface({
       const payloadClosedBy =
         typeof payload.closed_by === 'string' ? payload.closed_by : null
       if (payloadClosedBy) {
-        setClosedByState(current => ({
+        setClosedByState((current) => ({
           conversationId,
           status:
             current.conversationId === conversationId
@@ -326,14 +349,12 @@ export default function ChatInterface({
         'system',
       ]
 
-      const role = allowedRoles.includes(
-        payload.role as ChatMessage['role'],
-      )
+      const role = allowedRoles.includes(payload.role as ChatMessage['role'])
         ? (payload.role as ChatMessage['role'])
         : payload.type === 'system' ||
-          conversationEndedTypes.includes(
-            typeof payload.type === 'string' ? payload.type : '',
-          )
+            conversationEndedTypes.includes(
+              typeof payload.type === 'string' ? payload.type : '',
+            )
           ? 'system'
           : 'user'
 
@@ -344,13 +365,13 @@ export default function ChatInterface({
           ? payload.id
           : `${conversationId}:${Date.now()}:${Math.random()}`
 
-      setMessageState(current => {
+      setMessageState((current) => {
         const currentMessages =
           current.conversationId === conversationId
             ? current.messages
             : messages
 
-        if (currentMessages.some(message => message.id === messageId)) {
+        if (currentMessages.some((message) => message.id === messageId)) {
           return current
         }
 
@@ -382,18 +403,14 @@ export default function ChatInterface({
                   ? payload.created_at
                   : new Date().toISOString(),
               agent_id:
-                typeof payload.agent_id === 'string'
-                  ? payload.agent_id
-                  : '',
+                typeof payload.agent_id === 'string' ? payload.agent_id : '',
               content_type:
                 typeof payload.content_type === 'string'
                   ? payload.content_type
                   : conversationEndedTypes.includes(
-                    typeof payload.type === 'string'
-                      ? payload.type
-                      : '',
-                  )
-                    ? payload.type as string
+                        typeof payload.type === 'string' ? payload.type : '',
+                      )
+                    ? (payload.type as string)
                     : 'text',
               content,
               file_url: fileUrl,
@@ -425,24 +442,19 @@ export default function ChatInterface({
     setSocketEnabled(false)
     setSocketCredentials(null)
     setIsJoined(false)
-    setSocketError(
-      reason || 'The chat connection could not be established.',
-    )
+    if (returningToAiRef.current) {
+      setSocketError(null)
+      return
+    }
+    setSocketError(reason || 'The chat connection could not be established.')
 
-    toast.error(
-      reason || 'The live conversation connection was closed',
-    )
+    toast.error(reason || 'The live conversation connection was closed')
   }, [])
 
-  const {
-    sendJsonMessage,
-    readyState,
-    disconnect,
-  } = useChatSocket({
+  const { sendJsonMessage, readyState, disconnect } = useChatSocket({
     isOpen: socketEnabled,
     token: socketCredentials?.token ?? null,
-    conversationId:
-      socketCredentials?.conversationId ?? null,
+    conversationId: socketCredentials?.conversationId ?? null,
     onServerMessage: handleServerMessage,
     onCloseCleanUp: handleSocketClosed,
   })
@@ -454,39 +466,34 @@ export default function ChatInterface({
   }, [disconnect, conversationId])
 
   const requestAgentSocket = React.useCallback(
-    async (
-      agentTakeover: boolean,
-      notify: boolean,
-    ) => {
+    async (agentTakeover: boolean, notify: boolean) => {
       if (isJoining) return
 
       setIsJoining(true)
 
       try {
         setSocketError(null)
-        const { data } =
-          await clientApiAxios.post<{
-            token: string
-            conversation_id: string
-            agent_name?: string | null
-          }>('/api/auth/agent/token', {
+        const { data } = await clientApiAxios.post<{
+          token: string
+          conversation_id: string
+          agent_name?: string | null
+        }>(
+          '/api/auth/agent/token',
+          {
             conversation_id: conversationId,
             agent_takeover: agentTakeover,
-          }, {
+          },
+          {
             timeout: 10_000,
-          })
+          },
+        )
 
-        if (
-          data.conversation_id !== conversationId
-        ) {
-          throw new Error(
-            'Agent token conversation mismatch',
-          )
+        if (data.conversation_id !== conversationId) {
+          throw new Error('Agent token conversation mismatch')
         }
 
         if (agentTakeover) {
-          const agentName =
-            data.agent_name || 'A support agent'
+          const agentName = data.agent_name || 'A support agent'
 
           /*
            * useChatSocket queues this message until the socket
@@ -515,15 +522,10 @@ export default function ChatInterface({
         await markConversationRead(conversationId)
 
         if (notify) {
-          toast.success(
-            'You joined the conversation',
-          )
+          toast.success('You joined the conversation')
         }
       } catch (error) {
-        console.error(
-          'Failed to create support-agent socket token:',
-          error,
-        )
+        console.error('Failed to create support-agent socket token:', error)
 
         setSocketEnabled(false)
         setSocketCredentials(null)
@@ -531,11 +533,13 @@ export default function ChatInterface({
 
         if (agentTakeover || notify) {
           const serverError = isAxiosError(error)
-            ? error.response?.data as {
-              error?: unknown
-              detail?: unknown
-              message?: unknown
-            } | undefined
+            ? (error.response?.data as
+                | {
+                    error?: unknown
+                    detail?: unknown
+                    message?: unknown
+                  }
+                | undefined)
             : undefined
           const errorMessage =
             typeof serverError?.error === 'string'
@@ -545,25 +549,22 @@ export default function ChatInterface({
                 : typeof serverError?.message === 'string'
                   ? serverError.message
                   : isAxiosError(error) &&
-                    (error.code === 'ECONNABORTED' ||
-                      error.code === 'ETIMEDOUT')
+                      (error.code === 'ECONNABORTED' ||
+                        error.code === 'ETIMEDOUT')
                     ? 'The join request timed out. Please try again.'
                     : 'Could not join the conversation'
 
           toast.error(
-            agentTakeover ? errorMessage : 'Could not reconnect to the conversation',
+            agentTakeover
+              ? errorMessage
+              : 'Could not reconnect to the conversation',
           )
         }
       } finally {
         setIsJoining(false)
       }
     },
-    [
-      conversationId,
-      isJoining,
-      markConversationRead,
-      sendJsonMessage,
-    ],
+    [conversationId, isJoining, markConversationRead, sendJsonMessage],
   )
 
   /*
@@ -572,9 +573,10 @@ export default function ChatInterface({
    */
   React.useEffect(() => {
     const shouldAutoConnect =
+      canOperate &&
+      !returnedToAi &&
       !initiallyClosed &&
-      (initialMode === 'human' ||
-        initialHandOverStatus === 'accepted')
+      (initialMode === 'human' || initialHandOverStatus === 'accepted')
 
     if (
       !shouldAutoConnect ||
@@ -587,21 +589,18 @@ export default function ChatInterface({
     }
 
     autoConnectedConversationRef.current = conversationId
-    const promise = requestAgentSocket(
-      false,
-      false,
-    )
+    const promise = requestAgentSocket(false, false)
 
     autoConnectPromiseRef.current = promise
 
     void promise.finally(() => {
-      if (
-        autoConnectPromiseRef.current === promise
-      ) {
+      if (autoConnectPromiseRef.current === promise) {
         autoConnectPromiseRef.current = null
       }
     })
   }, [
+    canOperate,
+    returnedToAi,
     conversationId,
     initiallyClosed,
     initialHandOverStatus,
@@ -612,19 +611,57 @@ export default function ChatInterface({
   ])
 
   const joinConversation = async () => {
-    if (isJoining || isJoined) return
+    if (!canOperate || isJoining || isJoined) return
 
+    setReturnedToAi(false)
+    returningToAiRef.current = false
     await requestAgentSocket(true, true)
   }
 
+  const returnToAi = async () => {
+    if (returningToAi) return
+    setReturningToAi(true)
+    returningToAiRef.current = true
+    try {
+      await clientApiAxios.post(
+        `/api/dashboard/conversations/${conversationId}/return-to-ai`,
+      )
+      setReturnedToAi(true)
+      setIsJoined(false)
+      setSocketEnabled(false)
+      setSocketCredentials(null)
+      disconnect()
+      setSocketError(null)
+      clearVisitorTyping()
+      toast.success(
+        'AI will respond to the visitor’s next message. This chat remains open.',
+      )
+    } catch (error) {
+      returningToAiRef.current = false
+      const message = (error as { response?: { data?: { error?: string } } })
+        .response?.data?.error
+      toast.error(message || 'Could not return this conversation to AI')
+    } finally {
+      setReturningToAi(false)
+    }
+  }
   const closeConversation = async () => {
     if (isClosing || conversationEnded) return
     setIsClosing(true)
     try {
-      await clientApiAxios.patch(`/api/dashboard/conversations/${conversationId}`, { status: 'closed' })
-      window.dispatchEvent(new CustomEvent(conversationStatusEvent, {
-        detail: { ids: [conversationId], status: 'closed', closedBy: 'support_agent' },
-      }))
+      await clientApiAxios.patch(
+        `/api/dashboard/conversations/${conversationId}`,
+        { status: 'closed' },
+      )
+      window.dispatchEvent(
+        new CustomEvent(conversationStatusEvent, {
+          detail: {
+            ids: [conversationId],
+            status: 'closed',
+            closedBy: 'support_agent',
+          },
+        }),
+      )
       toast.success('Conversation closed')
     } catch {
       toast.error('Could not close the conversation. Please try again.')
@@ -632,8 +669,13 @@ export default function ChatInterface({
       setIsClosing(false)
     }
   }
-  const visitorRequestedClose = closeRequestedConversationId === conversationId || notifications.some(
-    item => item.type === 'end_chat_request' && item.metadata.conversationId === conversationId)
+  const visitorRequestedClose =
+    closeRequestedConversationId === conversationId ||
+    notifications.some(
+      (item) =>
+        item.type === 'end_chat_request' &&
+        item.metadata.conversationId === conversationId,
+    )
 
   const reportTyping = React.useCallback(
     (active: boolean) => {
@@ -650,11 +692,7 @@ export default function ChatInterface({
       .replace(/<br\s*\/?>/gi, '')
       .trim()
 
-    if (
-      !contentWithoutBreakTags ||
-      !socketEnabled ||
-      readyState !== 'open'
-    ) {
+    if (!contentWithoutBreakTags || !socketEnabled || readyState !== 'open') {
       return
     }
 
@@ -667,11 +705,9 @@ export default function ChatInterface({
   }
 
   const appendLocalMessage = (content: string, contentType: string) => {
-    setMessageState(current => {
+    setMessageState((current) => {
       const currentMessages =
-        current.conversationId === conversationId
-          ? current.messages
-          : messages
+        current.conversationId === conversationId ? current.messages : messages
 
       return {
         conversationId,
@@ -701,7 +737,7 @@ export default function ChatInterface({
       file_name: file.name,
       mime_type: file.type,
     })
-    setMessageState(current => ({
+    setMessageState((current) => ({
       conversationId,
       messages: [
         ...(current.conversationId === conversationId
@@ -724,7 +760,11 @@ export default function ChatInterface({
   }
 
   React.useLayoutEffect(() => {
-    if (!presentation || presentation.animate || presentation.mode !== 'expand') {
+    if (
+      !presentation ||
+      presentation.animate ||
+      presentation.mode !== 'expand'
+    ) {
       return
     }
 
@@ -743,7 +783,7 @@ export default function ChatInterface({
     if (presentation?.mode !== 'expand' || !presentation.animate) return
 
     const fit = () => {
-      setPresentation(current =>
+      setPresentation((current) =>
         current?.mode === 'expand' && current.animate
           ? { ...current, frame: fullscreenFrame() }
           : current,
@@ -793,66 +833,61 @@ export default function ChatInterface({
 
   const isSocketConnecting =
     isJoining ||
-    (socketEnabled &&
-      (readyState === 'connecting' ||
-        readyState === 'closing'))
+    (socketEnabled && (readyState === 'connecting' || readyState === 'closing'))
 
   const chatPanel = (
-      <section
-        ref={panelRef}
-        onTransitionEnd={event => {
-          if (
-            event.target !== panelRef.current ||
-            event.propertyName !== 'width' ||
-            presentation?.mode !== 'collapse'
-          ) {
-            return
-          }
-          setPresentation(null)
-        }}
-        className={cn(
-          'dashboard-surface flex min-h-0 flex-col overflow-hidden bg-white dark:bg-slate-950',
-          presentation
-            ? 'fixed z-50 m-0 box-border'
-            : 'relative h-full rounded-xl',
-          presentation?.mode === 'expand' &&
-            presentation.animate &&
-            'shadow-2xl',
-        )}
-        style={
-          presentation
-            ? {
-                top: presentation.frame.top,
-                left: presentation.frame.left,
-                width: presentation.frame.width,
-                height: presentation.frame.height,
-                borderRadius:
-                  presentation.mode === 'expand' && presentation.animate
-                    ? 0
-                    : 12,
-                transition: presentation.animate ? expandTransition : 'none',
-              }
-            : undefined
-        }>
-        <header className='flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-4 py-3'>
-          <div className='flex min-w-0 items-center gap-2.5'>
-            <div className='flex size-8 shrink-0 items-center justify-center rounded-lg bg-linear-to-br from-sky-500 to-slate-700 text-white shadow-sm'>
-              <MessageSquareIcon className='size-3.5' />
-            </div>
-
-            <div className='min-w-0'>
-              <h2 className='truncate text-sm font-semibold tracking-tight text-foreground'>
-                Chat
-              </h2>
-
-              <p className='truncate text-xs text-muted-foreground'>
-                Conversation thread
-              </p>
-            </div>
+    <section
+      ref={panelRef}
+      onTransitionEnd={(event) => {
+        if (
+          event.target !== panelRef.current ||
+          event.propertyName !== 'width' ||
+          presentation?.mode !== 'collapse'
+        ) {
+          return
+        }
+        setPresentation(null)
+      }}
+      className={cn(
+        'dashboard-surface flex min-h-0 flex-col overflow-hidden bg-white dark:bg-slate-950',
+        presentation
+          ? 'fixed z-50 m-0 box-border'
+          : 'relative h-full rounded-xl',
+        presentation?.mode === 'expand' && presentation.animate && 'shadow-2xl',
+      )}
+      style={
+        presentation
+          ? {
+              top: presentation.frame.top,
+              left: presentation.frame.left,
+              width: presentation.frame.width,
+              height: presentation.frame.height,
+              borderRadius:
+                presentation.mode === 'expand' && presentation.animate ? 0 : 12,
+              transition: presentation.animate ? expandTransition : 'none',
+            }
+          : undefined
+      }>
+      <header className='flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-4 py-3'>
+        <div className='flex min-w-0 items-center gap-2.5'>
+          <div className='flex size-8 shrink-0 items-center justify-center rounded-lg bg-linear-to-br from-sky-500 to-slate-700 text-white shadow-sm'>
+            <MessageSquareIcon className='size-3.5' />
           </div>
 
-          <div className='flex items-center gap-1.5'>
-            {!isJoined && !conversationEnded && (
+          <div className='min-w-0'>
+            <h2 className='truncate text-sm font-semibold tracking-tight text-foreground'>
+              Chat
+            </h2>
+
+            <p className='truncate text-xs text-muted-foreground'>
+              Conversation thread
+            </p>
+          </div>
+        </div>
+
+        <div className='flex items-center gap-1.5'>
+          {!isJoined && !conversationEnded && (
+            <RequirePermission permission='operate'>
               <Button
                 type='button'
                 size='sm'
@@ -867,97 +902,122 @@ export default function ChatInterface({
                 ) : (
                   <UserRoundPlusIcon className='mr-1.5 size-3.5' />
                 )}
-
                 Join conversation
               </Button>
-            )}
+            </RequirePermission>
+          )}
 
-            {!conversationEnded && (
-              <Button type='button' size='sm' variant='outline' onClick={() => void closeConversation()}
-                disabled={isClosing} className='h-8 rounded-lg px-2.5 text-xs'>
-                {isClosing ? <LoaderCircleIcon className='mr-1.5 size-3.5 animate-spin' /> : <CheckCircle2Icon className='mr-1.5 size-3.5' />}
+          {!conversationEnded &&
+            !returnedToAi &&
+            (initialMode === 'human' || isJoined) && (
+              <RequirePermission permission='operate'>
+                <Button
+                  size='sm'
+                  variant='outline'
+                  disabled={returningToAi}
+                  onClick={() => void returnToAi()}
+                  className='h-8 text-xs'>
+                  {returningToAi ? 'Returning to AI…' : 'Return to AI'}
+                </Button>
+              </RequirePermission>
+            )}
+          {!conversationEnded && (
+            <RequirePermission permission='operate'>
+              <Button
+                type='button'
+                size='sm'
+                variant='outline'
+                onClick={() => void closeConversation()}
+                disabled={isClosing}
+                className='h-8 rounded-lg px-2.5 text-xs'>
+                {isClosing ? (
+                  <LoaderCircleIcon className='mr-1.5 size-3.5 animate-spin' />
+                ) : (
+                  <CheckCircle2Icon className='mr-1.5 size-3.5' />
+                )}
                 Close conversation
               </Button>
-            )}
+            </RequirePermission>
+          )}
 
-            {conversationEnded ? (
-              <span className='inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2 py-1.5 text-[11px] font-medium text-slate-600'>
-                Chat closed
-              </span>
-            ) : isJoined &&
+          {conversationEnded ? (
+            <span className='inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2 py-1.5 text-[11px] font-medium text-slate-600'>
+              Chat closed
+            </span>
+          ) : (
+            isJoined &&
             readyState !== 'open' && (
               <span className='text-[11px] text-muted-foreground'>
                 Connecting…
               </span>
-            )}
+            )
+          )}
 
-            {!conversationEnded &&
-              isJoined &&
-              readyState === 'open' && (
-                <span className='inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1.5 text-[11px] font-medium text-emerald-700'>
-                  <CheckIcon className='size-3.5' />
-                  Joined
-                </span>
-              )}
+          {!conversationEnded && isJoined && readyState === 'open' && (
+            <span className='inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1.5 text-[11px] font-medium text-emerald-700'>
+              <CheckIcon className='size-3.5' />
+              Joined
+            </span>
+          )}
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type='button'
-                  aria-label={
-                    expandedChat
-                      ? 'Collapse chat'
-                      : 'Expand chat'
-                  }
-                  onClick={toggleExpandedChat}
-                  variant='ghost'
-                  size='icon'
-                  className='size-8 rounded-lg bg-slate-50 hover:bg-slate-100'>
-                  {expandedChat ? (
-                    <Minimize2Icon className='size-4' />
-                  ) : (
-                    <ExpandIcon className='size-4' />
-                  )}
-                </Button>
-              </TooltipTrigger>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type='button'
+                aria-label={expandedChat ? 'Collapse chat' : 'Expand chat'}
+                onClick={toggleExpandedChat}
+                variant='ghost'
+                size='icon'
+                className='size-8 rounded-lg bg-slate-50 hover:bg-slate-100'>
+                {expandedChat ? (
+                  <Minimize2Icon className='size-4' />
+                ) : (
+                  <ExpandIcon className='size-4' />
+                )}
+              </Button>
+            </TooltipTrigger>
 
-              <TooltipContent>
-                <p>
-                  {expandedChat
-                    ? 'Collapse chat'
-                    : 'Expand chat'}
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </div>
-        </header>
-
-        {leadId && <LeadHistory key={`history:${conversationId}`} conversationId={conversationId} />}
-        <ConversationSummary key={conversationId} conversationId={conversationId}
-          initialData={initialSummary} closed={conversationEnded} />
-        {visitorRequestedClose && !conversationEnded && (
-          <p role='status' className='border-b border-amber-100 bg-amber-50 px-4 py-2 text-xs text-amber-900'>
-            The visitor has requested to end this conversation. Use Close conversation when you are ready.
-          </p>
-        )}
-        <div className='min-h-0 flex-1'>
-          <ChatWindow
-            messages={visibleMessages}
-            closedBy={closedBy}
-            onSendMessage={sendMessage}
-            onSendFile={sendFile}
-            uploadToken={socketCredentials?.token ?? null}
-            onTypingActivity={reportTyping}
-            isVisitorTyping={isVisitorTyping}
-            connectionError={socketError}
-            disabled={
-              !isJoined ||
-              !socketEnabled ||
-              readyState !== 'open'
-            }
-          />
+            <TooltipContent>
+              <p>{expandedChat ? 'Collapse chat' : 'Expand chat'}</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
-      </section>
+      </header>
+
+      {leadId && (
+        <LeadHistory
+          key={`history:${conversationId}`}
+          conversationId={conversationId}
+        />
+      )}
+      <ConversationSummary
+        key={conversationId}
+        conversationId={conversationId}
+        initialData={initialSummary}
+        closed={conversationEnded}
+      />
+      {visitorRequestedClose && !conversationEnded && (
+        <p
+          role='status'
+          className='border-b border-amber-100 bg-amber-50 px-4 py-2 text-xs text-amber-900'>
+          The visitor has requested to end this conversation. Use Close
+          conversation when you are ready.
+        </p>
+      )}
+      <div className='min-h-0 flex-1'>
+        <ChatWindow
+          messages={visibleMessages}
+          closedBy={closedBy}
+          onSendMessage={sendMessage}
+          onSendFile={sendFile}
+          uploadToken={socketCredentials?.token ?? null}
+          onTypingActivity={reportTyping}
+          isVisitorTyping={isVisitorTyping}
+          connectionError={socketError}
+          disabled={!isJoined || !socketEnabled || readyState !== 'open'}
+        />
+      </div>
+    </section>
   )
 
   return (

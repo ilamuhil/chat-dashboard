@@ -21,9 +21,11 @@ export async function DELETE(
     )
   }
 
-  const result = await prisma.notifications.deleteMany({
+  const result = await prisma.notifications.updateMany({
+    data: { dismissedAt: new Date() },
     where: {
       id,
+      dismissedAt: null,
       userId,
       organizationId,
     },

@@ -1,50 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { hashApiKey } from '@/lib/core/utils'
-import { prisma } from '@/lib/core/prisma'
 import { corsHeaders } from '@/lib/auth/auth-server'
 import { widgetProfileSelect } from '@/lib/widget/widget-profile'
-
+import { resolveWidgetBot } from '@/lib/widget/resolve-widget-bot'
+import {
+  publicCaptureSettings,
+  readCaptureConfig,
+} from '@/lib/widget/capture-config'
 const headers = { ...corsHeaders, 'Cache-Control': 'no-store' }
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers })
 }
-
-// Read-only bootstrap. Fetching a header never creates a conversation or token.
 export async function POST(request: NextRequest) {
   const parsed = z
-    .object({ api_key: z.string().min(1).max(256), bot_id: z.uuid().optional() })
+    .object({
+      api_key: z.string().min(1).max(256),
+      bot_id: z.uuid().optional(),
+    })
     .safeParse(await request.json().catch(() => null))
   if (!parsed.success)
     return NextResponse.json(
       { error: 'Invalid request' },
       { status: 400, headers },
     )
-  const apiKey = await prisma.apiKeys.findFirst({
-    where: {
-      keyHash: hashApiKey(parsed.data.api_key),
-      isActive: true,
-      ...(parsed.data.bot_id ? { botId: parsed.data.bot_id } : {}),
-    },
-    select: { organizationId: true, botId: true },
-  })
-  if (!apiKey?.organizationId || !apiKey.botId)
+  const resolved = await resolveWidgetBot(parsed.data.api_key)
+  if (
+    !resolved ||
+    (parsed.data.bot_id && parsed.data.bot_id !== resolved.bot.id)
+  )
     return NextResponse.json(
-      { error: 'Invalid API key' },
+      { error: 'This chat is unavailable' },
       { status: 401, headers },
     )
-  const profile = await prisma.bots.findFirst({
-    where: {
-      id: apiKey.botId,
-      organizationId: apiKey.organizationId,
-      deletedAt: null,
+  const profile = Object.fromEntries(
+    Object.keys(widgetProfileSelect).map((key) => [
+      key,
+      resolved.bot[key as keyof typeof resolved.bot],
+    ]),
+  )
+  return NextResponse.json(
+    {
+      profile: {
+        ...profile,
+        capture: publicCaptureSettings(resolved.bot),
+        conversationStarters: readCaptureConfig(resolved.bot.leadCaptureConfig)
+          .conversationStarters,
+      },
     },
-    select: widgetProfileSelect,
-  })
-  if (!profile)
-    return NextResponse.json(
-      { error: 'Bot not found' },
-      { status: 404, headers },
-    )
-  return NextResponse.json({ profile }, { headers })
+    { headers },
+  )
 }

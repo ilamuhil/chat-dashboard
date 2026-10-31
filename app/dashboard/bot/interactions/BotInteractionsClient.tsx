@@ -33,8 +33,7 @@ export default function BotInteractionsClient({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   const handleBotClick = (bot: Bot) => {
-    setSelectedBot(bot)
-    setShowForm(true)
+    router.push(`/dashboard/bot/interactions/${bot.id}`)
   }
 
   const handleCreateNew = () => {
@@ -73,7 +72,7 @@ export default function BotInteractionsClient({
     if (!role) return 'Not set'
     return role
       .split('-')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ')
   }
 
@@ -90,7 +89,8 @@ export default function BotInteractionsClient({
               onClick={() => {
                 setShowForm(false)
                 setSelectedBot(null)
-              }}>
+              }}
+            >
               <ArrowLeftIcon className='size-3.5' />
               Back
             </Button>
@@ -106,11 +106,15 @@ export default function BotInteractionsClient({
             </div>
           </div>
         </div>
-        <ConfigureBotForm
-          key={selectedBot?.id ?? 'new'}
-          bot={selectedBot}
-          onSuccess={handleFormSuccess}
-        />
+        <div className='dashboard-surface rounded-xl border border-sky-200 p-4 dark:border-sky-800'>
+          <p className='text-sm font-semibold'>
+            1. Bot configuration → 2. Widget settings
+          </p>
+          <p className='mt-1 text-xs text-muted-foreground'>
+            Save your bot to continue to questions and hosted chat.
+          </p>
+        </div>
+        <ConfigureBotForm key='new' bot={null} />
       </div>
     )
   }
@@ -135,7 +139,8 @@ export default function BotInteractionsClient({
           className={cn(
             dashboardButtonClass,
             'mt-5 h-10 gap-2 rounded-lg px-4 text-sm font-medium',
-          )}>
+          )}
+        >
           <PlusIcon className='size-4' />
           Create New Bot
         </Button>
@@ -175,7 +180,8 @@ export default function BotInteractionsClient({
             className={cn(
               dashboardButtonClass,
               'h-9 gap-1.5 rounded-lg px-3 text-xs font-medium',
-            )}>
+            )}
+          >
             <PlusIcon className='size-3.5' />
             Create Bot
           </Button>
@@ -183,19 +189,20 @@ export default function BotInteractionsClient({
       </div>
 
       <div className='grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3'>
-        {bots.map(bot => (
+        {bots.map((bot) => (
           <div
             key={bot.id}
             role='button'
             tabIndex={0}
             onClick={() => handleBotClick(bot)}
-            onKeyDown={e => {
+            onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault()
                 handleBotClick(bot)
               }
             }}
-            className='dashboard-surface group relative flex w-full cursor-pointer flex-col overflow-hidden rounded-xl p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/40'>
+            className='dashboard-surface group relative flex w-full cursor-pointer flex-col overflow-hidden rounded-xl p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/40'
+          >
             <div className='pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-sky-300/60 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100' />
 
             <div className='mb-3 flex items-start justify-between gap-3'>
@@ -218,7 +225,8 @@ export default function BotInteractionsClient({
                 {bot.capture_leads && (
                   <Badge
                     variant='outline'
-                    className='rounded-md border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700'>
+                    className='rounded-md border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700'
+                  >
                     Leads
                   </Badge>
                 )}
@@ -227,11 +235,12 @@ export default function BotInteractionsClient({
                   variant='ghost'
                   size='icon'
                   className='size-7 rounded-md hover:bg-rose-50'
-                  onClick={e => {
+                  onClick={(e) => {
                     e.stopPropagation()
                     setShowDeleteDialog(true)
                     setSelectedBot(bot)
-                  }}>
+                  }}
+                >
                   <TrashIcon className='size-3.5 text-rose-500' />
                 </Button>
                 <ChevronRightIcon className='size-4 text-slate-300 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-sky-500' />

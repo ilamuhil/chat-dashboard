@@ -19,6 +19,8 @@ const routeTitles: Record<string, string> = {
   '/dashboard/bot/api': 'API Setup',
   '/dashboard/users/conversations': 'Conversations',
   '/dashboard/users/leads': 'Leads',
+  '/dashboard/users/follow-ups': 'Follow-ups',
+  '/dashboard/users/admissions': 'Admissions analytics',
   '/dashboard/analytics': 'Analytics',
   '/dashboard/profile': 'Profile',
   '/dashboard/subscription': 'Subscription',
@@ -42,6 +44,8 @@ const parentRoutes: Record<string, { title: string; url: string } | null> = {
     url: '/dashboard/users',
   },
   '/dashboard/users/leads': { title: 'Users', url: '/dashboard/users' },
+  '/dashboard/users/follow-ups': { title: 'Users', url: '/dashboard/users' },
+  '/dashboard/users/admissions': { title: 'Users', url: '/dashboard/users' },
   '/dashboard/analytics': null,
   '/dashboard/profile': null,
   '/dashboard/subscription': null,
@@ -50,11 +54,10 @@ const parentRoutes: Record<string, { title: string; url: string } | null> = {
 
 export function DashboardBreadcrumb() {
   const pathname = usePathname()
-  const isLeadDetail =
-    /^\/dashboard\/users\/leads\/[^/]+\/?$/.test(pathname)
+  const isLeadDetail = /^\/dashboard\/users\/leads\/[^/]+\/?$/.test(pathname)
   const matchedPath =
     Object.keys(routeTitles)
-      .filter(route => pathname === route || pathname.startsWith(route + '/'))
+      .filter((route) => pathname === route || pathname.startsWith(route + '/'))
       .sort((a, b) => b.length - a.length)[0] ?? pathname
   const currentTitle = isLeadDetail
     ? 'Lead details'

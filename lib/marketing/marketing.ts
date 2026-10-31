@@ -55,7 +55,7 @@ export const admissionsFaqs = [
   {
     question: 'Can different teams or programmes have their own assistant?',
     answer:
-      'You can configure separate bots for different audiences within your plan’s bot allowance. Each bot has its own identity, sources, and website key. Invite colleagues with admin or editor access to collaborate in your organization. Bot, reply, storage, and member allowances are shared at organization level, so choose a plan that matches the whole team.',
+      'You can configure separate bots for different audiences within your plan’s bot allowance. Each bot has its own identity, sources, and website key. Invite colleagues with Owner, Admin, Counsellor or Viewer access to collaborate in your organization. Bot, reply, storage, and member allowances are shared at organization level, so choose a plan that matches the whole team.',
     href: '/docs/organizations',
     label: 'Learn about organizations and access',
   },

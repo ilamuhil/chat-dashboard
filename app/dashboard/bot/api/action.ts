@@ -1,15 +1,16 @@
 'use server'
 
+import { OrganizationRole } from '@/lib/organization/roles'
+import { requireOrganizationPermission } from '@/lib/organization/organization-members'
 import { ApiKeyResult } from './types'
 import { revalidatePath } from 'next/cache'
 import { createApiKey, hashApiKey } from '@/lib/core/utils'
 import { resolveCurrentOrganizationId } from '@/lib/organization/current-organization'
-import { requireAuthUserId } from '@/lib/auth/auth-server'
 import { prisma } from '@/lib/core/prisma'
 
 export async function saveApiKey(
   prevState: ApiKeyResult | null,
-  formData: FormData
+  formData: FormData,
 ): Promise<ApiKeyResult> {
   const api_key_label = formData.get('api_key_label')
   if (!api_key_label) {
@@ -30,7 +31,7 @@ export async function saveApiKey(
       nonce: Date.now().toString(),
     }
   }
-  const userId = await requireAuthUserId()
+  const { userId } = await requireOrganizationPermission('configure')
 
   const organizationId = await resolveCurrentOrganizationId({ userId })
   if (!organizationId) {
@@ -89,7 +90,7 @@ export async function saveApiKey(
 }
 
 export async function revokeApiKey(formData: FormData): Promise<void> {
-  const userId = await requireAuthUserId()
+  const { userId } = await requireOrganizationPermission('configure')
   const id = formData.get('api_key_id')
   if (!id) {
     console.error('No API key ID provided')
@@ -102,7 +103,11 @@ export async function revokeApiKey(formData: FormData): Promise<void> {
   if (!apiKey?.organizationId) return
 
   const membership = await prisma.organizationMembers.findFirst({
-    where: { userId, organizationId: apiKey.organizationId },
+    where: {
+      userId,
+      organizationId: apiKey.organizationId,
+      role: { in: [OrganizationRole.Owner, OrganizationRole.Admin] },
+    },
     select: { id: true },
   })
   if (!membership) return

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { OrganizationRole } from '@/lib/organization/roles'
 import { prisma } from '@/lib/core/prisma'
 import type { Prisma } from '@/generated/prisma/client'
 import { PLANS, PLAN_VERSION, type Limits, type PlanId } from './catalog'
@@ -22,7 +23,7 @@ export async function ensureBilling(tx: BillingTx, organizationId: string) {
   })
   if (existing) return existing
   const owner = await tx.organizationMembers.findFirst({
-    where: { organizationId, role: 'admin' },
+    where: { organizationId, role: OrganizationRole.Owner },
     orderBy: { createdAt: 'asc' },
   })
   const now = new Date()

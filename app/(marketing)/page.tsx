@@ -74,7 +74,7 @@ const capabilities = [
   {
     icon: Users,
     title: 'A shared admissions workspace',
-    copy: 'Invite colleagues, manage admin and editor roles, and keep bots, enquiries, and conversations in the right organization.',
+    copy: 'Invite colleagues, manage Owner, Admin, Counsellor and Viewer roles, and keep bots, enquiries, and conversations in the right organization.',
     href: '/docs/team-roles',
   },
   {

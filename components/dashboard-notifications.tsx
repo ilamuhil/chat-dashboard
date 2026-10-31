@@ -19,7 +19,7 @@ function getNotificationRoute(
   type: string,
   metadata: Record<string, unknown>,
 ): string | null {
-  if ((type === 'handover_request' || type === 'end_chat_request')) {
+  if (type === 'handover_request' || type === 'end_chat_request') {
     const conversationId = metadata.conversationId
 
     if (typeof conversationId === 'string') {
@@ -27,6 +27,18 @@ function getNotificationRoute(
     }
   }
 
+  if (
+    (type === 'lead_hot' || type === 'lead_qualified') &&
+    typeof metadata.leadId === 'string'
+  ) {
+    return `/dashboard/users/leads/${encodeURIComponent(metadata.leadId)}`
+  }
+  if (
+    (type === 'follow_up_due' || type === 'follow_up_overdue') &&
+    typeof metadata.followUpId === 'string'
+  ) {
+    return `/dashboard/users/follow-ups?task=${encodeURIComponent(metadata.followUpId)}`
+  }
   if (type === 'lead_captured') {
     return '/dashboard/users/leads'
   }
@@ -45,8 +57,7 @@ function getNotificationIcon(type: string) {
 export default function DashboardNotifications() {
   const router = useRouter()
 
-  const { notifications, unreadCount, markRead } =
-    useDashboardNotifications()
+  const { notifications, unreadCount, markRead } = useDashboardNotifications()
 
   return (
     <DropdownMenu>
@@ -80,9 +91,7 @@ export default function DashboardNotifications() {
       <DropdownMenuContent
         align='end'
         className='w-80 rounded-xl border-slate-200'>
-        <DropdownMenuLabel className='text-xs'>
-          Notifications
-        </DropdownMenuLabel>
+        <DropdownMenuLabel className='text-xs'>Notifications</DropdownMenuLabel>
 
         <DropdownMenuSeparator />
 
@@ -91,7 +100,7 @@ export default function DashboardNotifications() {
             No notifications
           </DropdownMenuItem>
         ) : (
-          notifications.slice(0, 10).map(notification => {
+          notifications.slice(0, 10).map((notification) => {
             const route = getNotificationRoute(
               notification.type,
               notification.metadata,
@@ -122,10 +131,9 @@ export default function DashboardNotifications() {
                   </span>
 
                   <span className='mt-1 block text-[10px] text-muted-foreground'>
-                    {formatDistanceToNow(
-                      new Date(notification.createdAt),
-                      { addSuffix: true },
-                    )}
+                    {formatDistanceToNow(new Date(notification.createdAt), {
+                      addSuffix: true,
+                    })}
                   </span>
                 </span>
 

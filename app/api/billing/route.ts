@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { OrganizationRole } from '@/lib/organization/roles'
 import { z } from 'zod'
 import { prisma } from '@/lib/core/prisma'
 import { billingActor } from '@/lib/billing/guards'
@@ -106,7 +107,7 @@ export async function GET(request: NextRequest) {
   try {
     const actor = await billingActor(request, false)
     const summary = await billingSummary(actor.organizationId)
-    const canManage = actor.role === 'admin'
+    const canManage = actor.role === OrganizationRole.Owner
     const existingMandate =
       summary.account.providerSubscriptionId &&
       summary.account.paidThrough &&
@@ -237,7 +238,7 @@ export async function POST(request: NextRequest) {
             id: actor.userId,
             name: user.fullName || 'Dashboard user',
             email: user.email || '',
-            role: actor.role || 'admin',
+            role: actor.role,
           },
           subscription: {
             plan: account.planId,

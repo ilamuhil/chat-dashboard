@@ -11,8 +11,7 @@ export async function PATCH(
   },
 ) {
   const userId = await requireAuthUserId()
-  const organizationId =
-    await resolveCurrentOrganizationId({ userId })
+  const organizationId = await resolveCurrentOrganizationId({ userId })
   const { id } = await context.params
 
   if (!organizationId) {
@@ -22,14 +21,14 @@ export async function PATCH(
     )
   }
 
-  const notification =
-    await prisma.notifications.findFirst({
-      where: {
-        id,
-        userId,
-        organizationId,
-      },
-    })
+  const notification = await prisma.notifications.findFirst({
+    where: {
+      id,
+      dismissedAt: null,
+      userId,
+      organizationId,
+    },
+  })
 
   if (!notification) {
     return NextResponse.json(
@@ -42,13 +41,12 @@ export async function PATCH(
     return NextResponse.json(notification)
   }
 
-  const updated =
-    await prisma.notifications.update({
-      where: { id },
-      data: {
-        readAt: new Date(),
-      },
-    })
+  const updated = await prisma.notifications.update({
+    where: { id },
+    data: {
+      readAt: new Date(),
+    },
+  })
 
   return NextResponse.json(updated)
 }

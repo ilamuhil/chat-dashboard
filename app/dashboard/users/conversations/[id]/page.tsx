@@ -1,4 +1,5 @@
 import { requireAuthUserId } from '@/lib/auth/auth-server'
+import { readOrganizationRole } from '@/lib/organization/organization-members'
 import { resolveCurrentOrganizationId } from '@/lib/organization/current-organization'
 import ChatInterface from './ChatInterface'
 import type { ConversationSummaryData } from './ConversationSummary'
@@ -9,13 +10,20 @@ import { prisma } from '@/lib/core/prisma'
 import { getSecretKey, signToken } from '@/lib/auth/jwt'
 import axios from 'axios'
 
-
-export default async function ConversationPage({ params }: { params: { id: string } }) {
+export default async function ConversationPage({
+  params,
+}: {
+  params: { id: string }
+}) {
   const { id: conversationId } = await params
   const userId = await requireAuthUserId()
   const organizationId = await resolveCurrentOrganizationId({ userId })
 
-  if (!organizationId || !conversationId || typeof conversationId !== 'string') {
+  if (
+    !organizationId ||
+    !conversationId ||
+    typeof conversationId !== 'string'
+  ) {
     console.error('Invalid conversation ID or organization ID')
     console.error('conversationId:', conversationId)
     console.error('organizationId:', organizationId)
@@ -55,9 +63,13 @@ export default async function ConversationPage({ params }: { params: { id: strin
     }
     leadId = conversation.leadId
     summary = {
-      id: conversationId, status: conversation.status, closedBy: conversation.closedBy,
-      aiSummary: conversation.aiSummary, summaryStatus: conversation.summaryStatus,
-      summaryGeneratedAt: conversation.summaryGeneratedAt?.toISOString() ?? null,
+      id: conversationId,
+      status: conversation.status,
+      closedBy: conversation.closedBy,
+      aiSummary: conversation.aiSummary,
+      summaryStatus: conversation.summaryStatus,
+      summaryGeneratedAt:
+        conversation.summaryGeneratedAt?.toISOString() ?? null,
     }
     conversationMode = conversation.mode
     conversationHandOverStatus = conversation.handOverStatus ?? 'none'
@@ -75,7 +87,9 @@ export default async function ConversationPage({ params }: { params: { id: strin
         organization_id: organizationId,
         bot_id: conversation.botId,
         conversation_id: conversationId,
-        type: 'support_agent',
+        type: 'staff_read',
+        organization_role: await readOrganizationRole(organizationId, userId),
+        sub: userId,
       },
       privateKey,
     )
@@ -112,7 +126,4 @@ export default async function ConversationPage({ params }: { params: { id: strin
       leadId={leadId}
     />
   )
-
-
-
 }

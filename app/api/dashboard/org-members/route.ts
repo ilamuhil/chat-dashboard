@@ -1,8 +1,14 @@
+import { canManageRole } from '@/lib/organization/permissions'
+import { OrganizationRole } from '@/lib/organization/roles'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { prisma } from '@/lib/core/prisma'
-import { withBillingLock, assertCapacity, BillingError } from '@/lib/billing/service'
+import {
+  withBillingLock,
+  assertCapacity,
+  BillingError,
+} from '@/lib/billing/service'
 import { requireOrganizationMembership } from '@/lib/organization/organization-members'
 import { createMagicLink } from '@/lib/auth/magic-link'
 import { sendOrganizationMagicLinkEmail } from '@/lib/email/email'
@@ -12,7 +18,7 @@ export const runtime = 'nodejs'
 const inviteSchema = z.object({
   fullName: z.string().trim().min(1, 'Name is required').max(100),
   email: z.email(),
-  role: z.enum(['admin', 'editor']),
+  role: z.enum(OrganizationRole),
 })
 
 function getAppUrl() {
@@ -47,9 +53,9 @@ export async function GET() {
     })
 
     return NextResponse.json({
-      members: members.map(member => ({
+      members: members.map((member) => ({
         id: member.id,
-        role: member.role === 'admin' ? 'admin' : 'editor',
+        role: member.role,
         createdAt: member.createdAt.toISOString(),
         isSelf: member.user?.id === userId,
         user: member.user,
@@ -57,18 +63,24 @@ export async function GET() {
     })
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : 'Could not load organization members'
-    const status = message.includes('Only') || message.includes('member')
-      ? 403
-      : 401
+      error instanceof Error
+        ? error.message
+        : 'Could not load organization members'
+    const status =
+      message.includes('Only') || message.includes('member') ? 403 : 401
     return NextResponse.json({ error: message }, { status })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const actor = await requireOrganizationMembership('admin')
+    const actor = await requireOrganizationMembership(OrganizationRole.Admin)
     const body = inviteSchema.parse(await request.json())
+    if (!canManageRole(actor.role, OrganizationRole.Viewer, body.role))
+      return NextResponse.json(
+        { error: 'Only Owners can invite Admins or Owners' },
+        { status: 403 },
+      )
     const fullName = body.fullName.trim()
     const email = body.email.trim().toLowerCase()
 
@@ -103,27 +115,30 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    await prisma.users.update({
-      where: { id: user.id },
-      data: { fullName },
-    })
-
-    await withBillingLock(actor.organizationId, async tx => {
-      const alreadyMember = await tx.organizationMembers.findFirst({ where: { organizationId: actor.organizationId, userId: user.id } })
-      if (!alreadyMember) await assertCapacity(tx, actor.organizationId, 'members')
-      return tx.organizationMembers.upsert({
-      where: {
-        organizationId_userId: {
+    await withBillingLock(actor.organizationId, async (tx) => {
+      const currentActor = await tx.organizationMembers.findFirst({
+        where: { organizationId: actor.organizationId, userId: actor.userId },
+        select: { role: true },
+      })
+      if (
+        !canManageRole(currentActor?.role, OrganizationRole.Viewer, body.role)
+      )
+        throw new Error('Only authorized administrators can invite this role')
+      const alreadyMember = await tx.organizationMembers.findFirst({
+        where: { organizationId: actor.organizationId, userId: user.id },
+      })
+      if (alreadyMember)
+        throw new BillingError(
+          'This person is already a member. Use Change role instead.',
+          409,
+        )
+      await assertCapacity(tx, actor.organizationId, 'members')
+      await tx.organizationMembers.create({
+        data: {
           organizationId: actor.organizationId,
           userId: user.id,
+          role: body.role,
         },
-      },
-      create: {
-        organizationId: actor.organizationId,
-        userId: user.id,
-        role: body.role,
-      },
-      update: { role: body.role },
       })
     })
 
@@ -184,7 +199,12 @@ export async function POST(request: NextRequest) {
     }
     const message =
       error instanceof Error ? error.message : 'Could not invite user'
-    const status = error instanceof BillingError ? error.status : message.includes('Only') ? 403 : 500
+    const status =
+      error instanceof BillingError
+        ? error.status
+        : message.includes('Only')
+          ? 403
+          : 500
     return NextResponse.json({ error: message }, { status })
   }
 }

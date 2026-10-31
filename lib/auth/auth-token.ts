@@ -1,3 +1,4 @@
+import { isOrganizationRole, type OrganizationRole } from '@/lib/organization/roles'
 import jwt from 'jsonwebtoken'
 import { getSecretKey } from '@/lib/auth/jwt'
 
@@ -6,6 +7,7 @@ import { getSecretKey } from '@/lib/auth/jwt'
 export type SSEAuthTokenPayload = {
   sub: string // userId (uuid)
   type: 'sse' // sse token
+  organization_role: OrganizationRole
   organization_id: string // organizationId (uuid)
 }
 
@@ -34,7 +36,12 @@ export function signAuthToken(
   })
 }
 
-export function signSSEAuthToken(payload: { userId: string; orgId: string }) {
+export function signSSEAuthToken(payload: {
+  userId: string
+  orgId: string
+  role: OrganizationRole
+}) {
+  if (!isOrganizationRole(payload.role)) throw new Error('A canonical organization role is required for staff tokens')
   const privateKey = getSecretKey()
   if (!privateKey) {
     throw new Error('Private key not found at keys/private.pem')
@@ -44,6 +51,7 @@ export function signSSEAuthToken(payload: { userId: string; orgId: string }) {
     sub: payload.userId,
     type: 'sse',
     organization_id: payload.orgId,
+    organization_role: payload.role,
   }
   return jwt.sign(p, privateKey, {
     algorithm: 'RS256',

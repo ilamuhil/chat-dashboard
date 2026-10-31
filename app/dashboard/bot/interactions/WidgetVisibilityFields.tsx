@@ -19,7 +19,8 @@ export default function WidgetVisibilityFields({
           Widget visibility
         </h3>
         <p className='text-xs text-muted-foreground'>
-          Choose which pages on your website show this bot.
+          Choose which pages on your website show this bot. Use Save &amp;
+          continue below to apply your changes.
         </p>
       </div>
       <div className='space-y-1.5'>
@@ -56,7 +57,8 @@ export default function WidgetVisibilityFields({
           One path per line, up to 50. Use /pricing for one page or /products/*
           for that page and its subpages. Paths are case-sensitive. Trailing
           slashes, query strings, and fragments do not change matching. Saved
-          changes apply when the website is next loaded.
+          changes apply when the website reloads, changes route, or returns to
+          the foreground. Open pages also check for updates every 30 seconds.
         </p>
       </div>
     </section>

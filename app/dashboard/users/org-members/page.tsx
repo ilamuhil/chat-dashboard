@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 
+import { OrganizationRole } from '@/lib/organization/roles'
 import { requireAuthUserId } from '@/lib/auth/auth-server'
 import { prisma } from '@/lib/core/prisma'
 import { resolveCurrentOrganizationId } from '@/lib/organization/current-organization'
@@ -20,7 +21,9 @@ export default async function OrganizationMembersPage() {
 
   return (
     <OrganizationMembersClient
-      canManage={membership.role === 'admin'}
+      canManage={[OrganizationRole.Owner, OrganizationRole.Admin].some(
+        (role) => role === membership.role,
+      )}
     />
   )
 }

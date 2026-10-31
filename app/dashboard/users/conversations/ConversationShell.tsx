@@ -1,5 +1,9 @@
 'use client'
 
+import {
+  useOrganizationAccess,
+  RequirePermission,
+} from '@/components/organization-access'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -39,7 +43,10 @@ import { cn } from '@/lib/core/utils'
 import { toast } from 'sonner'
 import { clientApiAxios } from '@/lib/http/axios-client'
 import { useQuery } from '@tanstack/react-query'
-import { groupInboxChats, type InboxChat } from '@/lib/conversations/conversation-inbox'
+import {
+  groupInboxChats,
+  type InboxChat,
+} from '@/lib/conversations/conversation-inbox'
 import { conversationStatusEvent } from './conversation-status'
 import { useDashboardNotifications } from '@/app/dashboard/notifications/NotificationProvider'
 
@@ -56,48 +63,50 @@ const FILTERS: Array<{
   inactiveClass: string
   badgeClass: string
 }> = [
-    {
-      id: 'open',
-      label: 'Open',
-      shortLabel: 'Open',
-      icon: MessageCircleIcon,
-      activeClass:
-        'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-400/30 dark:bg-sky-500/15 dark:text-sky-200',
-      inactiveClass:
-        'border-sky-100 bg-sky-50/40 text-sky-700 hover:bg-sky-50 dark:border-sky-400/20 dark:bg-sky-500/10 dark:text-sky-300 dark:hover:bg-sky-500/20',
-      badgeClass: 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200',
-    },
-    {
-      id: 'all',
-      label: 'All conversations',
-      shortLabel: 'All',
-      icon: MessageSquareIcon,
-      activeClass: 'border-slate-300 bg-slate-100 text-slate-800',
-      inactiveClass: 'border-slate-200 bg-slate-50/60 text-slate-600 hover:bg-slate-100',
-      badgeClass: 'bg-slate-200 text-slate-700',
-    },
-    {
-      id: 'closed',
-      label: 'Closed',
-      shortLabel: 'Closed',
-      icon: CheckCircle2Icon,
-      activeClass: 'border-slate-300 bg-slate-100 text-slate-800',
-      inactiveClass: 'border-slate-200 bg-slate-50/60 text-slate-600 hover:bg-slate-100',
-      badgeClass: 'bg-slate-200 text-slate-700',
-    },
-    {
-      id: 'archived',
-      label: 'Archived',
-      shortLabel: 'Archived',
-      icon: ArchiveIcon,
-      activeClass:
-        'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-400/30 dark:bg-violet-500/15 dark:text-violet-200',
-      inactiveClass:
-        'border-violet-100 bg-violet-50/40 text-violet-700 hover:bg-violet-50 dark:border-violet-400/20 dark:bg-violet-500/10 dark:text-violet-300 dark:hover:bg-violet-500/20',
-      badgeClass:
-        'bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-200',
-    },
-  ]
+  {
+    id: 'open',
+    label: 'Open',
+    shortLabel: 'Open',
+    icon: MessageCircleIcon,
+    activeClass:
+      'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-400/30 dark:bg-sky-500/15 dark:text-sky-200',
+    inactiveClass:
+      'border-sky-100 bg-sky-50/40 text-sky-700 hover:bg-sky-50 dark:border-sky-400/20 dark:bg-sky-500/10 dark:text-sky-300 dark:hover:bg-sky-500/20',
+    badgeClass: 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200',
+  },
+  {
+    id: 'all',
+    label: 'All conversations',
+    shortLabel: 'All',
+    icon: MessageSquareIcon,
+    activeClass: 'border-slate-300 bg-slate-100 text-slate-800',
+    inactiveClass:
+      'border-slate-200 bg-slate-50/60 text-slate-600 hover:bg-slate-100',
+    badgeClass: 'bg-slate-200 text-slate-700',
+  },
+  {
+    id: 'closed',
+    label: 'Closed',
+    shortLabel: 'Closed',
+    icon: CheckCircle2Icon,
+    activeClass: 'border-slate-300 bg-slate-100 text-slate-800',
+    inactiveClass:
+      'border-slate-200 bg-slate-50/60 text-slate-600 hover:bg-slate-100',
+    badgeClass: 'bg-slate-200 text-slate-700',
+  },
+  {
+    id: 'archived',
+    label: 'Archived',
+    shortLabel: 'Archived',
+    icon: ArchiveIcon,
+    activeClass:
+      'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-400/30 dark:bg-violet-500/15 dark:text-violet-200',
+    inactiveClass:
+      'border-violet-100 bg-violet-50/40 text-violet-700 hover:bg-violet-50 dark:border-violet-400/20 dark:bg-violet-500/10 dark:text-violet-300 dark:hover:bg-violet-500/20',
+    badgeClass:
+      'bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-200',
+  },
+]
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean)
@@ -111,60 +120,95 @@ type ConversationState = {
   isArchived: boolean
 }
 
-
 type ChatAction = 'close' | 'reopen' | 'archive' | 'unarchive' | 'delete'
 
 const conversationMenuClass =
   'w-72 max-w-[calc(100vw-1.5rem)] rounded-2xl border-border/80 bg-popover p-1.5 shadow-xl shadow-black/15'
 
-function ConversationActionItems({ chat, state, busy, onAction }: {
+function ConversationActionItems({
+  chat,
+  state,
+  busy,
+  onAction,
+}: {
   chat: Chats
   state: ConversationState
   busy: boolean
   onAction: (action: ChatAction) => void
 }) {
+  const access = useOrganizationAccess()
+  if (!access.can('operate')) return null
   const closed = state.status === 'closed'
   const StatusIcon = closed ? RotateCcwIcon : CheckCircle2Icon
   const ArchiveActionIcon = state.isArchived ? ArchiveRestoreIcon : ArchiveIcon
   return (
     <>
       <DropdownMenuLabel className='space-y-1 px-3 py-2.5 font-normal'>
-        <p className='truncate text-sm font-semibold text-foreground'>{chat.name}</p>
-        <p className='text-[11px] text-muted-foreground'>
-          Chat from {new Date(chat.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+        <p className='truncate text-sm font-semibold text-foreground'>
+          {chat.name}
         </p>
-        <p className='text-[11px] text-muted-foreground'>Actions apply to this chat only.</p>
+        <p className='text-[11px] text-muted-foreground'>
+          Chat from{' '}
+          {new Date(chat.createdAt).toLocaleDateString(undefined, {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          })}
+        </p>
+        <p className='text-[11px] text-muted-foreground'>
+          Actions apply to this chat only.
+        </p>
       </DropdownMenuLabel>
       <DropdownMenuSeparator className='mx-2 my-1' />
-      <DropdownMenuItem disabled={busy} onSelect={() => onAction(closed ? 'reopen' : 'close')}
+      <DropdownMenuItem
+        disabled={busy}
+        onSelect={() => onAction(closed ? 'reopen' : 'close')}
         className='cursor-pointer gap-3 rounded-xl px-3 py-2.5 focus:bg-accent'>
         <span className='flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground'>
           <StatusIcon className='size-4' />
         </span>
         <span className='min-w-0'>
-          <span className='block text-[13px] font-medium'>{closed ? 'Reopen conversation' : 'Close conversation'}</span>
-          <span className='mt-0.5 block text-[11px] text-muted-foreground'>{closed ? 'Continue this chat' : 'Finish this chat and prepare its summary'}</span>
+          <span className='block text-[13px] font-medium'>
+            {closed ? 'Reopen conversation' : 'Close conversation'}
+          </span>
+          <span className='mt-0.5 block text-[11px] text-muted-foreground'>
+            {closed
+              ? 'Continue this chat'
+              : 'Finish this chat and prepare its summary'}
+          </span>
         </span>
       </DropdownMenuItem>
-      <DropdownMenuItem disabled={busy} onSelect={() => onAction(state.isArchived ? 'unarchive' : 'archive')}
+      <DropdownMenuItem
+        disabled={busy}
+        onSelect={() => onAction(state.isArchived ? 'unarchive' : 'archive')}
         className='cursor-pointer gap-3 rounded-xl px-3 py-2.5 focus:bg-accent'>
         <span className='flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground'>
           <ArchiveActionIcon className='size-4' />
         </span>
         <span>
-          <span className='block text-[13px] font-medium'>{state.isArchived ? 'Restore conversation' : 'Archive conversation'}</span>
-          <span className='mt-0.5 block text-[11px] text-muted-foreground'>{state.isArchived ? 'Move out of the archive' : 'Keep it in the Archived view'}</span>
+          <span className='block text-[13px] font-medium'>
+            {state.isArchived ? 'Restore conversation' : 'Archive conversation'}
+          </span>
+          <span className='mt-0.5 block text-[11px] text-muted-foreground'>
+            {state.isArchived
+              ? 'Move out of the archive'
+              : 'Keep it in the Archived view'}
+          </span>
         </span>
       </DropdownMenuItem>
       <DropdownMenuSeparator className='mx-2 my-1' />
-      <DropdownMenuItem disabled={busy} onSelect={() => onAction('delete')}
+      <DropdownMenuItem
+        disabled={busy}
+        onSelect={() => onAction('delete')}
         className='cursor-pointer gap-3 rounded-xl px-3 py-2.5 text-rose-600 focus:bg-rose-50 focus:text-rose-700 dark:text-rose-300 dark:focus:bg-rose-500/10 dark:focus:text-rose-200'>
         <span className='flex size-8 shrink-0 items-center justify-center rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-300'>
           <Trash2Icon className='size-4' />
         </span>
         <span>
           <span className='block text-[13px] font-medium'>Delete chat</span>
-          <span className='mt-0.5 block text-[11px] text-muted-foreground'>Remove from your current list</span>
+          <span className='mt-0.5 block text-[11px] text-muted-foreground'>
+            Remove from your current list
+          </span>
         </span>
       </DropdownMenuItem>
     </>
@@ -181,8 +225,7 @@ export default function ConversationShell(props: {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const activeConversationId = pathname?.split('/').filter(Boolean).at(-1)
-  const { notifications, markConversationRead } =
-    useDashboardNotifications()
+  const { notifications, markConversationRead } = useDashboardNotifications()
 
   const [searchQuery, setSearchQuery] = useState('')
   const requestedType = searchParams.get('type')
@@ -195,12 +238,16 @@ export default function ConversationShell(props: {
   const { data: loadedChats, refetch } = useQuery({
     queryKey: ['conversation-inbox', organizationId],
     queryFn: async ({ signal }) => {
-      const { data } = await clientApiAxios.get<Chats[]>('/api/dashboard/conversations', { signal })
+      const { data } = await clientApiAxios.get<Chats[]>(
+        '/api/dashboard/conversations',
+        { signal },
+      )
       return data
     },
     initialData: chats,
     refetchInterval: 15_000,
   })
+  const access = useOrganizationAccess()
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
@@ -218,7 +265,9 @@ export default function ConversationShell(props: {
   } | null>(null)
 
   useEffect(() => {
-    const refresh = () => { void refetch() }
+    const refresh = () => {
+      void refetch()
+    }
     window.addEventListener(conversationStatusEvent, refresh)
     return () => window.removeEventListener(conversationStatusEvent, refresh)
   }, [refetch])
@@ -230,15 +279,19 @@ export default function ConversationShell(props: {
     }
 
   const visibleBaseChats = useMemo(
-    () => loadedChats.filter(chat => !deletedIds.has(chat.id)).map(chat => ({
-      ...chat, ...conversationState[chat.id],
-    })),
+    () =>
+      loadedChats
+        .filter((chat) => !deletedIds.has(chat.id))
+        .map((chat) => ({
+          ...chat,
+          ...conversationState[chat.id],
+        })),
     [deletedIds, loadedChats, conversationState],
   )
 
   const filteredChats = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
-    return visibleBaseChats.filter(chat => {
+    return visibleBaseChats.filter((chat) => {
       const state = getState(chat)
       const matchesFilter =
         activeFilter === 'all'
@@ -271,10 +324,11 @@ export default function ConversationShell(props: {
     [filteredChats, visibleBaseChats],
   )
   const inboxRows = selectionMode
-    ? filteredChats.map(chat => ({ key: chat.id, chat, chats: [chat] }))
+    ? filteredChats.map((chat) => ({ key: chat.id, chat, chats: [chat] }))
     : groupedChats
-  const allVisibleSelected = filteredChats.length > 0 &&
-    filteredChats.every(chat => selectedIds.has(chat.id))
+  const allVisibleSelected =
+    filteredChats.length > 0 &&
+    filteredChats.every((chat) => selectedIds.has(chat.id))
 
   const clearSelection = () => setSelectedIds(new Set())
 
@@ -284,7 +338,7 @@ export default function ConversationShell(props: {
   }
 
   const toggleSelect = (id: string) => {
-    setSelectedIds(prev => {
+    setSelectedIds((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
@@ -294,15 +348,15 @@ export default function ConversationShell(props: {
 
   const toggleSelectAllVisible = () => {
     if (allVisibleSelected) {
-      setSelectedIds(prev => {
+      setSelectedIds((prev) => {
         const next = new Set(prev)
-        filteredChats.forEach(chat => next.delete(chat.id))
+        filteredChats.forEach((chat) => next.delete(chat.id))
         return next
       })
     } else {
-      setSelectedIds(prev => {
+      setSelectedIds((prev) => {
         const next = new Set(prev)
-        filteredChats.forEach(chat => next.add(chat.id))
+        filteredChats.forEach((chat) => next.add(chat.id))
         return next
       })
     }
@@ -316,21 +370,24 @@ export default function ConversationShell(props: {
     if (ids.length === 0) return
 
     const previous = new Map(
-      ids.map(id => {
-        const chat = visibleBaseChats.find(item => item.id === id)
+      ids.map((id) => {
+        const chat = visibleBaseChats.find((item) => item.id === id)
         return [
           id,
           chat
             ? getState(chat)
-            : ({ status: 'open', isArchived: false } satisfies ConversationState),
+            : ({
+                status: 'open',
+                isArchived: false,
+              } satisfies ConversationState),
         ]
       }),
     )
-    setUpdatingIds(current => new Set([...current, ...ids]))
-    setConversationState(current => {
+    setUpdatingIds((current) => new Set([...current, ...ids]))
+    setConversationState((current) => {
       const next = { ...current }
       for (const id of ids) {
-        const chat = visibleBaseChats.find(item => item.id === id)
+        const chat = visibleBaseChats.find((item) => item.id === id)
         if (!chat) continue
         next[id] = { ...getState(chat), ...patch }
       }
@@ -339,7 +396,7 @@ export default function ConversationShell(props: {
 
     try {
       await Promise.all(
-        ids.map(id =>
+        ids.map((id) =>
           clientApiAxios.patch(`/api/dashboard/conversations/${id}`, patch),
         ),
       )
@@ -357,7 +414,7 @@ export default function ConversationShell(props: {
         )
       }
     } catch (error) {
-      setConversationState(current => {
+      setConversationState((current) => {
         const next = { ...current }
         for (const [id, state] of previous) next[id] = state
         return next
@@ -366,14 +423,14 @@ export default function ConversationShell(props: {
       console.error('Failed to update conversations', error)
     } finally {
       await refetch()
-      setConversationState(current => {
+      setConversationState((current) => {
         const next = { ...current }
-        ids.forEach(id => delete next[id])
+        ids.forEach((id) => delete next[id])
         return next
       })
-      setUpdatingIds(current => {
+      setUpdatingIds((current) => {
         const next = new Set(current)
-        ids.forEach(id => next.delete(id))
+        ids.forEach((id) => next.delete(id))
         return next
       })
     }
@@ -383,28 +440,36 @@ export default function ConversationShell(props: {
     void updateConversationState(
       ids,
       { status: 'closed' },
-      ids.length === 1 ? 'Conversation closed' : `${ids.length} conversations closed`,
+      ids.length === 1
+        ? 'Conversation closed'
+        : `${ids.length} conversations closed`,
     )
 
   const reopenChats = (ids: string[]) =>
     void updateConversationState(
       ids,
       { status: 'open' },
-      ids.length === 1 ? 'Conversation reopened' : `${ids.length} conversations reopened`,
+      ids.length === 1
+        ? 'Conversation reopened'
+        : `${ids.length} conversations reopened`,
     )
 
   const archiveChats = (ids: string[]) =>
     void updateConversationState(
       ids,
       { isArchived: true },
-      ids.length === 1 ? 'Conversation archived' : `${ids.length} conversations archived`,
+      ids.length === 1
+        ? 'Conversation archived'
+        : `${ids.length} conversations archived`,
     )
 
   const unarchiveChats = (ids: string[]) =>
     void updateConversationState(
       ids,
       { isArchived: false },
-      ids.length === 1 ? 'Conversation restored' : `${ids.length} conversations restored`,
+      ids.length === 1
+        ? 'Conversation restored'
+        : `${ids.length} conversations restored`,
     )
 
   const requestDelete = (ids: string[]) => {
@@ -415,15 +480,15 @@ export default function ConversationShell(props: {
 
   const confirmDelete = () => {
     const idsToDelete = [...pendingDeleteIds]
-    setDeletedIds(prev => {
+    setDeletedIds((prev) => {
       const next = new Set(prev)
-      idsToDelete.forEach(id => next.add(id))
+      idsToDelete.forEach((id) => next.add(id))
       return next
     })
     toast.success(
       idsToDelete.length === 1
         ? 'Chat deleted'
-        : `${idsToDelete.length} chats deleted`
+        : `${idsToDelete.length} chats deleted`,
     )
     setPendingDeleteIds([])
     clearSelection()
@@ -437,13 +502,16 @@ export default function ConversationShell(props: {
 
   const selectedList = Array.from(selectedIds)
   const contextChat = contextMenu
-    ? visibleBaseChats.find(chat => chat.id === contextMenu.chatId) ?? null
+    ? (visibleBaseChats.find((chat) => chat.id === contextMenu.chatId) ?? null)
     : null
 
   const runChatAction = (chat: Chats, action: ChatAction) => {
     const actions = {
-      close: closeChats, reopen: reopenChats, archive: archiveChats,
-      unarchive: unarchiveChats, delete: requestDelete,
+      close: closeChats,
+      reopen: reopenChats,
+      archive: archiveChats,
+      unarchive: unarchiveChats,
+      delete: requestDelete,
     }
     actions[action]([chat.id])
     setContextMenu(null)
@@ -477,34 +545,41 @@ export default function ConversationShell(props: {
               Lead inbox
             </h2>
             <p className='text-xs text-muted-foreground'>
-              {groupedChats.length} {groupedChats.length === 1 ? 'entry' : 'entries'} in view · {filteredChats.length} {filteredChats.length === 1 ? 'chat' : 'chats'}
+              {groupedChats.length}{' '}
+              {groupedChats.length === 1 ? 'entry' : 'entries'} in view ·{' '}
+              {filteredChats.length}{' '}
+              {filteredChats.length === 1 ? 'chat' : 'chats'}
             </p>
           </div>
           <div className='flex items-center gap-1'>
-            <Button
-              type='button'
-              variant={selectionMode ? 'default' : 'ghost'}
-              size='icon'
-              className={cn(
-                'size-8 rounded-lg',
-                selectionMode
-                  ? 'bg-slate-800 text-white hover:bg-slate-900'
-                  : 'text-slate-500 hover:bg-slate-100'
-              )}
-              title={selectionMode ? 'Exit selection' : 'Select individual chats'}
-              onClick={() => {
-                if (selectionMode) exitSelectionMode()
-                else setSelectionMode(true)
-              }}>
-              <CheckSquareIcon className='size-4' />
-            </Button>
+            <RequirePermission permission='operate'>
+              <Button
+                type='button'
+                variant={selectionMode ? 'default' : 'ghost'}
+                size='icon'
+                className={cn(
+                  'size-8 rounded-lg',
+                  selectionMode
+                    ? 'bg-slate-800 text-white hover:bg-slate-900'
+                    : 'text-slate-500 hover:bg-slate-100',
+                )}
+                title={
+                  selectionMode ? 'Exit selection' : 'Select individual chats'
+                }
+                onClick={() => {
+                  if (selectionMode) exitSelectionMode()
+                  else setSelectionMode(true)
+                }}>
+                <CheckSquareIcon className='size-4' />
+              </Button>
+            </RequirePermission>
           </div>
         </header>
 
         {/* Category filters */}
         <div className='shrink-0 border-b border-slate-100 px-3 py-3'>
           <div className='no-scrollbar flex gap-1.5 overflow-x-auto pb-0.5'>
-            {FILTERS.map(filter => {
+            {FILTERS.map((filter) => {
               const Icon = filter.icon
               const isActive = activeFilter === filter.id
               return (
@@ -521,9 +596,7 @@ export default function ConversationShell(props: {
                   }}
                   className={cn(
                     'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
-                    isActive
-                      ? filter.activeClass
-                      : filter.inactiveClass,
+                    isActive ? filter.activeClass : filter.inactiveClass,
                   )}>
                   <Icon className='size-3.5' />
                   <span>{filter.shortLabel}</span>
@@ -540,7 +613,7 @@ export default function ConversationShell(props: {
               type='text'
               placeholder='Search leads or chat details…'
               value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className='h-9 border-slate-200 pr-3 pl-9 text-sm shadow-sm'
             />
           </div>
@@ -605,18 +678,18 @@ export default function ConversationShell(props: {
                   type='button'
                   variant='outline'
                   size='sm'
-                  disabled={selectedList.some(id => updatingIds.has(id))}
+                  disabled={selectedList.some((id) => updatingIds.has(id))}
                   className={cn(
                     dashboardOutlineButtonClass,
                     'h-7 rounded-md text-xs',
                   )}
                   onClick={() => unarchiveChats(selectedList)}>
-                  {selectedList.some(id => updatingIds.has(id)) ? (
+                  {selectedList.some((id) => updatingIds.has(id)) ? (
                     <LoaderCircleIcon className='mr-1 size-3.5 animate-spin' />
                   ) : (
                     <ArchiveRestoreIcon className='mr-1 size-3.5' />
                   )}
-                  {selectedList.some(id => updatingIds.has(id))
+                  {selectedList.some((id) => updatingIds.has(id))
                     ? 'Restoring…'
                     : 'Unarchive'}
                 </Button>
@@ -625,18 +698,18 @@ export default function ConversationShell(props: {
                   type='button'
                   variant='outline'
                   size='sm'
-                  disabled={selectedList.some(id => updatingIds.has(id))}
+                  disabled={selectedList.some((id) => updatingIds.has(id))}
                   className={cn(
                     dashboardOutlineButtonClass,
                     'h-7 rounded-md text-xs',
                   )}
                   onClick={() => archiveChats(selectedList)}>
-                  {selectedList.some(id => updatingIds.has(id)) ? (
+                  {selectedList.some((id) => updatingIds.has(id)) ? (
                     <LoaderCircleIcon className='mr-1 size-3.5 animate-spin' />
                   ) : (
                     <ArchiveIcon className='mr-1 size-3.5' />
                   )}
-                  {selectedList.some(id => updatingIds.has(id))
+                  {selectedList.some((id) => updatingIds.has(id))
                     ? 'Archiving…'
                     : 'Archive'}
                 </Button>
@@ -647,16 +720,16 @@ export default function ConversationShell(props: {
                   type='button'
                   variant='outline'
                   size='sm'
-                  disabled={selectedList.some(id => updatingIds.has(id))}
+                  disabled={selectedList.some((id) => updatingIds.has(id))}
                   className={cn(
                     dashboardOutlineButtonClass,
                     'h-7 rounded-md text-xs',
                   )}
                   onClick={() => closeChats(selectedList)}>
-                  {selectedList.some(id => updatingIds.has(id)) && (
+                  {selectedList.some((id) => updatingIds.has(id)) && (
                     <LoaderCircleIcon className='mr-1 size-3.5 animate-spin' />
                   )}
-                  {selectedList.some(id => updatingIds.has(id))
+                  {selectedList.some((id) => updatingIds.has(id))
                     ? 'Closing…'
                     : 'Close'}
                 </Button>
@@ -687,7 +760,7 @@ export default function ConversationShell(props: {
               <p className='text-sm font-medium text-foreground'>
                 {visibleBaseChats.length === 0
                   ? 'No conversations yet'
-                  : `No ${FILTERS.find(f => f.id === activeFilter)?.label.toLowerCase()} chats`}
+                  : `No ${FILTERS.find((f) => f.id === activeFilter)?.label.toLowerCase()} chats`}
               </p>
               <p className='mt-1 text-xs text-muted-foreground'>
                 {visibleBaseChats.length === 0
@@ -699,15 +772,17 @@ export default function ConversationShell(props: {
             </div>
           ) : (
             inboxRows.map(({ key, chat, chats: groupChats }) => {
-              const isActive = groupChats.some(item => activeConversationId === item.id)
+              const isActive = groupChats.some(
+                (item) => activeConversationId === item.id,
+              )
               const state = getState(chat)
               const isSelected = selectedIds.has(chat.id)
               const isUpdating = updatingIds.has(chat.id)
               const hasUnreadAgentRequest = notifications.some(
-                notification =>
+                (notification) =>
                   notification.type === 'handover_request' &&
                   notification.metadata.conversationId === chat.id &&
-                  !notification.readAt
+                  !notification.readAt,
               )
 
               const hasAgentRequest =
@@ -716,17 +791,22 @@ export default function ConversationShell(props: {
                   chat.handOverStatus === 'none') &&
                   hasUnreadAgentRequest)
 
-              const openCount = groupChats.filter(item => item.status === 'open' && !item.isArchived).length
-              const StatusIcon = state.isArchived ? ArchiveIcon : CheckCircle2Icon
+              const openCount = groupChats.filter(
+                (item) => item.status === 'open' && !item.isArchived,
+              ).length
+              const StatusIcon = state.isArchived
+                ? ArchiveIcon
+                : CheckCircle2Icon
               const activityAt = chat.lastMessageAt ?? chat.createdAt
 
               return (
                 <div
                   key={key}
-                  onContextMenu={event => {
-                    if (selectionMode) return
+                  onContextMenu={(event) => {
+                    if (selectionMode || !access.can('operate')) return
                     event.preventDefault()
-                    contextTriggerRef.current = event.currentTarget.querySelector('button')
+                    contextTriggerRef.current =
+                      event.currentTarget.querySelector('button')
                     const bounds = event.currentTarget.getBoundingClientRect()
                     setContextMenu({
                       chatId: chat.id,
@@ -740,16 +820,26 @@ export default function ConversationShell(props: {
                       ? 'border-sky-300 bg-sky-50 shadow-sm dark:border-sky-400/40 dark:bg-sky-500/10'
                       : 'border-border/60 bg-card hover:border-sky-300/70 hover:bg-accent/40 dark:hover:border-sky-400/30',
                   )}>
-                  {(isActive || isSelected) && <span aria-hidden='true' className='absolute inset-y-3 left-0 w-0.5 rounded-full bg-sky-500' />}
+                  {(isActive || isSelected) && (
+                    <span
+                      aria-hidden='true'
+                      className='absolute inset-y-3 left-0 w-0.5 rounded-full bg-sky-500'
+                    />
+                  )}
                   {selectionMode && (
-                    <Checkbox className='absolute top-6 left-3 z-10'
+                    <Checkbox
+                      className='absolute top-6 left-3 z-10'
                       checked={isSelected}
                       onCheckedChange={() => toggleSelect(chat.id)}
-                      aria-label={`Select ${chat.name}, chat from ${new Date(chat.createdAt).toLocaleString()}`} />
+                      aria-label={`Select ${chat.name}, chat from ${new Date(chat.createdAt).toLocaleString()}`}
+                    />
                   )}
                   <button
                     type='button'
-                    className={cn('block w-full min-w-0 rounded-xl p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background', selectionMode && 'pl-10')}
+                    className={cn(
+                      'block w-full min-w-0 rounded-xl p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                      selectionMode && 'pl-10',
+                    )}
                     aria-current={isActive ? 'page' : undefined}
                     onClick={() => {
                       if (selectionMode) {
@@ -758,60 +848,119 @@ export default function ConversationShell(props: {
                       }
                       void markConversationRead(chat.id)
                       const query = searchParams.toString()
-                      router.push(`/dashboard/users/conversations/${chat.id}${query ? `?${query}` : ''}`)
+                      router.push(
+                        `/dashboard/users/conversations/${chat.id}${query ? `?${query}` : ''}`,
+                      )
                     }}>
-                    <div className={cn('flex min-w-0 items-center gap-2.5', !selectionMode && 'pr-7')}>
-                      <div aria-hidden='true' className={cn(
-                        'flex size-10 shrink-0 items-center justify-center rounded-xl border text-xs font-semibold',
-                        isActive
-                          ? 'border-sky-200 bg-sky-100 text-sky-800 dark:border-sky-400/20 dark:bg-sky-400/15 dark:text-sky-200'
-                          : 'border-border/70 bg-muted text-foreground',
-                      )}>{getInitials(chat.name)}</div>
+                    <div
+                      className={cn(
+                        'flex min-w-0 items-center gap-2.5',
+                        !selectionMode && 'pr-7',
+                      )}>
+                      <div
+                        aria-hidden='true'
+                        className={cn(
+                          'flex size-10 shrink-0 items-center justify-center rounded-xl border text-xs font-semibold',
+                          isActive
+                            ? 'border-sky-200 bg-sky-100 text-sky-800 dark:border-sky-400/20 dark:bg-sky-400/15 dark:text-sky-200'
+                            : 'border-border/70 bg-muted text-foreground',
+                        )}>
+                        {getInitials(chat.name)}
+                      </div>
                       <div className='min-w-0 flex-1'>
-                        <h3 title={chat.name} className='truncate text-[13px] font-semibold leading-5 text-foreground'>{chat.name}</h3>
-                        <p title={chat.email} className='mt-0.5 truncate text-[11px] leading-4 text-muted-foreground'>{chat.email}</p>
+                        <h3
+                          title={chat.name}
+                          className='truncate text-[13px] font-semibold leading-5 text-foreground'>
+                          {chat.name}
+                        </h3>
+                        <p
+                          title={chat.email}
+                          className='mt-0.5 truncate text-[11px] leading-4 text-muted-foreground'>
+                          {chat.email}
+                        </p>
                       </div>
                     </div>
-                    {chat.highlightSnippet && <p className='mt-2.5 line-clamp-2 break-words text-xs leading-5 text-muted-foreground'>{chat.highlightSnippet}</p>}
+                    {chat.highlightSnippet && (
+                      <p className='mt-2.5 line-clamp-2 break-words text-xs leading-5 text-muted-foreground'>
+                        {chat.highlightSnippet}
+                      </p>
+                    )}
                     {hasAgentRequest && (
                       <p className='mt-2.5 inline-flex items-center gap-1.5 rounded-md bg-amber-500/10 px-2 py-1 text-[10px] font-semibold text-amber-800 dark:text-amber-200'>
-                        <span className='size-1.5 rounded-full bg-amber-500' />Agent requested
+                        <span className='size-1.5 rounded-full bg-amber-500' />
+                        Agent requested
                       </p>
                     )}
                     <div className='mt-3 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[10px] font-medium'>
-                      <span className={cn('inline-flex items-center gap-1 rounded-md px-1.5 py-0.5',
-                        state.isArchived ? 'bg-violet-500/10 text-violet-700 dark:text-violet-200'
-                          : state.status === 'closed' ? 'bg-muted text-muted-foreground'
-                            : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-200')}>
-                        {state.isArchived || state.status === 'closed' ? <StatusIcon className='size-3' /> : <span className='mx-0.5 size-1.5 rounded-full bg-emerald-500' />}
-                        {state.isArchived ? 'Archived' : state.status === 'closed' ? 'Closed' : 'Open'}
+                      <span
+                        className={cn(
+                          'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5',
+                          state.isArchived
+                            ? 'bg-violet-500/10 text-violet-700 dark:text-violet-200'
+                            : state.status === 'closed'
+                              ? 'bg-muted text-muted-foreground'
+                              : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-200',
+                        )}>
+                        {state.isArchived || state.status === 'closed' ? (
+                          <StatusIcon className='size-3' />
+                        ) : (
+                          <span className='mx-0.5 size-1.5 rounded-full bg-emerald-500' />
+                        )}
+                        {state.isArchived
+                          ? 'Archived'
+                          : state.status === 'closed'
+                            ? 'Closed'
+                            : 'Open'}
                       </span>
-                      {!selectionMode && (
+                      {!selectionMode && access.can('operate') && (
                         <span className='inline-flex items-center gap-1 text-muted-foreground'>
                           <MessageSquareIcon className='size-3' />
-                          {groupChats.length} {groupChats.length === 1 ? 'chat' : 'chats'}
+                          {groupChats.length}{' '}
+                          {groupChats.length === 1 ? 'chat' : 'chats'}
                           {openCount > 0 ? ` · ${openCount} open` : ''}
                         </span>
                       )}
                       <span className='ml-auto inline-flex items-center gap-1 text-muted-foreground'>
                         <Clock3Icon className='size-3' />
-                        <time dateTime={activityAt} suppressHydrationWarning className='tabular-nums'>
-                          {formatDistanceToNowStrict(new Date(activityAt), { addSuffix: true })}
+                        <time
+                          dateTime={activityAt}
+                          suppressHydrationWarning
+                          className='tabular-nums'>
+                          {formatDistanceToNowStrict(new Date(activityAt), {
+                            addSuffix: true,
+                          })}
                         </time>
                       </span>
                     </div>
                   </button>
-                  {!selectionMode && (
+                  {!selectionMode && access.can('operate') && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button type='button' variant='ghost' size='icon' disabled={isUpdating}
+                        <Button
+                          type='button'
+                          variant='ghost'
+                          size='icon'
+                          disabled={isUpdating}
                           aria-label={`Actions for ${chat.name} displayed chat`}
                           className='absolute top-3 right-2 size-7 rounded-lg text-muted-foreground hover:bg-background hover:text-foreground data-[state=open]:bg-background data-[state=open]:text-foreground'>
-                          {isUpdating ? <LoaderCircleIcon className='size-3.5 animate-spin' /> : <MoreVerticalIcon className='size-4' />}
+                          {isUpdating ? (
+                            <LoaderCircleIcon className='size-3.5 animate-spin' />
+                          ) : (
+                            <MoreVerticalIcon className='size-4' />
+                          )}
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align='end' sideOffset={8} collisionPadding={12} className={conversationMenuClass}>
-                        <ConversationActionItems chat={chat} state={state} busy={isUpdating} onAction={action => runChatAction(chat, action)} />
+                      <DropdownMenuContent
+                        align='end'
+                        sideOffset={8}
+                        collisionPadding={12}
+                        className={conversationMenuClass}>
+                        <ConversationActionItems
+                          chat={chat}
+                          state={state}
+                          busy={isUpdating}
+                          onAction={(action) => runChatAction(chat, action)}
+                        />
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}
@@ -824,19 +973,35 @@ export default function ConversationShell(props: {
           contextChat &&
           !selectionMode &&
           createPortal(
-            <DropdownMenu open onOpenChange={open => { if (!open) setContextMenu(null) }}>
+            <DropdownMenu
+              open
+              onOpenChange={(open) => {
+                if (!open) setContextMenu(null)
+              }}>
               <DropdownMenuTrigger asChild>
-                <button type='button' tabIndex={-1} aria-label={`${contextChat.name} context actions`}
+                <button
+                  type='button'
+                  tabIndex={-1}
+                  aria-label={`${contextChat.name} context actions`}
                   className='pointer-events-none fixed size-px opacity-0'
-                  style={{ left: contextMenu.x, top: contextMenu.y }} />
+                  style={{ left: contextMenu.x, top: contextMenu.y }}
+                />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align='start' sideOffset={4} collisionPadding={12} className={conversationMenuClass}
-                onCloseAutoFocus={event => {
+              <DropdownMenuContent
+                align='start'
+                sideOffset={4}
+                collisionPadding={12}
+                className={conversationMenuClass}
+                onCloseAutoFocus={(event) => {
                   event.preventDefault()
                   contextTriggerRef.current?.focus()
                 }}>
-                <ConversationActionItems chat={contextChat} state={getState(contextChat)}
-                  busy={updatingIds.has(contextChat.id)} onAction={action => runChatAction(contextChat, action)} />
+                <ConversationActionItems
+                  chat={contextChat}
+                  state={getState(contextChat)}
+                  busy={updatingIds.has(contextChat.id)}
+                  onAction={(action) => runChatAction(contextChat, action)}
+                />
               </DropdownMenuContent>
             </DropdownMenu>,
             document.body,

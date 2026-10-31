@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { OrganizationRole } from '@/lib/organization/roles'
 import { z } from 'zod'
 import { prisma } from '@/lib/core/prisma'
 import { getAuthUserIdFromCookies } from '@/lib/auth/auth-server'
@@ -16,7 +17,11 @@ const bodySchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const userId = await getAuthUserIdFromCookies()
-    if (!userId) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
+    if (!userId)
+      return NextResponse.json(
+        { ok: false, error: 'Unauthorized' },
+        { status: 401 },
+      )
 
     const body = bodySchema.parse(await request.json())
 
@@ -35,7 +40,7 @@ export async function POST(request: NextRequest) {
       data: {
         organizationId: org.id,
         userId,
-        role: 'admin',
+        role: OrganizationRole.Owner,
       },
     })
 
@@ -55,8 +60,8 @@ export async function POST(request: NextRequest) {
     })
     return res
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Failed to create organization'
+    const msg =
+      err instanceof Error ? err.message : 'Failed to create organization'
     return NextResponse.json({ ok: false, error: msg }, { status: 400 })
   }
 }
-

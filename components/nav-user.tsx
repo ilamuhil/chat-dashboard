@@ -6,6 +6,7 @@ import {
   CreditCard,
   LogOut,
 } from 'lucide-react'
+import Link from 'next/link'
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -123,9 +124,11 @@ export function NavUser({ user }: { user: AppUser }) {
                 <BadgeCheck />
                 Account
               </DropdownMenuItem>
-              <DropdownMenuItem className='rounded-lg'>
+              <DropdownMenuItem asChild className='rounded-lg'>
+                <Link href='/dashboard/billing'>
                 <CreditCard />
                 Billing
+                </Link>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

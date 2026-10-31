@@ -1,105 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { hashApiKey } from '@/lib/core/utils'
-import { getSecretKey, signToken } from '@/lib/auth/jwt'
-import { prisma } from '@/lib/core/prisma'
 import { z } from 'zod'
+import { prisma } from '@/lib/core/prisma'
+import { getSecretKey, signToken } from '@/lib/auth/jwt'
 import { corsHeaders } from '@/lib/auth/auth-server'
-
-//! this route is used to mint a token for the end_user used to chat with the bot/support_agent. Do not use this route to mint a token for the support_agent.
-
+import { resolveWidgetBot } from '@/lib/widget/resolve-widget-bot'
+import { publicCaptureSettings } from '@/lib/widget/capture-config'
+const headers = { ...corsHeaders, 'Cache-Control': 'no-store' }
 export async function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: corsHeaders })
+  return new NextResponse(null, { status: 204, headers })
 }
-
 export async function POST(request: NextRequest) {
-  const body = await request.json()
   const parsed = z
-    .object({
-      api_key: z.string().min(1),
-    })
-    .safeParse(body)
-
-  if (!parsed.success) {
-    console.error(
-      'Failed to authenticate user. Invalid request body.',
-      parsed.error.flatten().fieldErrors,
-    )
+    .object({ api_key: z.string().min(1).max(256) })
+    .safeParse(await request.json().catch(() => null))
+  if (!parsed.success)
     return NextResponse.json(
       { error: 'Invalid request body' },
-      { status: 400, headers: corsHeaders },
+      { status: 400, headers },
     )
-  }
-
-  const { api_key } = parsed.data
-
-  const apiKey = await prisma.apiKeys.findFirst({
-    where: { keyHash: hashApiKey(api_key), isActive: true },
-    select: { id: true, botId: true, organizationId: true },
-  })
-  if (!apiKey?.botId) {
+  const resolved = await resolveWidgetBot(parsed.data.api_key)
+  if (!resolved?.bot.organizationId)
     return NextResponse.json(
-      { error: 'Invalid api key' },
-      { status: 401, headers: corsHeaders },
+      { error: 'This chat is unavailable' },
+      { status: 401, headers },
     )
-  }
-
-  const bot = await prisma.bots.findUnique({
-    where: { id: apiKey.botId },
-    select: {
-      id: true,
-      organizationId: true,
-      leadCaptureTiming: true,
-      captureName: true,
-      captureEmail: true,
-      capturePhone: true,
-    },
-  })
-  if (!bot || !bot.organizationId) {
+  const { bot, apiKeyId } = resolved
+  const key = getSecretKey()
+  if (!key)
     return NextResponse.json(
-      { error: 'Bot not found' },
-      { status: 404, headers: corsHeaders },
+      { error: 'Chat is temporarily unavailable' },
+      { status: 503, headers },
     )
-  }
-
   const conversation = await prisma.conversationsMeta.create({
     data: {
-      organizationId: bot.organizationId,
+      organizationId: bot.organizationId!,
       botId: bot.id,
-      apiKeyId: apiKey.id,
+      apiKeyId,
       status: 'open',
       lastMessageAt: new Date(),
     },
     select: { id: true },
   })
-
-  const privateKey = getSecretKey()
-  if (!privateKey) {
-    return NextResponse.json(
-      { error: 'Failed to create token. Internal server error.' },
-      { status: 500, headers: corsHeaders },
-    )
-  }
-
   const token = signToken(
     {
-      organization_id: bot.organizationId,
+      organization_id: bot.organizationId!,
       bot_id: bot.id,
       conversation_id: conversation.id,
       type: 'user',
     },
-    privateKey,
+    key,
   )
   return NextResponse.json(
     {
-      token: token,
+      token,
       conversation_id: conversation.id,
       bot_config: {
         leadCaptureTiming: bot.leadCaptureTiming,
         captureName: bot.captureName,
         captureEmail: bot.captureEmail,
         capturePhone: bot.capturePhone,
+        capture: publicCaptureSettings(bot),
       },
     },
-    { headers: corsHeaders },
+    { headers },
   )
 }

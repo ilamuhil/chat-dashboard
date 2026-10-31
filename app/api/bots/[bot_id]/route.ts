@@ -1,3 +1,4 @@
+import { can } from '@/lib/organization/permissions'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/core/prisma'
 import { verifyAuthToken } from '@/lib/auth/auth-token'
@@ -12,19 +13,30 @@ function getToken(request: NextRequest) {
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ bot_id: string }> }
+  { params }: { params: Promise<{ bot_id: string }> },
 ) {
   const { bot_id } = await params
-  if (!bot_id) return NextResponse.json({ ok: false, error: 'Bot id required' }, { status: 400 })
+  if (!bot_id)
+    return NextResponse.json(
+      { ok: false, error: 'Bot id required' },
+      { status: 400 },
+    )
 
   const token = getToken(request)
-  if (!token) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
+  if (!token)
+    return NextResponse.json(
+      { ok: false, error: 'Unauthorized' },
+      { status: 401 },
+    )
 
   let userId: string
   try {
     userId = verifyAuthToken(token).sub
   } catch {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json(
+      { ok: false, error: 'Unauthorized' },
+      { status: 401 },
+    )
   }
 
   const bot = await prisma.bots.findUnique({
@@ -32,18 +44,23 @@ export async function DELETE(
     select: { id: true, organizationId: true },
   })
   if (!bot?.organizationId) {
-    return NextResponse.json({ ok: false, error: 'Bot not found' }, { status: 404 })
+    return NextResponse.json(
+      { ok: false, error: 'Bot not found' },
+      { status: 404 },
+    )
   }
 
   const membership = await prisma.organizationMembers.findFirst({
     where: { userId, organizationId: bot.organizationId },
     select: { role: true },
   })
-  if (!membership) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
+  if (!can(membership?.role, 'configure')) {
+    return NextResponse.json(
+      { ok: false, error: 'Unauthorized' },
+      { status: 401 },
+    )
   }
 
   await prisma.bots.delete({ where: { id: bot_id } })
   return NextResponse.json({ ok: true })
 }
-

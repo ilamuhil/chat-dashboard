@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { OrganizationRole } from '@/lib/organization/roles'
 import { z } from 'zod'
 
+import { changeMembership } from '@/lib/organization/manage-membership'
 import { prisma } from '@/lib/core/prisma'
 import { requireOrganizationMembership } from '@/lib/organization/organization-members'
 import {
@@ -9,7 +11,7 @@ import {
 } from '@/lib/email/email'
 
 const roleSchema = z.object({
-  role: z.enum(['admin', 'editor']),
+  role: z.enum(OrganizationRole),
 })
 
 async function getTargetMembership(organizationId: string, memberId: string) {
@@ -30,7 +32,7 @@ export async function PATCH(
   { params }: { params: Promise<{ member_id: string }> },
 ) {
   try {
-    const actor = await requireOrganizationMembership('admin')
+    const actor = await requireOrganizationMembership(OrganizationRole.Admin)
     const { member_id: memberId } = await params
     const target = await getTargetMembership(actor.organizationId, memberId)
 
@@ -45,28 +47,18 @@ export async function PATCH(
     }
 
     const { role } = roleSchema.parse(await request.json())
-    if (target.role === 'admin' && role === 'editor') {
-      const adminCount = await prisma.organizationMembers.count({
-        where: { organizationId: actor.organizationId, role: 'admin' },
-      })
-      if (adminCount <= 1) {
-        return NextResponse.json(
-          { error: 'The last admin cannot be demoted.' },
-          { status: 409 },
-        )
-      }
-    }
 
     const administrator = await prisma.users.findUnique({
       where: { id: actor.userId },
       select: { fullName: true, email: true },
     })
 
-    const member = await prisma.organizationMembers.update({
-      where: { id: target.id },
-      data: { role },
-      select: { id: true, role: true },
-    })
+    const member = await changeMembership(
+      actor.organizationId,
+      actor.userId,
+      target.id,
+      role,
+    )
 
     if (target.user?.email) {
       await sendMembershipRoleUpdatedEmail({
@@ -115,7 +107,7 @@ export async function DELETE(
   { params }: { params: Promise<{ member_id: string }> },
 ) {
   try {
-    const actor = await requireOrganizationMembership('admin')
+    const actor = await requireOrganizationMembership(OrganizationRole.Admin)
     const { member_id: memberId } = await params
     const target = await getTargetMembership(actor.organizationId, memberId)
 
@@ -129,24 +121,12 @@ export async function DELETE(
       )
     }
 
-    if (target.role === 'admin') {
-      const adminCount = await prisma.organizationMembers.count({
-        where: { organizationId: actor.organizationId, role: 'admin' },
-      })
-      if (adminCount <= 1) {
-        return NextResponse.json(
-          { error: 'The last admin cannot be removed.' },
-          { status: 409 },
-        )
-      }
-    }
-
     const administrator = await prisma.users.findUnique({
       where: { id: actor.userId },
       select: { fullName: true, email: true },
     })
 
-    await prisma.organizationMembers.delete({ where: { id: target.id } })
+    await changeMembership(actor.organizationId, actor.userId, target.id)
 
     const remainingMembership = await prisma.organizationMembers.findFirst({
       where: { userId: target.userId },
@@ -191,10 +171,7 @@ export async function DELETE(
 
     return NextResponse.json({
       ok: true,
-      next:
-        remainingMembership?.organizationId
-          ? '/dashboard'
-          : '/onboarding',
+      next: remainingMembership?.organizationId ? '/dashboard' : '/onboarding',
     })
   } catch (error) {
     const message =

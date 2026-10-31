@@ -1,5 +1,6 @@
 'use client'
 
+import { RequirePermission } from '@/components/organization-access'
 import { formatDistanceToNow } from 'date-fns'
 import {
   ArrowRightIcon,
@@ -100,7 +101,7 @@ function LoadingOverview() {
   return (
     <div className='space-y-4' aria-label='Loading overview'>
       <div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-4'>
-        {[0, 1, 2, 3].map(item => (
+        {[0, 1, 2, 3].map((item) => (
           <div
             key={item}
             className='h-32 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900'>
@@ -118,7 +119,7 @@ function LoadingOverview() {
 function trainingLabel(status: string) {
   return status
     .replaceAll('_', ' ')
-    .replace(/\b\w/g, character => character.toUpperCase())
+    .replace(/\b\w/g, (character) => character.toUpperCase())
 }
 
 export default function OverviewClient() {
@@ -249,68 +250,76 @@ export default function OverviewClient() {
         />
       </div>
 
-      <section className='dashboard-surface rounded-xl p-5'>
-        <div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between'>
-          <div className='max-w-xl'>
-            <p className='text-xs font-semibold uppercase tracking-[0.12em] text-sky-700 dark:text-sky-300'>
-              Getting started
-            </p>
-            <h2 className='mt-1 text-base font-semibold tracking-tight text-foreground'>
-              Build a useful admissions assistant in three steps
-            </h2>
-            <p className='mt-1 text-xs leading-relaxed text-muted-foreground'>
-              Configure how your bot speaks, give it trusted institute content,
-              then add it to your website. You can return here to monitor the
-              conversations and enquiries it collects.
-            </p>
-          </div>
-          <Button
-            asChild
-            size='sm'
-            className={cn(dashboardButtonClass, 'shrink-0')}>
-            <Link href={setupSteps.find(step => !step.complete)?.href ?? '/dashboard/users/conversations'}>
-              {setupSteps.some(step => !step.complete) ? 'Continue setup' : 'Review activity'}
-              <ArrowRightIcon className='size-3.5' />
-            </Link>
-          </Button>
-        </div>
-
-        <div className='mt-5 grid gap-2.5 md:grid-cols-3'>
-          {setupSteps.map(step => {
-            const Icon = step.icon
-            return (
+      <RequirePermission permission='configure'>
+        <section className='dashboard-surface rounded-xl p-5'>
+          <div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between'>
+            <div className='max-w-xl'>
+              <p className='text-xs font-semibold uppercase tracking-[0.12em] text-sky-700 dark:text-sky-300'>
+                Getting started
+              </p>
+              <h2 className='mt-1 text-base font-semibold tracking-tight text-foreground'>
+                Build a useful admissions assistant in three steps
+              </h2>
+              <p className='mt-1 text-xs leading-relaxed text-muted-foreground'>
+                Configure how your bot speaks, give it trusted institute
+                content, then add it to your website. You can return here to
+                monitor the conversations and enquiries it collects.
+              </p>
+            </div>
+            <Button
+              asChild
+              size='sm'
+              className={cn(dashboardButtonClass, 'shrink-0')}>
               <Link
-                key={step.label}
-                href={step.href}
-                className='group rounded-lg border border-slate-200/80 bg-white/70 p-3 transition-colors hover:border-sky-300 hover:bg-sky-50/60 dark:border-slate-700 dark:bg-slate-800/70 dark:hover:border-sky-400/40 dark:hover:bg-sky-500/10'>
-                <div className='flex items-start gap-2.5'>
-                  <div
-                    className={cn(
-                      'flex size-7 shrink-0 items-center justify-center rounded-md',
-                      step.complete
-                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200'
-                        : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300',
-                    )}>
-                    {step.complete ? (
-                      <CheckCircle2Icon className='size-3.5' />
-                    ) : (
-                      <Icon className='size-3.5' />
-                    )}
-                  </div>
-                  <div className='min-w-0'>
-                    <p className='text-xs font-semibold text-foreground'>
-                      {step.label}
-                    </p>
-                    <p className='mt-1 text-[11px] leading-4 text-muted-foreground'>
-                      {step.detail}
-                    </p>
-                  </div>
-                </div>
+                href={
+                  setupSteps.find((step) => !step.complete)?.href ??
+                  '/dashboard/users/conversations'
+                }>
+                {setupSteps.some((step) => !step.complete)
+                  ? 'Continue setup'
+                  : 'Review activity'}
+                <ArrowRightIcon className='size-3.5' />
               </Link>
-            )
-          })}
-        </div>
-      </section>
+            </Button>
+          </div>
+
+          <div className='mt-5 grid gap-2.5 md:grid-cols-3'>
+            {setupSteps.map((step) => {
+              const Icon = step.icon
+              return (
+                <Link
+                  key={step.label}
+                  href={step.href}
+                  className='group rounded-lg border border-slate-200/80 bg-white/70 p-3 transition-colors hover:border-sky-300 hover:bg-sky-50/60 dark:border-slate-700 dark:bg-slate-800/70 dark:hover:border-sky-400/40 dark:hover:bg-sky-500/10'>
+                  <div className='flex items-start gap-2.5'>
+                    <div
+                      className={cn(
+                        'flex size-7 shrink-0 items-center justify-center rounded-md',
+                        step.complete
+                          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200'
+                          : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300',
+                      )}>
+                      {step.complete ? (
+                        <CheckCircle2Icon className='size-3.5' />
+                      ) : (
+                        <Icon className='size-3.5' />
+                      )}
+                    </div>
+                    <div className='min-w-0'>
+                      <p className='text-xs font-semibold text-foreground'>
+                        {step.label}
+                      </p>
+                      <p className='mt-1 text-[11px] leading-4 text-muted-foreground'>
+                        {step.detail}
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        </section>
+      </RequirePermission>
 
       <div className='grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)]'>
         <section className='dashboard-surface rounded-xl p-5'>
@@ -331,9 +340,21 @@ export default function OverviewClient() {
           </div>
           <div className='mt-4 grid grid-cols-3 gap-2'>
             {[
-              ['Open', data.conversations.open, 'text-emerald-700 dark:text-emerald-300'],
-              ['Closed', data.conversations.closed, 'text-slate-700 dark:text-slate-300'],
-              ['Archived', data.conversations.archived, 'text-violet-700 dark:text-violet-300'],
+              [
+                'Open',
+                data.conversations.open,
+                'text-emerald-700 dark:text-emerald-300',
+              ],
+              [
+                'Closed',
+                data.conversations.closed,
+                'text-slate-700 dark:text-slate-300',
+              ],
+              [
+                'Archived',
+                data.conversations.archived,
+                'text-violet-700 dark:text-violet-300',
+              ],
             ].map(([label, value, className]) => (
               <div
                 key={label}
@@ -357,7 +378,7 @@ export default function OverviewClient() {
                 </p>
               </div>
             ) : (
-              data.recentConversations.map(conversation => (
+              data.recentConversations.map((conversation) => (
                 <Link
                   key={conversation.id}
                   href={`/dashboard/users/conversations/${conversation.id}`}
@@ -365,7 +386,7 @@ export default function OverviewClient() {
                   <div className='flex size-7 shrink-0 items-center justify-center rounded-md bg-sky-50 text-[10px] font-semibold text-sky-700 dark:bg-sky-500/15 dark:text-sky-200'>
                     {conversation.name
                       .split(/\s+/)
-                      .map(part => part[0])
+                      .map((part) => part[0])
                       .join('')
                       .slice(0, 2)
                       .toUpperCase()}
@@ -378,7 +399,8 @@ export default function OverviewClient() {
                       <span className='shrink-0 text-[10px] text-muted-foreground'>
                         {formatDistanceToNow(
                           new Date(
-                            conversation.lastMessageAt ?? conversation.createdAt,
+                            conversation.lastMessageAt ??
+                              conversation.createdAt,
                           ),
                           { addSuffix: true },
                         )}
@@ -403,13 +425,17 @@ export default function OverviewClient() {
           </p>
           <dl className='mt-4 divide-y divide-slate-100 dark:divide-slate-800'>
             <div className='flex items-center justify-between gap-3 py-2.5 first:pt-0'>
-              <dt className='text-xs text-muted-foreground'>Leads this month</dt>
+              <dt className='text-xs text-muted-foreground'>
+                Leads this month
+              </dt>
               <dd className='text-sm font-semibold text-foreground'>
                 {data.leads.last30Days}
               </dd>
             </div>
             <div className='flex items-center justify-between gap-3 py-2.5'>
-              <dt className='text-xs text-muted-foreground'>Training sources</dt>
+              <dt className='text-xs text-muted-foreground'>
+                Training sources
+              </dt>
               <dd className='text-sm font-semibold text-foreground'>
                 {data.training.total}
               </dd>

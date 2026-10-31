@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { toast } from 'sonner'
 import { cn } from '@/lib/core/utils'
+import { customAnswers } from '@/lib/leads/custom-answers'
 import { Message } from './types'
 import { renderChatMarkdown } from './markdown'
 import {
@@ -43,7 +44,8 @@ function VisitorTypingIndicator() {
         } as React.CSSProperties
       }
       aria-live='polite'
-      aria-label='Visitor is typing'>
+      aria-label='Visitor is typing'
+    >
       <div className='typing-dot typing-dot--1 h-1 w-1 rounded-full' />
       <div className='typing-dot typing-dot--2 h-1 w-1 rounded-full' />
       <div className='typing-dot typing-dot--3 h-1 w-1 rounded-full' />
@@ -104,7 +106,10 @@ async function uploadConversationFile(file: File, token: string) {
   if (!response.ok) {
     let serverMessage: string | null = null
     try {
-      const body = (await response.json()) as { error?: unknown; message?: unknown }
+      const body = (await response.json()) as {
+        error?: unknown
+        message?: unknown
+      }
       serverMessage =
         typeof body.message === 'string'
           ? body.message
@@ -129,16 +134,11 @@ function isThematicBreakMessage(content: string) {
   return /^(?:\s*-\s*){3,}$/.test(content)
 }
 
-function isSafeImageUrl(
-  url: string | null | undefined
-): url is string {
+function isSafeImageUrl(url: string | null | undefined): url is string {
   if (!url) return false
   try {
     const parsed = new URL(url, window.location.href)
-    return (
-      (parsed.protocol === 'https:' || parsed.protocol === 'http:') &&
-      true
-    )
+    return (parsed.protocol === 'https:' || parsed.protocol === 'http:') && true
   } catch {
     return false
   }
@@ -182,22 +182,49 @@ function extractImagePreview(content: string) {
   return null
 }
 
-function leadFormFields(content: string): Array<{ label: string; value: string }> | null {
+function leadFormFields(
+  content: string,
+): Array<{ label: string; value: string }> | null {
   if (!content.trimStart().startsWith('{')) return null
   try {
     const payload: unknown = JSON.parse(content)
-    if (!payload || typeof payload !== 'object' || !('event' in payload) || payload.event !== 'lead_form') return null
+    if (
+      !payload ||
+      typeof payload !== 'object' ||
+      !('event' in payload) ||
+      payload.event !== 'lead_form'
+    )
+      return null
     const profile = 'profile' in payload ? payload.profile : null
-    if (!profile || typeof profile !== 'object' || Array.isArray(profile)) return null
+    if (!profile || typeof profile !== 'object' || Array.isArray(profile))
+      return null
     const values = profile as Record<string, unknown>
-    const contactValue = (key: string) => typeof values[key] === 'string' && values[key].trim()
-      ? values[key].trim() : 'Not provided'
+    const contactValue = (key: string) =>
+      typeof values[key] === 'string' && values[key].trim()
+        ? values[key].trim()
+        : 'Not provided'
     return [
       { label: 'Name', value: contactValue('name') },
       { label: 'Email', value: contactValue('email') },
       { label: 'Phone', value: contactValue('phone') },
-      { label: 'Contact consent', value: values.consent_to_contact === true ? 'Granted'
-        : values.consent_to_contact === false ? 'Not granted' : 'Not specified' },
+      {
+        label: 'Contact consent',
+        value:
+          values.consent_to_contact === true
+            ? 'Granted'
+            : values.consent_to_contact === false
+              ? 'Not granted'
+              : 'Not specified',
+      },
+      ...Object.values(customAnswers(payload)).map((answer) => ({
+        label: answer.label,
+        value:
+          typeof answer.value === 'boolean'
+            ? answer.value
+              ? 'Yes'
+              : 'No'
+            : String(answer.value),
+      })),
     ]
   } catch {
     return null
@@ -217,15 +244,9 @@ export default function ChatWindow(props: ChatWindowProps) {
 
   const sendDraft = () => {
     const content = draft.trim()
-    const contentWithoutBreakTags = content
-      .replace(/<br\s*\/?>/gi, '')
-      .trim()
+    const contentWithoutBreakTags = content.replace(/<br\s*\/?>/gi, '').trim()
 
-    if (
-      !contentWithoutBreakTags ||
-      !props.onSendMessage ||
-      composerDisabled
-    ) {
+    if (!contentWithoutBreakTags || !props.onSendMessage || composerDisabled) {
       return
     }
     stopTyping()
@@ -283,7 +304,7 @@ export default function ChatWindow(props: ChatWindowProps) {
   const renderMessage = (
     message: Message,
     index: number,
-    messages: Array<Message>
+    messages: Array<Message>,
   ) => {
     if (isThematicBreakMessage(message.content)) {
       return (
@@ -291,7 +312,8 @@ export default function ChatWindow(props: ChatWindowProps) {
           key={message.id}
           className='my-2 flex items-center px-3'
           role='separator'
-          aria-hidden='true'>
+          aria-hidden='true'
+        >
           <hr className='chat-message-separator' />
         </div>
       )
@@ -299,14 +321,10 @@ export default function ChatWindow(props: ChatWindowProps) {
 
     if (isConversationEndedMessage(message)) {
       return (
-        <div
-          key={message.id}
-          className='flex justify-center px-4 py-5'>
+        <div key={message.id} className='flex justify-center px-4 py-5'>
           <div className='flex items-center gap-2 rounded-xl border border-slate-200/80 bg-white/80 px-3.5 py-2.5 text-xs text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300'>
             <CheckCircle2Icon className='size-4 text-slate-400 dark:text-slate-400' />
-            <span>
-              {conversationEndedLabel(message, props.closedBy)}
-            </span>
+            <span>{conversationEndedLabel(message, props.closedBy)}</span>
           </div>
         </div>
       )
@@ -330,21 +348,18 @@ export default function ChatWindow(props: ChatWindowProps) {
         (nextMessage.role === 'user') !== (message.role === 'user'))
 
     const isConsecutive =
-      nextMessage &&
-      (nextMessage.role === 'user') === (message.role === 'user')
+      nextMessage && (nextMessage.role === 'user') === (message.role === 'user')
     const marginBottom = isConsecutive ? 'mb-1' : 'mb-4'
 
     const hasPreviousSameSender =
-      prevMessage &&
-      (prevMessage.role === 'user') === (message.role === 'user')
+      prevMessage && (prevMessage.role === 'user') === (message.role === 'user')
     const hasNextSameSender =
-      nextMessage &&
-      (nextMessage.role === 'user') === (message.role === 'user')
+      nextMessage && (nextMessage.role === 'user') === (message.role === 'user')
 
     const imagePreview =
       message.file_url && message.mime_type?.startsWith('image/')
-      ? { url: message.file_url, caption: '' }
-      : extractImagePreview(message.content)
+        ? { url: message.file_url, caption: '' }
+        : extractImagePreview(message.content)
     const imageUrl = imagePreview?.url
     const captionHtml = imagePreview?.caption
       ? renderChatMarkdown(imagePreview.caption)
@@ -378,8 +393,9 @@ export default function ChatWindow(props: ChatWindowProps) {
         className={cn(
           'flex items-end',
           marginBottom,
-          visualRole === 'user' ? 'flex-row gap-3' : 'flex-row-reverse gap-2'
-        )}>
+          visualRole === 'user' ? 'flex-row gap-3' : 'flex-row-reverse gap-2',
+        )}
+      >
         {isUser && (
           <div className={cn('shrink-0', showAvatar ? 'size-8' : 'w-8')}>
             {showAvatar && (
@@ -392,8 +408,9 @@ export default function ChatWindow(props: ChatWindowProps) {
         <div
           className={cn(
             'flex max-w-[75%] flex-col',
-            visualRole === 'user' ? 'items-start' : 'items-end'
-          )}>
+            visualRole === 'user' ? 'items-start' : 'items-end',
+          )}
+        >
           <div
             className={cn(
               borderRadiusClasses,
@@ -405,16 +422,22 @@ export default function ChatWindow(props: ChatWindowProps) {
               'min-w-0 px-3.5 py-2.5 text-[13px] shadow-sm',
               visualRole === 'user'
                 ? 'bg-[#e9e9eb] text-[#1e293b]'
-                : 'bg-sky-700 text-white'
-            )}>
+                : 'bg-sky-700 text-white',
+            )}
+          >
             {formFields ? (
               <div className='space-y-2 text-[#0f172a]'>
                 <p className='font-semibold'>Visitor details</p>
                 <dl className='space-y-1.5'>
-                  {formFields.map(field => (
-                    <div key={field.label} className='grid grid-cols-[auto_1fr] items-baseline gap-x-3'>
+                  {formFields.map((field, index) => (
+                    <div
+                      key={`${index}-${field.label}`}
+                      className='grid grid-cols-[auto_1fr] items-baseline gap-x-3'
+                    >
                       <dt className='font-semibold'>{field.label}</dt>
-                      <dd className='min-w-0 whitespace-pre-wrap wrap-break-word'>{field.value}</dd>
+                      <dd className='min-w-0 whitespace-pre-wrap wrap-break-word'>
+                        {field.value}
+                      </dd>
                     </div>
                   ))}
                 </dl>
@@ -423,8 +446,9 @@ export default function ChatWindow(props: ChatWindowProps) {
               <div
                 className={cn(
                   'chat-markdown wrap-break-word',
-                  imagePreview && 'chat-bubble-rich-media'
-                )}>
+                  imagePreview && 'chat-bubble-rich-media',
+                )}
+              >
                 {isSafeImageUrl(imageUrl) ? (
                   <RichMediaMessage
                     url={imageUrl}
@@ -459,13 +483,15 @@ export default function ChatWindow(props: ChatWindowProps) {
     <div
       className={cn(
         'flex h-full min-h-0 flex-col bg-linear-to-b from-slate-50/90 via-white to-sky-50/30 dark:to-slate-900/40',
-        props.expanded ? 'fixed inset-0 z-50 h-dvh w-dvw' : ''
-      )}>
+        props.expanded ? 'fixed inset-0 z-50 h-dvh w-dvw' : '',
+      )}
+    >
       <div className='mb-0 min-h-0 flex-1 overflow-y-auto px-4 py-4 no-scrollbar'>
         {props.connectionError && (
           <div
             role='alert'
-            className='mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-400/25 dark:bg-rose-500/15 dark:text-rose-200'>
+            className='mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-400/25 dark:bg-rose-500/15 dark:text-rose-200'
+          >
             {props.connectionError}
           </div>
         )}
@@ -485,9 +511,7 @@ export default function ChatWindow(props: ChatWindowProps) {
           props.messages.map((message, index) => {
             if (
               isConversationEndedMessage(message) &&
-              props.messages
-                .slice(0, index)
-                .some(isConversationEndedMessage)
+              props.messages.slice(0, index).some(isConversationEndedMessage)
             ) {
               return null
             }
@@ -506,12 +530,13 @@ export default function ChatWindow(props: ChatWindowProps) {
               'inline-grid size-9 shrink-0 cursor-pointer place-items-center rounded-full text-slate-500 hover:bg-slate-900/[0.06] hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-400/15 dark:hover:text-slate-100',
               (composerDisabled || fileUploading) &&
                 'pointer-events-none opacity-60',
-            )}>
+            )}
+          >
             <input
               className='sr-only'
               type='file'
               disabled={composerDisabled || fileUploading}
-              onChange={event => void handleFileChange(event)}
+              onChange={(event) => void handleFileChange(event)}
             />
             <span aria-label='Add attachment'>
               {fileUploading ? (
@@ -526,7 +551,7 @@ export default function ChatWindow(props: ChatWindowProps) {
             title='Type a message…'
             className='h-9 min-h-9 flex-1 resize-none rounded-xl bg-transparent px-2 py-2 text-[13px] leading-5 tracking-[-0.01em] text-slate-900 outline-none placeholder:text-[13px] placeholder:text-slate-500 disabled:opacity-60 dark:text-slate-100 dark:placeholder:text-slate-400'
             value={draft}
-            onChange={event => {
+            onChange={(event) => {
               const next = event.target.value
               setDraft(next)
               if (composerDisabled) return
@@ -537,7 +562,7 @@ export default function ChatWindow(props: ChatWindowProps) {
             ref={textareaRef}
             disabled={composerDisabled}
             style={{ maxHeight: '120px' }}
-            onKeyDown={event => {
+            onKeyDown={(event) => {
               if (event.key !== 'Enter' || event.shiftKey) return
               if (event.nativeEvent.isComposing) return
               event.preventDefault()
@@ -549,7 +574,8 @@ export default function ChatWindow(props: ChatWindowProps) {
             aria-label='Send message'
             disabled={!draft.trim() || composerDisabled || !props.onSendMessage}
             onClick={sendDraft}
-            className='inline-grid size-9 shrink-0 place-items-center rounded-full bg-sky-600 text-white shadow-sm transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-40'>
+            className='inline-grid size-9 shrink-0 place-items-center rounded-full bg-sky-600 text-white shadow-sm transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-40'
+          >
             <SendIcon />
           </button>
         </div>

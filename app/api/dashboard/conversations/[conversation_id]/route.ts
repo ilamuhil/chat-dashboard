@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { readOrganizationRole } from '@/lib/organization/organization-members'
 import { z } from 'zod'
 
 import { prisma } from '@/lib/core/prisma'
@@ -19,16 +20,30 @@ export async function GET(
   const userId = await requireAuthUserId()
   const organizationId = await resolveCurrentOrganizationId({ userId })
   const { conversation_id: conversationId } = await params
-  if (!organizationId) return NextResponse.json({ error: 'Organization not found' }, { status: 403 })
+  if (!organizationId)
+    return NextResponse.json(
+      { error: 'Organization not found' },
+      { status: 403 },
+    )
   const conversation = await prisma.conversationsMeta.findFirst({
     where: { id: conversationId, organizationId },
     select: {
-      id: true, status: true, closedBy: true, aiSummary: true,
-      summaryStatus: true, summaryGeneratedAt: true,
+      id: true,
+      status: true,
+      closedBy: true,
+      aiSummary: true,
+      summaryStatus: true,
+      summaryGeneratedAt: true,
     },
   })
-  if (!conversation) return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
-  return NextResponse.json(conversation, { headers: { 'Cache-Control': 'no-store' } })
+  if (!conversation)
+    return NextResponse.json(
+      { error: 'Conversation not found' },
+      { status: 404 },
+    )
+  return NextResponse.json(conversation, {
+    headers: { 'Cache-Control': 'no-store' },
+  })
 }
 
 export async function PATCH(
@@ -62,10 +77,27 @@ export async function PATCH(
 
     if (body.status === 'closed') {
       const key = getSecretKey()
-      if (!key) return NextResponse.json({ error: 'Chat service is not configured' }, { status: 503 })
-      const token = signToken({ organization_id: organizationId, bot_id: conversation.botId ?? '',
-        conversation_id: conversation.id, type: 'support_agent', sub: userId }, key)
-      await pythonApiRequest('POST', `/api/conversations/${conversation.id}/close`, token)
+      if (!key)
+        return NextResponse.json(
+          { error: 'Chat service is not configured' },
+          { status: 503 },
+        )
+      const token = signToken(
+        {
+          organization_id: organizationId,
+          bot_id: conversation.botId ?? '',
+          conversation_id: conversation.id,
+          type: 'support_agent',
+          organization_role: await readOrganizationRole(organizationId, userId),
+          sub: userId,
+        },
+        key,
+      )
+      await pythonApiRequest(
+        'POST',
+        `/api/conversations/${conversation.id}/close`,
+        token,
+      )
     }
 
     const updated = await prisma.conversationsMeta.update({

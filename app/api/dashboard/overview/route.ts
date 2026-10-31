@@ -90,6 +90,9 @@ export async function GET() {
         id: true,
         userName: true,
         userEmail: true,
+        lead: {
+          select: { name: true, email: true },
+        },
         status: true,
         isArchived: true,
         lastMessageSnippet: true,
@@ -100,7 +103,7 @@ export async function GET() {
   ])
 
   const trainingByStatus = Object.fromEntries(
-    trainingStatusGroups.map(group => [
+    trainingStatusGroups.map((group) => [
       group.status ?? 'unknown',
       group._count._all,
     ]),
@@ -129,10 +132,13 @@ export async function GET() {
       total: sourceCount,
       byStatus: trainingByStatus,
     },
-    recentConversations: recentConversations.map(conversation => ({
+    recentConversations: recentConversations.map((conversation) => ({
       id: conversation.id,
-      name: conversation.userName || 'Anonymous visitor',
-      email: conversation.userEmail,
+      name:
+        conversation.lead?.name?.trim() ||
+        conversation.userName?.trim() ||
+        'Anonymous visitor',
+      email: conversation.lead?.email?.trim() || conversation.userEmail,
       status: conversation.status,
       isArchived: conversation.isArchived,
       snippet: conversation.lastMessageSnippet,

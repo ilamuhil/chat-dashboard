@@ -1,6 +1,8 @@
 'use client'
 
 import * as React from 'react'
+import { useOrganizationAccess } from './organization-access'
+import { requestPermission } from '@/lib/organization/access-policy'
 import {
   GalleryVerticalEnd,
   Wallet,
@@ -71,6 +73,16 @@ const data = {
           icon: Users,
         },
         {
+          title: 'Follow-ups',
+          url: '/dashboard/users/follow-ups',
+          icon: Users,
+        },
+        {
+          title: 'Admissions analytics',
+          url: '/dashboard/users/admissions',
+          icon: Users,
+        },
+        {
           title: 'Organization members',
           url: '/dashboard/users/org-members',
           icon: Users,
@@ -98,7 +110,20 @@ export function AppSidebar({
   user: AppUser
   organizations: { id: string; name: string; role: string }[]
 }) {
-  const orgsForSwitcher = organizations.map(org => ({
+  const access = useOrganizationAccess()
+  const navigation = data.navMain
+    .map((group) => ({
+      ...group,
+      items: group.items?.filter((item) =>
+        access.can(requestPermission(item.url, 'GET') || 'read'),
+      ),
+    }))
+    .filter((group) =>
+      group.url
+        ? access.can(requestPermission(group.url, 'GET') || 'read')
+        : !!group.items?.length,
+    )
+  const orgsForSwitcher = organizations.map((org) => ({
     id: org.id,
     name: org.name,
     logo: GalleryVerticalEnd,
@@ -117,7 +142,7 @@ export function AppSidebar({
         <SidebarSeparator className='mx-0 w-full bg-slate-200/80' />
       </div>
       <SidebarContent className='px-1 py-2'>
-        <NavMain items={data.navMain} />
+        <NavMain items={navigation} />
       </SidebarContent>
       <SidebarFooter className='gap-2 border-t border-slate-200/70 px-2 py-3'>
         <NavUser user={user} />

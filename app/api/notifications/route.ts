@@ -18,6 +18,7 @@ export async function GET() {
 
   const notifications = await prisma.notifications.findMany({
     where: {
+      dismissedAt: null,
       userId,
       organizationId,
     },
@@ -40,8 +41,10 @@ export async function DELETE() {
     )
   }
 
-  const result = await prisma.notifications.deleteMany({
+  const result = await prisma.notifications.updateMany({
+    data: { dismissedAt: new Date() },
     where: {
+      dismissedAt: null,
       userId,
       organizationId,
     },

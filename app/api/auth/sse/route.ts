@@ -1,3 +1,4 @@
+import { readOrganizationRole } from '@/lib/organization/organization-members'
 import { NextResponse } from 'next/server'
 import { requireAuthUserId, corsHeaders } from '@/lib/auth/auth-server'
 import { resolveCurrentOrganizationId } from '@/lib/organization/current-organization'
@@ -18,7 +19,11 @@ export async function GET() {
     )
   }
 
-  const token = signSSEAuthToken({ userId, orgId })
+  const token = signSSEAuthToken({
+    userId,
+    orgId,
+    role: await readOrganizationRole(orgId, userId),
+  })
 
   return NextResponse.json({ token }, { headers: corsHeaders })
 }

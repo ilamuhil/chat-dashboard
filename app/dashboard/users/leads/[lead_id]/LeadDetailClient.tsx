@@ -1,10 +1,17 @@
 'use client'
 
+import { RequirePermission } from '@/components/organization-access'
+import {
+  LeadActivityPanel,
+  type LeadActivity,
+} from '@/components/leads/activity-panel'
+import { nextActionLabel } from '@/lib/leads/next-action'
+import { Textarea } from '@/components/ui/textarea'
+
 import SummaryMarkdown from '@/components/summary-markdown'
 import { format } from 'date-fns'
 import {
   ArrowLeftIcon,
-  CalendarClockIcon,
   CheckCircle2Icon,
   ClipboardListIcon,
   CopyIcon,
@@ -20,15 +27,16 @@ import {
   ShieldCheckIcon,
   SparklesIcon,
   TargetIcon,
-  Trash2Icon,
   UserRoundIcon,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 
-import ConfirmationDialog from '@/components/ui/ConfirmationDialog'
+import { FollowUpWorkspace } from '@/components/leads/follow-up-workspace'
+import { FollowUpDialog } from '@/components/leads/follow-up-dialog'
+import { OwnerSelect } from '@/components/leads/owner-select'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -49,7 +57,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { Textarea } from '@/components/ui/textarea'
 import { dashboardButtonClass } from '@/lib/dashboard/dashboard-buttons'
 import { cn } from '@/lib/core/utils'
 
@@ -57,6 +64,7 @@ type NullableString = string | null
 
 export type LeadFollowUp = {
   id: string
+  sourceRequestId?: NullableString
   counsellorId: NullableString
   followUpType: NullableString
   status: NullableString
@@ -84,6 +92,14 @@ export type LeadConversation = {
 }
 
 export type LeadDetail = {
+  customAnswers: Record<
+    string,
+    { label: string; value: string | number | boolean }
+  >
+  profileVersion: number
+  activities: LeadActivity[]
+  activityCursor: string | null
+  lostReason: NullableString
   id: string
   name: NullableString
   email: NullableString
@@ -99,6 +115,7 @@ export type LeadDetail = {
   joiningPreferenceDetails: NullableString
   primaryIntent: NullableString
   leadPriority: NullableString
+  assignedCounsellorId: NullableString
   priorityReason: NullableString
   aiSummary: NullableString
   recommendedNextAction: NullableString
@@ -180,17 +197,6 @@ const priorities: Option[] = [
   { value: 'cold', label: 'Cold' },
 ]
 
-const nextActions: Option[] = [
-  { value: 'schedule_callback', label: 'Schedule callback' },
-  { value: 'schedule_demo', label: 'Schedule demo' },
-  { value: 'schedule_campus_visit', label: 'Schedule campus visit' },
-  { value: 'application_follow_up', label: 'Application follow-up' },
-  { value: 'send_course_details', label: 'Send course details' },
-  { value: 'review_eligibility', label: 'Review eligibility' },
-  { value: 'review_elligibility', label: 'Review eligibility (legacy)' },
-  { value: 'other', label: 'Other' },
-]
-
 const pipelineStages: Option[] = [
   { value: 'new_enquiry', label: 'New enquiry' },
   { value: 'qualified', label: 'Qualified' },
@@ -201,41 +207,13 @@ const pipelineStages: Option[] = [
   { value: 'lost', label: 'Lost' },
 ]
 
-const followUpTypes: Option[] = [
-  { value: 'callback', label: 'Callback' },
-  { value: 'demo', label: 'Demo' },
-  { value: 'campus_visit', label: 'Campus visit' },
-  { value: 'application_follow_up', label: 'Application follow-up' },
-  { value: 'send_course_details', label: 'Send course details' },
-  { value: 'review_eligibility', label: 'Review eligibility' },
-  { value: 'review_elligibility', label: 'Review eligibility (legacy)' },
-  { value: 'other', label: 'Other' },
-]
-
-const followUpStatuses: Option[] = [
-  { value: 'pending', label: 'Pending' },
-  { value: 'complete', label: 'Complete' },
-  { value: 'cancelled', label: 'Cancelled' },
-]
-
-const followUpOutcomes: Option[] = [
-  { value: 'contacted', label: 'Contacted' },
-  { value: 'not_interested', label: 'Not interested' },
-  { value: 'interested', label: 'Interested' },
-  { value: 'no_answer', label: 'No answer' },
-  { value: 'follow_up_again', label: 'Follow up again' },
-  { value: 'application_started', label: 'Application started' },
-  { value: 'enrolled', label: 'Enrolled' },
-  { value: 'lost', label: 'Lost' },
-]
-
 function optionLabel(value: NullableString, options?: Option[]) {
   if (!value) return 'Not provided'
   return (
-    options?.find(option => option.value === value)?.label ??
-    value.replaceAll('_', ' ').replace(/\b\w/g, character =>
-      character.toUpperCase(),
-    )
+    options?.find((option) => option.value === value)?.label ??
+    value
+      .replaceAll('_', ' ')
+      .replace(/\b\w/g, (character) => character.toUpperCase())
   )
 }
 
@@ -247,18 +225,10 @@ function formatDate(value: NullableString, fallback = 'Not recorded') {
     : format(parsed, 'dd MMM yyyy · h:mm a')
 }
 
-function toDateTimeLocal(value: NullableString) {
-  if (!value) return ''
-  const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime())
-    ? ''
-    : format(parsed, "yyyy-MM-dd'T'HH:mm")
-}
-
 async function readError(response: Response) {
-  const data = (await response.json().catch(() => null)) as
-    | { error?: string }
-    | null
+  const data = (await response.json().catch(() => null)) as {
+    error?: string
+  } | null
   return data?.error || 'Something went wrong. Please try again.'
 }
 
@@ -266,8 +236,10 @@ const actionButtonClass = cn(
   dashboardButtonClass,
   'h-9 shrink-0 gap-1.5 rounded-lg px-3 text-xs font-medium',
 )
-const actionIconButtonClass = cn(actionButtonClass, 'size-8 px-0')
-const copyButtonClass = cn(actionButtonClass, 'size-6 rounded-md px-0 shadow-none')
+const copyButtonClass = cn(
+  actionButtonClass,
+  'size-6 rounded-md px-0 shadow-none',
+)
 
 function DetailField({
   label,
@@ -292,7 +264,8 @@ function DetailField({
           className={cn(
             'wrap-break-word text-xs leading-5 text-slate-800',
             kind === 'contact' && 'font-medium text-sky-800',
-            kind === 'numeric' && 'font-mono font-medium tabular-nums text-slate-700',
+            kind === 'numeric' &&
+              'font-mono font-medium tabular-nums text-slate-700',
             kind === 'date' && 'font-medium tabular-nums text-slate-600',
             kind === 'narrative' &&
               'whitespace-pre-wrap font-medium leading-5 text-slate-700',
@@ -300,64 +273,6 @@ function DetailField({
           )}>
           {value || 'Not provided'}
         </p>
-      )}
-    </div>
-  )
-}
-
-function ExpandableText({
-  value,
-  fallback = 'Not provided',
-}: {
-  value: NullableString
-  fallback?: string
-}) {
-  const [isExpanded, setIsExpanded] = useState(false)
-  const [expandedHeight, setExpandedHeight] = useState(80)
-  const textRef = useRef<HTMLParagraphElement>(null)
-  const text = value || fallback
-  const isLong = text.length > 180 || text.split('\n').length > 4
-
-  useEffect(() => {
-    const element = textRef.current
-    if (!element) return
-
-    const observer = new ResizeObserver(() => {
-      setExpandedHeight(element.scrollHeight)
-    })
-    observer.observe(element)
-
-    return () => observer.disconnect()
-  }, [text])
-
-  return (
-    <div>
-      <p
-        ref={textRef}
-        style={{
-          maxHeight:
-            isLong && isExpanded
-              ? `${expandedHeight}px`
-              : isLong
-                ? '80px'
-                : undefined,
-        }}
-        className={cn(
-          'wrap-break-word whitespace-pre-wrap text-xs leading-5 font-medium text-slate-700',
-          isLong &&
-            'overflow-hidden transition-[max-height] duration-500 ease-in-out motion-reduce:transition-none',
-          !value && 'text-slate-500',
-        )}>
-        {text}
-      </p>
-      {isLong && (
-        <button
-          type='button'
-          aria-expanded={isExpanded}
-          onClick={() => setIsExpanded(current => !current)}
-          className='mt-1 cursor-pointer text-[11px] font-semibold text-sky-700 transition-colors hover:text-sky-900'>
-          {isExpanded ? 'Read less' : 'Read more'}
-        </button>
       )}
     </div>
   )
@@ -507,81 +422,76 @@ function StatusBadge({
 export default function LeadDetailClient({
   lead,
   members,
+  userId,
+  initialNow,
 }: {
+  userId: string
+  initialNow: string
   lead: LeadDetail
   members: OrganizationMemberOption[]
 }) {
-  const router = useRouter()
   const [editLeadOpen, setEditLeadOpen] = useState(false)
   const [followUpOpen, setFollowUpOpen] = useState(false)
-  const [editingFollowUp, setEditingFollowUp] =
-    useState<LeadFollowUp | null>(null)
-  const [deleteFollowUp, setDeleteFollowUp] =
-    useState<LeadFollowUp | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
-
-  const memberByUserId = useMemo(
-    () => new Map(members.map(member => [member.userId, member])),
-    [members],
-  )
-
   function openCreateFollowUp() {
-    setEditingFollowUp(null)
     setFollowUpOpen(true)
-  }
-
-  function openEditFollowUp(followUp: LeadFollowUp) {
-    setEditingFollowUp(followUp)
-    setFollowUpOpen(true)
-  }
-
-  async function deleteSelectedFollowUp() {
-    if (!deleteFollowUp) return
-    setIsDeleting(true)
-    try {
-      const response = await fetch(
-        `/api/dashboard/leads/${lead.id}/follow-ups/${deleteFollowUp.id}`,
-        { method: 'DELETE' },
-      )
-      if (!response.ok) throw new Error(await readError(response))
-
-      toast.success('Follow-up deleted')
-      setDeleteFollowUp(null)
-      router.refresh()
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : 'Could not delete follow-up',
-      )
-    } finally {
-      setIsDeleting(false)
-    }
   }
 
   return (
     <div className='space-y-3 pb-6'>
       <div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
-        <Button
-          asChild
-          className={cn(actionButtonClass, 'w-fit')}>
+        <Button asChild className={cn(actionButtonClass, 'w-fit')}>
           <Link href='/dashboard/users/leads'>
             <ArrowLeftIcon className='size-4' />
             Back to leads
           </Link>
         </Button>
         <div className='flex flex-wrap gap-2'>
-          <Button
-            onClick={() => setEditLeadOpen(true)}
-            className={actionButtonClass}>
-            <Edit3Icon className='size-4' />
-            Edit lead
-          </Button>
-          <Button
-            onClick={openCreateFollowUp}
-            className={actionButtonClass}>
-            <PlusIcon className='size-4' />
-            Add follow-up
-          </Button>
+          <RequirePermission permission='operate'>
+            <Button
+              onClick={() => setEditLeadOpen(true)}
+              className={actionButtonClass}>
+              <Edit3Icon className='size-4' />
+              Edit lead
+            </Button>
+          </RequirePermission>
+          <RequirePermission permission='operate'>
+            <Button onClick={openCreateFollowUp} className={actionButtonClass}>
+              <PlusIcon className='size-4' />
+              Add follow-up
+            </Button>
+          </RequirePermission>
         </div>
+      </div>
+
+      <div className='dashboard-surface flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3'>
+        <div>
+          <p className='text-xs font-semibold'>Assigned counsellor</p>
+          <p className='mt-1 text-xs text-muted-foreground'>
+            Owns this lead. Follow-ups can be assigned separately.
+          </p>
+        </div>
+        <OwnerSelect
+          leadId={lead.id}
+          leadName={lead.name || 'lead'}
+          ownerId={lead.assignedCounsellorId}
+          members={members}
+        />
+      </div>
+
+      <div className='rounded-xl border border-border bg-muted/30 px-4 py-3'>
+        <p className='text-xs font-medium text-muted-foreground'>
+          Recommended next action
+        </p>
+        <p className='mt-1 text-sm font-semibold'>
+          {nextActionLabel(lead.recommendedNextAction)}
+        </p>
+        {lead.pipelineStage === 'lost' && (
+          <p className='mt-2 whitespace-pre-wrap text-xs text-muted-foreground'>
+            Lost reason:{' '}
+            {lead.lostReason ||
+              'Not recorded before reason tracking was introduced.'}
+          </p>
+        )}
       </div>
 
       <section className='overflow-hidden rounded-xl border border-sky-100 bg-linear-to-br from-sky-50 via-white to-indigo-50/60 p-4 shadow-sm dark:border-slate-700 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800'>
@@ -638,7 +548,9 @@ export default function LeadDetailClient({
               {formatDate(lead.capturedAt)}
             </p>
             <p className='mt-1 text-[10px] text-slate-500'>
-              {lead.bot ? `via ${lead.bot.name}` : 'Added manually or source removed'}
+              {lead.bot
+                ? `via ${lead.bot.name}`
+                : 'Added manually or source removed'}
             </p>
           </div>
         </div>
@@ -663,7 +575,9 @@ export default function LeadDetailClient({
                   <Badge
                     variant='outline'
                     className={cn(
-                      statusClass(lead.consentToContact ? 'complete' : 'cancelled'),
+                      statusClass(
+                        lead.consentToContact ? 'complete' : 'cancelled',
+                      ),
                       'gap-1',
                     )}>
                     {lead.consentToContact ? (
@@ -687,8 +601,15 @@ export default function LeadDetailClient({
               icon={GraduationCapIcon}>
               <div className='grid gap-3 sm:grid-cols-2'>
                 <DetailField label='Student name' value={lead.studentName} />
-                <DetailField label='Joining preference details' value={lead.joiningPreferenceDetails} />
-                <DetailField label='Age' value={lead.studentAge} kind='numeric' />
+                <DetailField
+                  label='Joining preference details'
+                  value={lead.joiningPreferenceDetails}
+                />
+                <DetailField
+                  label='Age'
+                  value={lead.studentAge}
+                  kind='numeric'
+                />
                 <DetailField label='Gender' value={lead.studentGender} />
                 <DetailField
                   label='Education level'
@@ -738,14 +659,11 @@ export default function LeadDetailClient({
                 />
               </DetailField>
               <DetailField label='Lead priority'>
-                <StatusBadge
-                  value={lead.leadPriority}
-                  options={priorities}
-                />
+                <StatusBadge value={lead.leadPriority} options={priorities} />
               </DetailField>
               <DetailField
                 label='Recommended action'
-                value={optionLabel(lead.recommendedNextAction, nextActions)}
+                value={nextActionLabel(lead.recommendedNextAction)}
               />
               <DetailField
                 label='Priority reason'
@@ -760,8 +678,12 @@ export default function LeadDetailClient({
             title='Lead summary'
             description='Consolidated across this visitor’s chats. Updated after a conversation closes.'
             icon={SparklesIcon}>
-            {lead.aiSummary ? <SummaryMarkdown source={lead.aiSummary} /> : (
-              <p className='text-sm text-muted-foreground'>No AI summary is available for this lead.</p>
+            {lead.aiSummary ? (
+              <SummaryMarkdown source={lead.aiSummary} />
+            ) : (
+              <p className='text-sm text-muted-foreground'>
+                No AI summary is available for this lead.
+              </p>
             )}
           </DetailSection>
         </div>
@@ -774,7 +696,9 @@ export default function LeadDetailClient({
             <div className='space-y-3'>
               <DetailField
                 label='Source bot'
-                value={lead.bot?.name || 'Manual entry or source bot unavailable'}
+                value={
+                  lead.bot?.name || 'Manual entry or source bot unavailable'
+                }
               />
               <DetailField
                 label='Institute'
@@ -830,123 +754,58 @@ export default function LeadDetailClient({
         </div>
       </div>
 
-      <DetailSection
-        title='Follow-ups'
-        description='Scheduled activities and outcomes for this lead.'
-        icon={CalendarClockIcon}>
-        {lead.followUps.length === 0 ? (
-          <div className='flex flex-col items-center rounded-lg border border-dashed border-slate-200 px-4 py-6 text-center'>
-            <CalendarClockIcon className='size-7 text-slate-300' />
-            <p className='mt-2 text-xs font-medium text-slate-800'>
-              No follow-ups yet
-            </p>
-            <p className='mt-1 max-w-sm text-[11px] text-slate-500'>
-              Schedule a callback, demo, visit, or another next step.
-            </p>
-            <Button
-              size='sm'
-              onClick={openCreateFollowUp}
-              className={cn(actionButtonClass, 'mt-3')}>
-              <PlusIcon className='size-3.5' />
-              Add follow-up
-            </Button>
-          </div>
-        ) : (
-          <div className='grid gap-2.5 lg:grid-cols-2'>
-            {lead.followUps.map(followUp => {
-              const counsellor = followUp.counsellorId
-                ? memberByUserId.get(followUp.counsellorId)
-                : null
-              return (
-                <article
-                  key={followUp.id}
-                  className='rounded-lg border border-slate-200 bg-white p-3'>
-                  <div className='flex items-start justify-between gap-2'>
-                    <div className='min-w-0'>
-                      <div className='flex flex-wrap items-center gap-1.5'>
-                        <h3 className='text-xs font-semibold text-slate-900'>
-                          {optionLabel(followUp.followUpType, followUpTypes)}
-                        </h3>
-                        <StatusBadge
-                          value={followUp.status}
-                          options={followUpStatuses}
-                        />
-                      </div>
-                      <p className='mt-1 text-[11px] text-slate-500'>
-                        {formatDate(
-                          followUp.scheduledFor,
-                          'No schedule selected',
-                        )}
-                      </p>
-                    </div>
-                    <div className='flex shrink-0 gap-1'>
-                      <Button
-                        type='button'
-                        size='icon'
-                        onClick={() => openEditFollowUp(followUp)}
-                        aria-label='Edit follow-up'
-                        className={actionIconButtonClass}>
-                        <Edit3Icon className='size-3.5' />
-                      </Button>
-                      <Button
-                        type='button'
-                        size='icon'
-                        onClick={() => setDeleteFollowUp(followUp)}
-                        aria-label='Delete follow-up'
-                        className={actionIconButtonClass}>
-                        <Trash2Icon className='size-3.5' />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className='mt-2.5 grid gap-2.5 border-t border-slate-100 pt-2.5 sm:grid-cols-2'>
-                    <CopyableId
-                      label='Follow-up ID'
-                      value={followUp.id}
-                      className='sm:col-span-2'
-                    />
-                    <DetailField
-                      label='Counsellor'
-                      value={
-                        counsellor?.name ||
-                        counsellor?.email ||
-                        (followUp.counsellorId
-                          ? 'Former organization member'
-                          : 'Unassigned')
-                      }
-                    />
-                    <DetailField
-                      label='Outcome'>
-                      <StatusBadge
-                        value={followUp.outcome}
-                        options={followUpOutcomes}
-                      />
-                    </DetailField>
-                    <DetailField label='Notes' className='sm:col-span-2'>
-                      <ExpandableText
-                        value={followUp.notes}
-                        fallback='No notes added'
-                      />
-                    </DetailField>
-                    <DetailField
-                      label='Completed'
-                      value={formatDate(
-                        followUp.completedAt,
-                        'Not completed',
-                      )}
-                      kind='date'
-                    />
-                    <DetailField
-                      label='Last updated'
-                      value={formatDate(followUp.updatedAt)}
-                      kind='date'
-                    />
-                  </div>
-                </article>
-              )
-            })}
-          </div>
-        )}
-      </DetailSection>
+      <FollowUpWorkspace
+        compact
+        userId={userId}
+        initialNow={initialNow}
+        members={members}
+        leads={[
+          {
+            id: lead.id,
+            name: lead.name,
+            assignedCounsellorId: lead.assignedCounsellorId,
+            consentToContact: lead.consentToContact,
+            email: lead.email,
+            phone: lead.phone,
+          },
+        ]}
+        items={lead.followUps.map((item) => ({
+          ...item,
+          leadId: lead.id,
+          leadName: lead.name || lead.studentName || 'Unnamed lead',
+          leadPriority: lead.leadPriority,
+        }))}
+      />
+
+      {Object.keys(lead.customAnswers).length > 0 && (
+        <section className='rounded-xl border border-border bg-card p-5'>
+          <h2 className='mb-4 text-sm font-semibold'>Qualification answers</h2>
+          <dl className='grid gap-4 sm:grid-cols-2'>
+            {Object.entries(lead.customAnswers).map(([id, answer]) => (
+              <div key={id}>
+                <dt className='text-xs text-muted-foreground'>
+                  {answer.label}
+                </dt>
+                <dd className='mt-1 break-words text-sm'>
+                  {typeof answer.value === 'boolean'
+                    ? answer.value
+                      ? 'Yes'
+                      : 'No'
+                    : String(answer.value)}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      )}
+      <LeadActivityPanel
+        key={lead.id}
+        leadId={lead.id}
+        userId={userId}
+        initial={lead.activities}
+        nextCursor={lead.activityCursor}
+        conversations={lead.conversations}
+      />
 
       <DetailSection
         title='Linked conversations'
@@ -964,7 +823,7 @@ export default function LeadDetailClient({
           </div>
         ) : (
           <div className='divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200'>
-            {lead.conversations.map(conversation => (
+            {lead.conversations.map((conversation) => (
               <article
                 key={conversation.id}
                 className='group flex flex-col gap-2 bg-white p-3 transition-colors hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between'>
@@ -996,10 +855,7 @@ export default function LeadDetailClient({
                   </div>
                 </Link>
                 <div className='flex min-w-0 shrink-0 flex-col gap-1.5 sm:items-end'>
-                  <CopyableId
-                    label='Conversation ID'
-                    value={conversation.id}
-                  />
+                  <CopyableId label='Conversation ID' value={conversation.id} />
                   <Link
                     href={`/dashboard/users/conversations/${conversation.id}`}
                     className='flex items-center gap-1.5 text-[11px] text-slate-500'>
@@ -1017,35 +873,25 @@ export default function LeadDetailClient({
       </DetailSection>
 
       {editLeadOpen && (
-        <LeadEditDialog
-          lead={lead}
-          open
-          onOpenChange={setEditLeadOpen}
-        />
+        <LeadEditDialog lead={lead} open onOpenChange={setEditLeadOpen} />
       )}
       {followUpOpen && (
         <FollowUpDialog
-          leadId={lead.id}
+          item={null}
           members={members}
-          followUp={editingFollowUp}
-          open
-          onOpenChange={setFollowUpOpen}
+          leads={[
+            {
+              id: lead.id,
+              name: lead.name,
+              assignedCounsellorId: lead.assignedCounsellorId,
+              consentToContact: lead.consentToContact,
+              email: lead.email,
+              phone: lead.phone,
+            },
+          ]}
+          onClose={() => setFollowUpOpen(false)}
         />
       )}
-      <ConfirmationDialog
-        open={Boolean(deleteFollowUp)}
-        setOpen={open => {
-          if (!open) setDeleteFollowUp(null)
-        }}
-        title='Delete follow-up?'
-        description='This follow-up will be removed from the active timeline. This action cannot be undone from the dashboard.'
-        confirmLabel='Delete follow-up'
-        pendingLabel='Deleting…'
-        isPending={isDeleting}
-        keepOpenUntilComplete
-        confirmClassName='bg-rose-600 text-white hover:bg-rose-700'
-        onConfirm={deleteSelectedFollowUp}
-      />
     </div>
   )
 }
@@ -1066,7 +912,7 @@ type LeadFormState = {
   primaryIntent: string
   leadPriority: string
   priorityReason: string
-  recommendedNextAction: string
+  lostReason: string
   pipelineStage: string
   consentToContact: boolean
 }
@@ -1088,7 +934,7 @@ function leadFormState(lead: LeadDetail): LeadFormState {
     primaryIntent: lead.primaryIntent ?? 'none',
     leadPriority: lead.leadPriority ?? 'none',
     priorityReason: lead.priorityReason ?? '',
-    recommendedNextAction: lead.recommendedNextAction ?? 'none',
+    lostReason: lead.lostReason || '',
     pipelineStage: lead.pipelineStage ?? 'none',
     consentToContact: lead.consentToContact ?? false,
   }
@@ -1177,12 +1023,14 @@ function FormSelect({
   return (
     <FormField id={id} label={label} className={className}>
       <Select value={value} onValueChange={onChange} disabled={disabled}>
-        <SelectTrigger id={id} className={cn('w-full text-sm', formControlClass)}>
+        <SelectTrigger
+          id={id}
+          className={cn('w-full text-sm', formControlClass)}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
           {allowNone && <SelectItem value='none'>Not set</SelectItem>}
-          {options.map(option => (
+          {options.map((option) => (
             <SelectItem key={option.value} value={option.value}>
               {option.label}
             </SelectItem>
@@ -1204,13 +1052,14 @@ function LeadEditDialog({
 }) {
   const router = useRouter()
   const [formState, setFormState] = useState(() => leadFormState(lead))
+  const [expectedProfileVersion] = useState(lead.profileVersion)
   const [isSaving, setIsSaving] = useState(false)
 
   function setField<K extends keyof LeadFormState>(
     field: K,
     value: LeadFormState[K],
   ) {
-    setFormState(current => ({ ...current, [field]: value }))
+    setFormState((current) => ({ ...current, [field]: value }))
   }
 
   function handleOpenChange(nextOpen: boolean) {
@@ -1236,6 +1085,7 @@ function LeadEditDialog({
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          expectedProfileVersion,
           name: formState.name.trim(),
           email: optionalValue(formState.email),
           phone: optionalValue(formState.phone),
@@ -1247,16 +1097,18 @@ function LeadEditDialog({
           educationLevel: optionalValue(formState.educationLevel),
           preferredMode: optionalValue(formState.preferredMode),
           joiningTimeline: optionalValue(formState.joiningTimeline),
-          joiningPreferenceDetails: optionalValue(formState.joiningPreferenceDetails),
-          primaryIntent: optionalValue(formState.primaryIntent),
-          leadPriority: optionalValue(formState.leadPriority),
-          priorityReason: optionalValue(formState.priorityReason),
-          recommendedNextAction: optionalValue(
-            formState.recommendedNextAction,
+          joiningPreferenceDetails: optionalValue(
+            formState.joiningPreferenceDetails,
           ),
+          primaryIntent: optionalValue(formState.primaryIntent),
+          lostReason:
+            formState.pipelineStage === 'lost'
+              ? optionalValue(formState.lostReason)
+              : null,
           pipelineStage: optionalValue(formState.pipelineStage),
           ...(formState.consentToContact !== (lead.consentToContact ?? false)
-            ? { consentToContact: formState.consentToContact } : {}),
+            ? { consentToContact: formState.consentToContact }
+            : {}),
         }),
       })
       if (!response.ok) throw new Error(await readError(response))
@@ -1294,7 +1146,7 @@ function LeadEditDialog({
                 required
                 maxLength={200}
                 value={formState.name}
-                onChange={event => setField('name', event.target.value)}
+                onChange={(event) => setField('name', event.target.value)}
                 disabled={isSaving}
                 className={formControlClass}
               />
@@ -1304,7 +1156,7 @@ function LeadEditDialog({
               label='Enquirer type'
               value={formState.enquirerType}
               options={enquirerTypes}
-              onChange={value => setField('enquirerType', value)}
+              onChange={(value) => setField('enquirerType', value)}
               disabled={isSaving}
             />
             <FormField id='edit-lead-email' label='Email'>
@@ -1312,7 +1164,7 @@ function LeadEditDialog({
                 id='edit-lead-email'
                 type='email'
                 value={formState.email}
-                onChange={event => setField('email', event.target.value)}
+                onChange={(event) => setField('email', event.target.value)}
                 disabled={isSaving}
                 className={formControlClass}
               />
@@ -1323,7 +1175,7 @@ function LeadEditDialog({
                 type='tel'
                 maxLength={50}
                 value={formState.phone}
-                onChange={event => setField('phone', event.target.value)}
+                onChange={(event) => setField('phone', event.target.value)}
                 disabled={isSaving}
                 className={formControlClass}
               />
@@ -1340,7 +1192,7 @@ function LeadEditDialog({
               <Switch
                 id='edit-consent'
                 checked={formState.consentToContact}
-                onCheckedChange={value => setField('consentToContact', value)}
+                onCheckedChange={(value) => setField('consentToContact', value)}
                 disabled={isSaving}
               />
             </div>
@@ -1355,7 +1207,9 @@ function LeadEditDialog({
                 id='edit-student-name'
                 maxLength={200}
                 value={formState.studentName}
-                onChange={event => setField('studentName', event.target.value)}
+                onChange={(event) =>
+                  setField('studentName', event.target.value)
+                }
                 disabled={isSaving}
                 className={formControlClass}
               />
@@ -1366,7 +1220,9 @@ function LeadEditDialog({
                   id='edit-student-age'
                   maxLength={50}
                   value={formState.studentAge}
-                  onChange={event => setField('studentAge', event.target.value)}
+                  onChange={(event) =>
+                    setField('studentAge', event.target.value)
+                  }
                   disabled={isSaving}
                   className={formControlClass}
                 />
@@ -1376,7 +1232,7 @@ function LeadEditDialog({
                   id='edit-student-gender'
                   maxLength={50}
                   value={formState.studentGender}
-                  onChange={event =>
+                  onChange={(event) =>
                     setField('studentGender', event.target.value)
                   }
                   disabled={isSaving}
@@ -1389,7 +1245,7 @@ function LeadEditDialog({
                 id='edit-course-interest'
                 maxLength={300}
                 value={formState.courseInterest}
-                onChange={event =>
+                onChange={(event) =>
                   setField('courseInterest', event.target.value)
                 }
                 disabled={isSaving}
@@ -1401,7 +1257,7 @@ function LeadEditDialog({
                 id='edit-education-level'
                 maxLength={200}
                 value={formState.educationLevel}
-                onChange={event =>
+                onChange={(event) =>
                   setField('educationLevel', event.target.value)
                 }
                 disabled={isSaving}
@@ -1413,7 +1269,7 @@ function LeadEditDialog({
               label='Preferred mode'
               value={formState.preferredMode}
               options={preferredModes}
-              onChange={value => setField('preferredMode', value)}
+              onChange={(value) => setField('preferredMode', value)}
               disabled={isSaving}
             />
             <FormSelect
@@ -1421,20 +1277,29 @@ function LeadEditDialog({
               label='Joining timeline'
               value={formState.joiningTimeline}
               options={joiningTimelines}
-              onChange={value => setField('joiningTimeline', value)}
+              onChange={(value) => setField('joiningTimeline', value)}
               disabled={isSaving}
             />
-            <FormField id='edit-joining-details' label='Joining preference details'>
-              <Input id='edit-joining-details' value={formState.joiningPreferenceDetails}
-                onChange={event => setField('joiningPreferenceDetails', event.target.value)}
-                maxLength={2000} disabled={isSaving} className={formControlClass} />
+            <FormField
+              id='edit-joining-details'
+              label='Joining preference details'>
+              <Input
+                id='edit-joining-details'
+                value={formState.joiningPreferenceDetails}
+                onChange={(event) =>
+                  setField('joiningPreferenceDetails', event.target.value)
+                }
+                maxLength={2000}
+                disabled={isSaving}
+                className={formControlClass}
+              />
             </FormField>
             <FormSelect
               id='edit-primary-intent'
               label='Primary intent'
               value={formState.primaryIntent}
               options={primaryIntents}
-              onChange={value => setField('primaryIntent', value)}
+              onChange={(value) => setField('primaryIntent', value)}
               disabled={isSaving}
               className='sm:col-span-2'
             />
@@ -1449,42 +1314,37 @@ function LeadEditDialog({
               label='Pipeline stage'
               value={formState.pipelineStage}
               options={pipelineStages}
-              onChange={value => setField('pipelineStage', value)}
+              onChange={(value) => setField('pipelineStage', value)}
               disabled={isSaving}
             />
-            <FormSelect
-              id='edit-lead-priority'
-              label='Lead priority'
-              value={formState.leadPriority}
-              options={priorities}
-              onChange={value => setField('leadPriority', value)}
-              disabled={isSaving}
-            />
-            <FormSelect
-              id='edit-recommended-action'
-              label='Recommended next action'
-              value={formState.recommendedNextAction}
-              options={nextActions}
-              onChange={value => setField('recommendedNextAction', value)}
-              disabled={isSaving}
-              className='sm:col-span-2'
-            />
-            <FormField
-              id='edit-priority-reason'
-              label='Priority reason'
-              className='sm:col-span-2'>
-              <Textarea
-                id='edit-priority-reason'
-                maxLength={2000}
-                rows={3}
-                value={formState.priorityReason}
-                onChange={event =>
-                  setField('priorityReason', event.target.value)
-                }
-                disabled={isSaving}
-                className={formControlClass}
-              />
-            </FormField>
+            <p className='text-xs text-muted-foreground'>
+              Priority is calculated from the lead’s accepted facts. The reason
+              updates when you save.
+            </p>
+            <p className='text-xs text-muted-foreground sm:col-span-2'>
+              The next action is calculated from accepted facts and the current
+              follow-up workflow.
+            </p>
+            {formState.pipelineStage === 'lost' && (
+              <FormField
+                id='edit-lost-reason'
+                label='Why was this lead lost?'
+                required
+                className='sm:col-span-2'>
+                <Textarea
+                  id='edit-lost-reason'
+                  required
+                  rows={3}
+                  maxLength={2000}
+                  value={formState.lostReason}
+                  onChange={(event) =>
+                    setField('lostReason', event.target.value)
+                  }
+                  disabled={isSaving}
+                  placeholder='Record the reason for closing this enquiry.'
+                />
+              </FormField>
+            )}
           </FormSection>
 
           <DialogFooter>
@@ -1501,214 +1361,6 @@ function LeadEditDialog({
               className={actionButtonClass}>
               {isSaving && <Loader2Icon className='size-4 animate-spin' />}
               {isSaving ? 'Saving…' : 'Save changes'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-type FollowUpFormState = {
-  counsellorId: string
-  followUpType: string
-  status: string
-  scheduledFor: string
-  outcome: string
-  notes: string
-}
-
-function followUpFormState(followUp: LeadFollowUp | null): FollowUpFormState {
-  return {
-    counsellorId: followUp?.counsellorId ?? 'none',
-    followUpType: followUp?.followUpType ?? 'callback',
-    status: followUp?.status ?? 'pending',
-    scheduledFor: toDateTimeLocal(followUp?.scheduledFor ?? null),
-    outcome: followUp?.outcome ?? 'none',
-    notes: followUp?.notes ?? '',
-  }
-}
-
-function FollowUpDialog({
-  leadId,
-  members,
-  followUp,
-  open,
-  onOpenChange,
-}: {
-  leadId: string
-  members: OrganizationMemberOption[]
-  followUp: LeadFollowUp | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-}) {
-  const router = useRouter()
-  const [formState, setFormState] = useState(() =>
-    followUpFormState(followUp),
-  )
-  const [isSaving, setIsSaving] = useState(false)
-
-  function setField<K extends keyof FollowUpFormState>(
-    field: K,
-    value: FollowUpFormState[K],
-  ) {
-    setFormState(current => ({ ...current, [field]: value }))
-  }
-
-  function handleOpenChange(nextOpen: boolean) {
-    if (isSaving) return
-    if (nextOpen) setFormState(followUpFormState(followUp))
-    onOpenChange(nextOpen)
-  }
-
-  async function saveFollowUp(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setIsSaving(true)
-    try {
-      const response = await fetch(
-        followUp
-          ? `/api/dashboard/leads/${leadId}/follow-ups/${followUp.id}`
-          : `/api/dashboard/leads/${leadId}/follow-ups`,
-        {
-          method: followUp ? 'PATCH' : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            counsellorId: optionalValue(formState.counsellorId),
-            followUpType: formState.followUpType,
-            status: formState.status,
-            scheduledFor: formState.scheduledFor
-              ? new Date(formState.scheduledFor).toISOString()
-              : null,
-            outcome: optionalValue(formState.outcome),
-            notes: optionalValue(formState.notes),
-          }),
-        },
-      )
-      if (!response.ok) throw new Error(await readError(response))
-
-      toast.success(followUp ? 'Follow-up updated' : 'Follow-up created')
-      onOpenChange(false)
-      router.refresh()
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : 'Could not save follow-up',
-      )
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className='no-scrollbar max-h-[90vh] overflow-y-auto sm:max-w-xl'>
-        <DialogHeader>
-          <DialogTitle>
-            {followUp ? 'Edit follow-up' : 'Add follow-up'}
-          </DialogTitle>
-          <DialogDescription>
-            Assign an owner, schedule the activity, and record its result.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={saveFollowUp} className='space-y-5'>
-          <div className='grid gap-4 sm:grid-cols-2'>
-            <div className='space-y-1.5'>
-              <Label htmlFor='follow-up-counsellor' className='text-xs'>
-                Counsellor
-              </Label>
-              <Select
-                value={formState.counsellorId}
-                onValueChange={value => setField('counsellorId', value)}
-                disabled={isSaving}>
-                <SelectTrigger
-                  id='follow-up-counsellor'
-                  className='w-full text-sm'>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value='none'>Unassigned</SelectItem>
-                  {members.map(member => (
-                    <SelectItem key={member.userId} value={member.userId}>
-                      {member.name ||
-                        member.email ||
-                        `Organization member (${member.role || 'member'})`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <FormSelect
-              id='follow-up-type'
-              label='Type'
-              value={formState.followUpType}
-              options={followUpTypes}
-              onChange={value => setField('followUpType', value)}
-              disabled={isSaving}
-              allowNone={false}
-            />
-            <FormSelect
-              id='follow-up-status'
-              label='Status'
-              value={formState.status}
-              options={followUpStatuses}
-              onChange={value => setField('status', value)}
-              disabled={isSaving}
-              allowNone={false}
-            />
-            <div className='space-y-1.5'>
-              <Label htmlFor='follow-up-schedule' className='text-xs'>
-                Scheduled for
-              </Label>
-              <Input
-                id='follow-up-schedule'
-                type='datetime-local'
-                value={formState.scheduledFor}
-                onChange={event =>
-                  setField('scheduledFor', event.target.value)
-                }
-                disabled={isSaving}
-              />
-            </div>
-            <FormSelect
-              id='follow-up-outcome'
-              label='Outcome'
-              value={formState.outcome}
-              options={followUpOutcomes}
-              onChange={value => setField('outcome', value)}
-              disabled={isSaving}
-            />
-            <div className='space-y-1.5 sm:col-span-2'>
-              <Label htmlFor='follow-up-notes' className='text-xs'>
-                Notes
-              </Label>
-              <Textarea
-                id='follow-up-notes'
-                rows={5}
-                maxLength={10000}
-                value={formState.notes}
-                onChange={event => setField('notes', event.target.value)}
-                placeholder='Add context, next steps, or discussion notes…'
-                disabled={isSaving}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              type='button'
-              onClick={() => onOpenChange(false)}
-              disabled={isSaving}
-              className={actionButtonClass}>
-              Cancel
-            </Button>
-            <Button
-              type='submit'
-              disabled={isSaving}
-              className={actionButtonClass}>
-              {isSaving && <Loader2Icon className='size-4 animate-spin' />}
-              {isSaving
-                ? 'Saving…'
-                : followUp
-                  ? 'Save changes'
-                  : 'Create follow-up'}
             </Button>
           </DialogFooter>
         </form>
